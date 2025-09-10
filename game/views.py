@@ -1,5 +1,6 @@
 import random
 import string
+from django.http import HttpResponseServerError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -8,13 +9,26 @@ from .models import Room, Player
 def _gen_code(n=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=n))
 
+
+def _gen_unique_code():
+    """Generate a room code that is not already used."""
+    code = _gen_code()
+    while Room.objects.filter(code=code).exists():
+        code = _gen_code()
+    return code
+
 @login_required
 def create_room(request):
     if request.method == "POST":
-        code = _gen_code()
-        room = Room.objects.create(code=code, host=request.user)
-        Player.objects.create(room=room, user=request.user, seat=0)
-        return redirect('room', code=code)
+        for _ in range(10):
+            code = _gen_unique_code()
+            room, created = Room.objects.get_or_create(
+                code=code, defaults={"host": request.user}
+            )
+            if created:
+                Player.objects.create(room=room, user=request.user, seat=0)
+                return redirect('room', code=code)
+        return HttpResponseServerError("Unable to generate unique room code. Please try again.")
     return render(request, 'game/create_room.html')
 
 @login_required
