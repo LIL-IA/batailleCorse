@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Salle {{ room.code }}</h2>
-<p>Joueurs :
+<p>Joueurs :</p>
+<ul id="players">
   {% for p in players %}
-    <strong>{{ p.user.username }}</strong>{% if not forloop.last %}, {% endif %}
+    <li data-user-id="{{ p.user.id }}">
+      <strong>{{ p.user.username }}</strong> :
+      <span class="status">en attente</span>
+      <button class="ready-btn" onclick="wsSend({type:'ready'})" {% if p.user != request.user %}disabled{% endif %}>Se déclarer prêt</button>
+    </li>
   {% endfor %}
-</p>
+</ul>
 
 <button onclick="wsSend({type:'start'})">Démarrer une partie</button>
 <button onclick="wsSend({type:'play'})">Jouer une carte</button>
@@ -16,6 +21,7 @@
 
 <script>
   const roomCode = "{{ room.code|escapejs }}";
+  const currentUserId = {{ request.user.id }};
   const wsScheme = location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${wsScheme}://${location.host}/ws/room/${roomCode}/`);
 
@@ -24,6 +30,16 @@
     const msg = JSON.parse(ev.data);
     if (msg.type === "state") {
       document.getElementById("state").textContent = JSON.stringify(msg.state, null, 2);
+      const ready = msg.ready || [];
+      document.querySelectorAll('#players li').forEach(li => {
+        const uid = parseInt(li.dataset.userId, 10);
+        const status = li.querySelector('.status');
+        status.textContent = ready.includes(uid) ? 'prêt' : 'en attente';
+        const btn = li.querySelector('.ready-btn');
+        if (btn && uid === currentUserId) {
+          btn.disabled = ready.includes(uid);
+        }
+      });
     }
   };
   socket.onclose = () => console.log("WS fermé");
