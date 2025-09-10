@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import TransactionTestCase, override_settings
 from channels.testing import WebsocketCommunicator
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 
 from game.models import Room, Player
 from game.consumers import ENGINES, SLAP_CTX
@@ -43,8 +43,20 @@ class RoomConsumerTests(TransactionTestCase):
             connected, _ = await communicator.connect()
             assert connected
             await communicator.receive_json_from()
+            await communicator.send_json_to({"type": "ready", "value": True})
+            await communicator.receive_json_from()
+            other = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            other.scope["user"] = self.user2
+            connected, _ = await other.connect()
+            assert connected
+            await other.receive_json_from()
+            await other.send_json_to({"type": "ready", "value": True})
+            await communicator.receive_json_from()
+            await other.receive_json_from()
             await communicator.send_json_to({"type": "start"})
             await communicator.receive_json_from()
+            await other.receive_json_from()
+            await other.disconnect()
             await communicator.disconnect()
 
         async_to_sync(inner)()
@@ -93,3 +105,48 @@ class RoomConsumerTests(TransactionTestCase):
 
         init, after = run(True)
         assert after is init
+
+    def test_ready_and_start_requires_all_ready(self):
+        async def inner():
+            comm1 = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            comm1.scope["user"] = self.user1
+            connected, _ = await comm1.connect()
+            assert connected
+            await comm1.receive_json_from()
+
+            comm2 = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            comm2.scope["user"] = self.user2
+            connected, _ = await comm2.connect()
+            assert connected
+            await comm2.receive_json_from()
+            await comm1.receive_json_from()
+
+            await comm1.send_json_to({"type": "ready", "value": True})
+            await comm1.receive_json_from()
+            await comm2.receive_json_from()
+
+            await comm2.send_json_to({"type": "ready", "value": False})
+            await comm1.receive_json_from()
+            await comm2.receive_json_from()
+
+            ready1 = await sync_to_async(lambda: Player.objects.get(room=self.room, user=self.user1).is_ready)()
+            ready2 = await sync_to_async(lambda: Player.objects.get(room=self.room, user=self.user2).is_ready)()
+            assert ready1 is True
+            assert ready2 is False
+
+            await comm1.send_json_to({"type": "start"})
+            resp = await comm1.receive_json_from()
+            assert resp["error"] == "not-ready"
+
+            await comm2.send_json_to({"type": "ready", "value": True})
+            await comm1.send_json_to({"type": "start"})
+            await comm1.receive_json_from()
+            await comm2.receive_json_from()
+
+            await comm1.disconnect()
+            await comm2.disconnect()
+
+        async_to_sync(inner)()
+        self.room.refresh_from_db()
+        assert self.room.is_started is True
+        assert Player.objects.filter(room=self.room, is_ready=True).count() == 0

@@ -3,7 +3,7 @@ import asyncio
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
-from .models import Room, GameState
+from .models import Room, GameState, Player
 from .engine import GameEngine
 
 ENGINES = {}
@@ -63,6 +63,14 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                 "graceMs": GRACE_MS
             })
 
+        elif t == "ready":
+            val = bool(content.get("value"))
+            await self._set_ready(user_id, val)
+            await self.channel_layer.group_send(
+                self.group,
+                {"type": "deliver", "payload": {"type": "ready", "userId": user_id, "value": val}},
+            )
+
         elif t == "start":
             if await self._is_host(user_id):
                 players = await self._players_order()
@@ -70,9 +78,13 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     await self.send_json({"error": "not-enough-players"})
                     return
                 try:
-                    await self._reset_engine()
-                    await self._set_room_started()
-                    await self._broadcast_state()
+                    if await self._all_players_ready():
+                      await self._reset_engine()
+                      await self._set_room_started()
+                      await self._reset_ready_flags()
+                      await self._broadcast_state()
+                    else:
+                      await self.send_json({"error": "not-ready"})
                 except Exception:
                     await self.send_json({"error": "start-failed"})
         else:
@@ -160,6 +172,18 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     def _players_order(self):
         r = Room.objects.get(code=self.room_code)
         return list(r.players.order_by("seat").values_list("user_id", flat=True))
+
+    @database_sync_to_async
+    def _set_ready(self, user_id, value):
+        Player.objects.filter(room__code=self.room_code, user_id=user_id).update(is_ready=value)
+
+    @database_sync_to_async
+    def _reset_ready_flags(self):
+        Player.objects.filter(room__code=self.room_code).update(is_ready=False)
+
+    @database_sync_to_async
+    def _all_players_ready(self):
+        return not Player.objects.filter(room__code=self.room_code, is_ready=False).exists()
 
     @database_sync_to_async
     def _set_room_started(self):

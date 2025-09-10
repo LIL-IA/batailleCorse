@@ -15,6 +15,7 @@ class Player(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     seat = models.PositiveSmallIntegerField()
     is_active = models.BooleanField(default=True)
+    is_ready = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ("room", "user")
