@@ -1,11 +1,8 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8"><title>Créer une salle</title></head>
-<body>
-  <h2>Créer une salle</h2>
-  <form method="post">{% csrf_token %}
-    <button type="submit">Créer</button>
-  </form>
-  <p><a href="/">Retour</a></p>
-</body>
-</html>
+{% extends "base.html" %}
+{% block content %}
+<h2>Créer une salle</h2>
+<form method="post">{% csrf_token %}
+  <button type="submit">Créer</button>
+</form>
+<p><a href="/">Retour</a></p>
+{% endblock %}

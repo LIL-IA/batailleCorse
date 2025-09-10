@@ -1,14 +1,11 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8"><title>Rejoindre une salle</title></head>
-<body>
-  <h2>Rejoindre une salle</h2>
-  <form method="post">{% csrf_token %}
-    <label>Code de la salle:
-      <input name="code" maxlength="8" required>
-    </label>
-    <button type="submit">Rejoindre</button>
-  </form>
-  <p><a href="/">Retour</a></p>
-</body>
-</html>
+{% extends "base.html" %}
+{% block content %}
+<h2>Rejoindre une salle</h2>
+<form method="post">{% csrf_token %}
+  <label>Code de la salle:
+    <input name="code" maxlength="8" required>
+  </label>
+  <button type="submit">Rejoindre</button>
+</form>
+<p><a href="/">Retour</a></p>
+{% endblock %}
