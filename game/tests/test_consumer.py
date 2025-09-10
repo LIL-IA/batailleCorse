@@ -63,6 +63,24 @@ class RoomConsumerTests(TransactionTestCase):
         self.room.refresh_from_db()
         assert self.room.is_started is True
 
+    def test_start_fails_with_insufficient_players(self):
+        Player.objects.filter(room=self.room, user=self.user2).delete()
+
+        async def inner():
+            communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            communicator.scope["user"] = self.user1
+            connected, _ = await communicator.connect()
+            assert connected
+            await communicator.receive_json_from()
+            await communicator.send_json_to({"type": "start"})
+            response = await communicator.receive_json_from()
+            assert response["error"] == "not-enough-players"
+            await communicator.disconnect()
+
+        async_to_sync(inner)()
+        self.room.refresh_from_db()
+        assert self.room.is_started is False
+
     def test_connect_resets_engine_only_if_not_started(self):
         async def connect_and_get_engine():
             communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")

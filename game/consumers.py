@@ -73,13 +73,20 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
         elif t == "start":
             if await self._is_host(user_id):
-                if await self._all_players_ready():
-                    await self._reset_engine()
-                    await self._set_room_started()
-                    await self._reset_ready_flags()
-                    await self._broadcast_state()
-                else:
-                    await self.send_json({"error": "not-ready"})
+                players = await self._players_order()
+                if len(players) < 2:
+                    await self.send_json({"error": "not-enough-players"})
+                    return
+                try:
+                    if await self._all_players_ready():
+                      await self._reset_engine()
+                      await self._set_room_started()
+                      await self._reset_ready_flags()
+                      await self._broadcast_state()
+                    else:
+                      await self.send_json({"error": "not-ready"})
+                except Exception:
+                    await self.send_json({"error": "start-failed"})
         else:
             await self.send_json({"error": "unknown-event"})
 
