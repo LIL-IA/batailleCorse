@@ -47,4 +47,9 @@ def join_room(request):
 def room(request, code):
     room = get_object_or_404(Room, code=code)
     players = room.players.select_related("user").all()
-    return render(request, 'game/room.html', {"room": room, "players": players})
+    is_host = request.user == room.host
+    return render(
+        request,
+        'game/room.html',
+        {"room": room, "players": players, "is_host": is_host},
+    )
