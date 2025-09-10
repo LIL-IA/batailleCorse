@@ -5,6 +5,7 @@ from asgiref.sync import async_to_sync
 
 from game.models import Room, Player
 from game.consumers import ENGINES, SLAP_CTX
+from game.engine import GameEngine
 from project.asgi import application
 
 
@@ -34,3 +35,43 @@ class RoomConsumerTests(TransactionTestCase):
             await communicator.disconnect()
 
         async_to_sync(inner)()
+
+    def test_start_marks_room_started(self):
+        async def inner():
+            communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            communicator.scope["user"] = self.user1
+            connected, _ = await communicator.connect()
+            assert connected
+            await communicator.receive_json_from()
+            await communicator.send_json_to({"type": "start"})
+            await communicator.receive_json_from()
+            await communicator.disconnect()
+
+        async_to_sync(inner)()
+        self.room.refresh_from_db()
+        assert self.room.is_started is True
+
+    def test_connect_resets_engine_only_if_not_started(self):
+        async def connect_and_get_engine():
+            communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            communicator.scope["user"] = self.user1
+            connected, _ = await communicator.connect()
+            assert connected
+            await communicator.receive_json_from()
+            engine = ENGINES[self.room.code]
+            await communicator.disconnect()
+            return engine
+
+        def run(started):
+            ENGINES.clear()
+            engine_initial = ENGINES[self.room.code] = GameEngine([self.user1.id, self.user2.id])
+            self.room.is_started = started
+            self.room.save()
+            engine_after = async_to_sync(connect_and_get_engine)()
+            return engine_initial, engine_after
+
+        init, after = run(False)
+        assert after is not init
+
+        init, after = run(True)
+        assert after is init

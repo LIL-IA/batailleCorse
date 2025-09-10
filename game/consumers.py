@@ -20,7 +20,10 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             return
         await self.channel_layer.group_add(self.group, self.channel_name)
         await self.accept()
-        await self._ensure_engine()
+        if await self._is_room_started():
+            await self._ensure_engine()
+        else:
+            await self._reset_engine()
         engine = ENGINES.get(self.room_code)
         db_players = await self._players_order()
         if engine and set(db_players) != set(engine.players):
@@ -63,6 +66,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         elif t == "start":
             if await self._is_host(user_id):
                 await self._reset_engine()
+                await self._set_room_started()
                 await self._broadcast_state()
         else:
             await self.send_json({"error": "unknown-event"})
@@ -149,3 +153,13 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     def _players_order(self):
         r = Room.objects.get(code=self.room_code)
         return list(r.players.order_by("seat").values_list("user_id", flat=True))
+
+    @database_sync_to_async
+    def _set_room_started(self):
+        room = Room.objects.get(code=self.room_code)
+        room.is_started = True
+        room.save(update_fields=["is_started"])
+
+    @database_sync_to_async
+    def _is_room_started(self):
+        return Room.objects.filter(code=self.room_code, is_started=True).exists()
