@@ -12,7 +12,9 @@
   {% endfor %}
 </ul>
 
+{% if is_host %}
 <button onclick="wsSend({type:'start'})">Démarrer une partie</button>
+{% endif %}
 <button onclick="wsSend({type:'play'})">Jouer une carte</button>
 <button onclick="wsSend({type:'slap'})">TAPER !</button>
 
