@@ -20,7 +20,7 @@
   <p><a href="/">Accueil</a></p>
 
 <script>
-  const roomCode = "{{ room.code }}";
+  const roomCode = "{{ room.code|escapejs }}";
   const wsScheme = location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${wsScheme}://${location.host}/ws/room/${roomCode}/`);
 
