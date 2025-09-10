@@ -3,7 +3,7 @@ import asyncio
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
-from .models import Room
+from .models import Room, GameState
 from .engine import GameEngine
 
 ENGINES = {}
@@ -63,6 +63,14 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(self.group, self.channel_name)
+        group = getattr(self.channel_layer, "groups", {}).get(self.group)
+        if not group:
+            engine = ENGINES.pop(self.room_code, None)
+            if engine:
+                await self._persist_state(engine)
+            ctx = SLAP_CTX.pop(self.room_code, None)
+            if ctx and ctx.get("task"):
+                ctx["task"].cancel()
 
     async def _resolve_slap_after_delay(self):
         await asyncio.sleep(GRACE_MS / 1000.0)
@@ -112,6 +120,14 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def _reset_engine(self):
         players = await self._players_order()
         ENGINES[self.room_code] = GameEngine(players)
+
+    @database_sync_to_async
+    def _persist_state(self, engine):
+        room = Room.objects.get(code=self.room_code)
+        GameState.objects.update_or_create(
+            room=room,
+            defaults={"state_json": engine.serialize()},
+        )
 
     @database_sync_to_async
     def _is_host(self, user_id):

@@ -37,10 +37,17 @@ Crée un compte, crée une salle, partage le **code** à tes amis (ils doivent a
 
 Réglages dans `game/engine.py` (`options`): double, sandwich, pénalité, etc.
 
+## Tests
+
+Exécute les tests unitaires et d'intégration avec le runner Django :
+
+```bash
+python manage.py test
+```
+
 ## À faire (idées)
 
 - UI plus jolie (cartes, animations)
 - Sauvegardes périodiques de `GameState`
 - Ratelimiting & anti-spam
 - Reconnexion robuste / mobile
-- Tests unitaires

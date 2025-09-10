@@ -66,10 +66,7 @@ if DATABASE_URL.startswith("sqlite:///"):
         }
     }
 else:
-    # Expecting a postgres URL
-    import dj_database_url  # we will re-implement if missing; safer to parse manually
-    # Fallback simple parser if dj_database_url isn't installed:
-    from urllib.parse import urlparse
+    # Expecting a postgres URL; parse manually
     url = urlparse(DATABASE_URL)
     DATABASES = {
         "default": {
