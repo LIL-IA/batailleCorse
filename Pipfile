@@ -1,0 +1,18 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+Django = "==5.0.7"
+channels = "==4.1.0"
+channels-redis = "==4.2.0"
+python-dotenv = "==1.0.1"
+whitenoise = "==6.7.0"
+psycopg2-binary = "==2.9.9"
+daphne = "==4.1.2"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
