@@ -24,6 +24,12 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             await self._ensure_engine()
         else:
             await self._reset_engine()
+        engine = ENGINES.get(self.room_code)
+        db_players = await self._players_order()
+        if engine and set(db_players) != set(engine.players):
+            extra = set(db_players) - set(engine.players)
+            if extra and not await self._is_started():
+                await self._reset_engine()
         await self._ensure_slap_ctx()
         await self._broadcast_state()
 
@@ -137,6 +143,11 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     def _is_host(self, user_id):
         r = Room.objects.get(code=self.room_code)
         return r.host_id == user_id
+
+    @database_sync_to_async
+    def _is_started(self):
+        r = Room.objects.get(code=self.room_code)
+        return r.is_started
 
     @database_sync_to_async
     def _players_order(self):
