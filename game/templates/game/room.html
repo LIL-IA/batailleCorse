@@ -1,23 +1,18 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <title>Salle {{ room.code }}</title>
-</head>
-<body>
-  <h2>Salle {{ room.code }}</h2>
-  <p>Joueurs :
-    {% for p in players %}
-      <strong>{{ p.user.username }}</strong>{% if not forloop.last %}, {% endif %}
-    {% endfor %}
-  </p>
+{% extends "base.html" %}
+{% block content %}
+<h2>Salle {{ room.code }}</h2>
+<p>Joueurs :
+  {% for p in players %}
+    <strong>{{ p.user.username }}</strong>{% if not forloop.last %}, {% endif %}
+  {% endfor %}
+</p>
 
-  <button onclick="wsSend({type:'start'})">Démarrer une partie</button>
-  <button onclick="wsSend({type:'play'})">Jouer une carte</button>
-  <button onclick="wsSend({type:'slap'})">TAPER !</button>
+<button onclick="wsSend({type:'start'})">Démarrer une partie</button>
+<button onclick="wsSend({type:'play'})">Jouer une carte</button>
+<button onclick="wsSend({type:'slap'})">TAPER !</button>
 
-  <pre id="state"></pre>
-  <p><a href="/">Accueil</a></p>
+<pre id="state"></pre>
+<p><a href="/">Accueil</a></p>
 
 <script>
   const roomCode = "{{ room.code }}";
@@ -34,5 +29,4 @@
   socket.onclose = () => console.log("WS fermé");
   function wsSend(obj){ socket.send(JSON.stringify(obj)); }
 </script>
-</body>
-</html>
+{% endblock %}
