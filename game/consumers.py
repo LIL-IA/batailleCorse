@@ -8,6 +8,7 @@ from .engine import GameEngine
 
 ENGINES = {}
 SLAP_CTX = {}
+READY = {}
 GRACE_MS = 40
 
 class RoomConsumer(AsyncJsonWebsocketConsumer):
@@ -20,6 +21,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             return
         await self.channel_layer.group_add(self.group, self.channel_name)
         await self.accept()
+        READY.setdefault(self.room_code, set())
         if await self._is_room_started():
             await self._ensure_engine()
         else:
@@ -63,6 +65,10 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                 "graceMs": GRACE_MS
             })
 
+        elif t == "ready":
+            READY.setdefault(self.room_code, set()).add(user_id)
+            await self._broadcast_state()
+
         elif t == "start":
             if await self._is_host(user_id):
                 await self._reset_engine()
@@ -73,6 +79,10 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(self.group, self.channel_name)
+        ready = READY.get(self.room_code)
+        uid = self.scope.get("user").id if self.scope.get("user") else None
+        if ready and uid:
+            ready.discard(uid)
         group = getattr(self.channel_layer, "groups", {}).get(self.group)
         if not group:
             engine = ENGINES.pop(self.room_code, None)
@@ -81,6 +91,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             ctx = SLAP_CTX.pop(self.room_code, None)
             if ctx and ctx.get("task"):
                 ctx["task"].cancel()
+            READY.pop(self.room_code, None)
 
     async def _resolve_slap_after_delay(self):
         await asyncio.sleep(GRACE_MS / 1000.0)
@@ -114,7 +125,11 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
     async def _broadcast_state(self, extra=None):
         engine = ENGINES.get(self.room_code)
-        payload = {"type": "state", "state": engine.serialize()}
+        payload = {
+            "type": "state",
+            "state": engine.serialize(),
+            "ready": list(READY.get(self.room_code, set())),
+        }
         if extra:
             payload.update(extra)
         await self.channel_layer.group_send(self.group, {"type": "deliver", "payload": payload})
@@ -130,6 +145,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def _reset_engine(self):
         players = await self._players_order()
         ENGINES[self.room_code] = GameEngine(players)
+        READY[self.room_code] = set()
 
     @database_sync_to_async
     def _persist_state(self, engine):
