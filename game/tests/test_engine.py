@@ -1,0 +1,44 @@
+from collections import deque
+from django.test import SimpleTestCase
+
+from game.engine import GameEngine
+
+
+class GameEngineTests(SimpleTestCase):
+    def test_deal_distribution(self):
+        engine = GameEngine([1, 2])
+        self.assertEqual(len(engine.hands[1]), 26)
+        self.assertEqual(len(engine.hands[2]), 26)
+        self.assertEqual(sum(len(h) for h in engine.hands.values()), 52)
+        self.assertEqual(len(engine.center), 0)
+
+    def test_slap_validity(self):
+        engine = GameEngine([1, 2])
+        engine.center = ['5H', '5D']
+        self.assertTrue(engine.is_slap_valid())
+        engine.center = ['5H', '7D', '5S']
+        self.assertTrue(engine.is_slap_valid())
+        engine.center = ['5H', '7D']
+        self.assertFalse(engine.is_slap_valid())
+
+    def test_face_card_rules(self):
+        engine = GameEngine([1, 2])
+        engine.hands[1] = deque(['AH'])
+        engine.hands[2] = deque(['3D', '4D', '5D', '6D'])
+        engine.center = []
+        engine.turn_idx = 0
+
+        res = engine.play_card(1)
+        self.assertTrue(res['ok'])
+        self.assertEqual(engine.face_chances, 4)
+        self.assertEqual(engine.turn_idx, 1)
+
+        for _ in range(4):
+            res = engine.play_card(2)
+            self.assertTrue(res['ok'])
+
+        self.assertEqual(engine.face_chances, 0)
+        self.assertEqual(engine.turn_idx, 0)
+        self.assertEqual(len(engine.center), 0)
+        self.assertEqual(len(engine.hands[1]), 5)
+        self.assertEqual(len(engine.hands[2]), 0)
