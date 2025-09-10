@@ -66,7 +66,13 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             })
 
         elif t == "ready":
-            READY.setdefault(self.room_code, set()).add(user_id)
+            value = content.get("value", False)
+            await self._set_ready(user_id, value)
+            ready_set = READY.setdefault(self.room_code, set())
+            if value:
+                ready_set.add(user_id)
+            else:
+                ready_set.discard(user_id)
             await self._broadcast_state()
 
         elif t == "start":
