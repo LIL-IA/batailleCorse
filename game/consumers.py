@@ -29,13 +29,13 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             if await self._is_room_started():
                 await self._ensure_engine()
             else:
-                await self._reset_engine()
+                await self._reset_engine(clear_ready=False)
             engine = ENGINES.get(self.room_code)
             db_players = await self._players_order()
             if engine and set(db_players) != set(engine.players):
                 extra = set(db_players) - set(engine.players)
                 if extra and not await self._is_started():
-                    await self._reset_engine()
+                    await self._reset_engine(clear_ready=False)
             await self._ensure_slap_ctx()
             await self._broadcast_state()
             logger.debug("User %s connected to room %s", user.id, self.room_code)
@@ -93,7 +93,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                         return
                     try:
                         if await self._all_players_ready():
-                            await self._reset_engine()
+                            await self._reset_engine(clear_ready=True)
                             await self._set_room_started()
                             await self._reset_ready_flags()
                             await self._broadcast_state()
@@ -175,10 +175,11 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             players = await self._players_order()
             ENGINES[self.room_code] = GameEngine(players)
 
-    async def _reset_engine(self):
+    async def _reset_engine(self, clear_ready=False):
         players = await self._players_order()
         ENGINES[self.room_code] = GameEngine(players)
-        READY[self.room_code] = set()
+        if clear_ready:
+            READY[self.room_code] = set()
 
     @database_sync_to_async
     def _persist_state(self, engine):
