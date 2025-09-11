@@ -13,7 +13,6 @@ def signup(request):
         form = UserCreationForm()
     return render(request, 'registration/signup.html', {'form': form})
 
-@login_required
 def room(request, code):
     room = get_object_or_404(Room, code=code)
     # Auto-join si pas encore joueur et partie non démarrée
