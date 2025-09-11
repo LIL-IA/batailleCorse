@@ -150,3 +150,31 @@ class RoomConsumerTests(TransactionTestCase):
         self.room.refresh_from_db()
         assert self.room.is_started is True
         assert Player.objects.filter(room=self.room, is_ready=True).count() == 0
+
+    def test_ready_persists_when_new_player_connects(self):
+        async def inner():
+            comm1 = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            comm1.scope["user"] = self.user1
+            connected, _ = await comm1.connect()
+            assert connected
+            await comm1.receive_json_from()
+
+            await comm1.send_json_to({"type": "ready", "value": True})
+            state = await comm1.receive_json_from()
+            assert self.user1.id in state["ready"]
+
+            comm2 = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            comm2.scope["user"] = self.user2
+            connected, _ = await comm2.connect()
+            assert connected
+
+            state2 = await comm2.receive_json_from()
+            state1 = await comm1.receive_json_from()
+
+            assert self.user1.id in state1["ready"]
+            assert self.user1.id in state2["ready"]
+
+            await comm1.disconnect()
+            await comm2.disconnect()
+
+        async_to_sync(inner)()
