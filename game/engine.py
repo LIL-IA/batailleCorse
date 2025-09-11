@@ -32,12 +32,13 @@ class GameEngine:
         self._deal()
 
     def serialize(self, mask_for=None):
+        counts = {str(pid): len(self.hands[pid]) for pid in self.players}  # <-- clés en str
         return {
-            "players": self.players,
-            "counts": {pid: len(self.hands[pid]) for pid in self.players},
+            "players": self.players,              # ok (liste d’int)
+            "counts": counts,                     # fix
             "center_count": len(self.center),
             "top_center": self.center[-1] if self.center else None,
-            "turn": self.players[self.turn_idx],
+            "turn": self.players[self.turn_idx],  # ok (valeur int)
             "face_chances": self.face_chances,
             "waiting_for_face_from": self.waiting_for_face_from,
         }
