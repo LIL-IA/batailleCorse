@@ -4,7 +4,7 @@ from channels.testing import WebsocketCommunicator
 from asgiref.sync import async_to_sync, sync_to_async
 
 from game.models import Room, Player
-from game.consumers import ENGINES, SLAP_CTX
+from game.consumers import ENGINES, SLAP_CTX, READY
 from game.engine import GameEngine
 from project.asgi import application
 
@@ -14,6 +14,7 @@ class RoomConsumerTests(TransactionTestCase):
     def setUp(self):
         ENGINES.clear()
         SLAP_CTX.clear()
+        READY.clear()
         self.user1 = User.objects.create_user("user1", password="pass")
         self.user2 = User.objects.create_user("user2", password="pass")
         self.room = Room.objects.create(code="abcd", host=self.user1)
@@ -142,6 +143,7 @@ class RoomConsumerTests(TransactionTestCase):
             await comm1.send_json_to({"type": "start"})
             await comm1.receive_json_from()
             await comm2.receive_json_from()
+            assert READY[self.room.code] == set()
 
             await comm1.disconnect()
             await comm2.disconnect()
@@ -150,3 +152,28 @@ class RoomConsumerTests(TransactionTestCase):
         self.room.refresh_from_db()
         assert self.room.is_started is True
         assert Player.objects.filter(room=self.room, is_ready=True).count() == 0
+
+    def test_connect_does_not_clear_ready_flags(self):
+        async def inner():
+            comm1 = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            comm1.scope["user"] = self.user1
+            connected, _ = await comm1.connect()
+            assert connected
+            await comm1.receive_json_from()
+
+            await comm1.send_json_to({"type": "ready", "value": True})
+            await comm1.receive_json_from()
+
+            comm2 = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            comm2.scope["user"] = self.user2
+            connected, _ = await comm2.connect()
+            assert connected
+            await comm2.receive_json_from()
+            await comm1.receive_json_from()
+
+            assert self.user1.id in READY[self.room.code]
+
+            await comm2.disconnect()
+            await comm1.disconnect()
+
+        async_to_sync(inner)()
