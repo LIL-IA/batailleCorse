@@ -68,7 +68,7 @@
     console.error("WS erreur", err);
   };
   socket.onclose = () => {
-    console.log("WS fermé");
+    console.log("WS fermé", ev.code, ev.reason);
     const msg = document.createElement('div');
     msg.innerHTML = '<p>Connexion perdue.</p><button id="rejoin-btn">Rejoindre à nouveau</button>';
     document.body.appendChild(msg);
