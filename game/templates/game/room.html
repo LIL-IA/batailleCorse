@@ -7,7 +7,7 @@
     <li data-user-id="{{ p.user.id }}">
       <strong>{{ p.user.username }}</strong> :
       <span class="status">en attente</span>
-      <button class="ready-btn action-btn" onclick="wsSend({type:'ready'})" {% if p.user != request.user %}disabled{% endif %}>Se déclarer prêt</button>
+      <button class="ready-btn" onclick="wsSend({type:'ready', value:true})" {% if p.user != request.user %}disabled{% endif %}>Se déclarer prêt</button>
     </li>
   {% endfor %}
 </ul>
