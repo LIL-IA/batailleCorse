@@ -87,7 +87,8 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
             elif t == "start":
                 if await self._is_host(user_id):
-                    players = await self._players_order()
+                    await self._reset_engine()
+                    await self._broadcast_state()
                     if len(players) < 2:
                         await self.send_json({"error": "not-enough-players"})
                         return
@@ -158,6 +159,9 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
     async def _broadcast_state(self, extra=None):
         engine = ENGINES.get(self.room_code)
+        if engine is None:
+            await self.send_json({"type":"state","pending":"waiting_for_players"})
+            return
         payload = {
             "type": "state",
             "state": engine.serialize(),
@@ -173,6 +177,9 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def _ensure_engine(self):
         if self.room_code not in ENGINES:
             players = await self._players_order()
+            if not players:  # pas encore de joueurs -> ne pas créer le moteur
+                ENGINES[self.room_code] = None
+                return
             ENGINES[self.room_code] = GameEngine(players)
 
     async def _reset_engine(self, clear_ready=False):
