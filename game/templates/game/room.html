@@ -18,20 +18,31 @@
 <button class="action-btn" onclick="wsSend({type:'play'})">Jouer une carte</button>
 <button class="action-btn" onclick="wsSend({type:'slap'})">TAPER !</button>
 
+<div id="error-message" style="color:red"></div>
 <pre id="state"></pre>
 <p><a href="/">Accueil</a></p>
 
 <script>
+  const errorMessages = {
+      "not-ready": "Tous les joueurs doivent être prêts.",
+      "not-enough-players": "Il faut au moins deux joueurs.",
+      "start-failed": "Erreur lors du démarrage."
+  };
   const roomCode = "{{ room.code|escapejs }}";
   const currentUserId = {{ request.user.id }};
   const wsScheme = location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${wsScheme}://${location.host}/ws/room/${roomCode}/`);
+  const errorDiv = document.getElementById("error-message");
 
   socket.onopen = () => console.log("WS ouvert");
   socket.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.error) {
-      alert(msg.error);
+      const err = errorMessages[msg.error] || msg.error;
+      alert(err);
+      if (errorDiv) {
+        errorDiv.textContent = err;
+      }
       document.querySelectorAll('.action-btn').forEach(btn => {
         btn.disabled = true;
         setTimeout(() => (btn.disabled = false), 1000);
