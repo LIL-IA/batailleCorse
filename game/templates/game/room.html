@@ -32,10 +32,14 @@
     const msg = JSON.parse(ev.data);
     if (msg.error) {
       alert(msg.error);
-      document.querySelectorAll('.action-btn').forEach(btn => btn.disabled = true);
+      document.querySelectorAll('.action-btn').forEach(btn => {
+        btn.disabled = true;
+        setTimeout(() => (btn.disabled = false), 1000);
+      });
       return;
     }
     if (msg.type === "state") {
+      document.querySelectorAll('.action-btn').forEach(btn => (btn.disabled = false));
       document.getElementById("state").textContent = JSON.stringify(msg.state, null, 2);
       const ready = msg.ready || [];
       document.querySelectorAll('#players li').forEach(li => {
