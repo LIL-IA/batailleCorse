@@ -7,16 +7,16 @@
     <li data-user-id="{{ p.user.id }}">
       <strong>{{ p.user.username }}</strong> :
       <span class="status">en attente</span>
-      <button class="ready-btn" onclick="wsSend({type:'ready'})" {% if p.user != request.user %}disabled{% endif %}>Se déclarer prêt</button>
+      <button class="ready-btn action-btn" onclick="wsSend({type:'ready'})" {% if p.user != request.user %}disabled{% endif %}>Se déclarer prêt</button>
     </li>
   {% endfor %}
 </ul>
 
 {% if is_host %}
-<button onclick="wsSend({type:'start'})">Démarrer une partie</button>
+<button class="action-btn" onclick="wsSend({type:'start'})">Démarrer une partie</button>
 {% endif %}
-<button onclick="wsSend({type:'play'})">Jouer une carte</button>
-<button onclick="wsSend({type:'slap'})">TAPER !</button>
+<button class="action-btn" onclick="wsSend({type:'play'})">Jouer une carte</button>
+<button class="action-btn" onclick="wsSend({type:'slap'})">TAPER !</button>
 
 <pre id="state"></pre>
 <p><a href="/">Accueil</a></p>
@@ -30,6 +30,11 @@
   socket.onopen = () => console.log("WS ouvert");
   socket.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
+    if (msg.error) {
+      alert(msg.error);
+      document.querySelectorAll('.action-btn').forEach(btn => btn.disabled = true);
+      return;
+    }
     if (msg.type === "state") {
       document.getElementById("state").textContent = JSON.stringify(msg.state, null, 2);
       const ready = msg.ready || [];
