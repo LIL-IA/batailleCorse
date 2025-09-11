@@ -1,10 +1,13 @@
 import time
 import asyncio
+import logging
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from .models import Room, GameState, Player
 from .engine import GameEngine
+
+logger = logging.getLogger(__name__)
 
 ENGINES = {}
 SLAP_CTX = {}
@@ -13,102 +16,115 @@ GRACE_MS = 40
 
 class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
-        self.room_code = self.scope['url_route']['kwargs']['room_code']
-        self.group = f"room_{self.room_code}"
-        user = self.scope.get("user")
-        if isinstance(user, AnonymousUser) or not user.is_authenticated:
-            await self.close()
-            return
-        await self.channel_layer.group_add(self.group, self.channel_name)
-        await self.accept()
-        READY.setdefault(self.room_code, set())
-        if await self._is_room_started():
-            await self._ensure_engine()
-        else:
-            await self._reset_engine()
-        engine = ENGINES.get(self.room_code)
-        db_players = await self._players_order()
-        if engine and set(db_players) != set(engine.players):
-            extra = set(db_players) - set(engine.players)
-            if extra and not await self._is_started():
+        try:
+            self.room_code = self.scope['url_route']['kwargs']['room_code']
+            self.group = f"room_{self.room_code}"
+            user = self.scope.get("user")
+            if isinstance(user, AnonymousUser) or not user.is_authenticated:
+                await self.close()
+                return
+            await self.channel_layer.group_add(self.group, self.channel_name)
+            await self.accept()
+            READY.setdefault(self.room_code, set())
+            if await self._is_room_started():
+                await self._ensure_engine()
+            else:
                 await self._reset_engine()
-        await self._ensure_slap_ctx()
-        await self._broadcast_state()
+            engine = ENGINES.get(self.room_code)
+            db_players = await self._players_order()
+            if engine and set(db_players) != set(engine.players):
+                extra = set(db_players) - set(engine.players)
+                if extra and not await self._is_started():
+                    await self._reset_engine()
+            await self._ensure_slap_ctx()
+            await self._broadcast_state()
+            logger.debug("User %s connected to room %s", user.id, self.room_code)
+        except Exception:
+            logger.exception("Error in connect")
+            await self.close()
 
     async def receive_json(self, content, **kwargs):
-        t = content.get("type")
-        user_id = self.scope["user"].id
-        engine = ENGINES.get(self.room_code)
+        try:
+            logger.debug("Received message: %s", content)
+            t = content.get("type")
+            user_id = self.scope["user"].id
+            engine = ENGINES.get(self.room_code)
 
-        if t == "play":
-            res = engine.play_card(user_id)
-            await self._broadcast_state(extra={"lastAction": {"type": "play", "res": res}})
+            if t == "play":
+                res = engine.play_card(user_id)
+                await self._broadcast_state(extra={"lastAction": {"type": "play", "res": res}})
 
-        elif t == "slap":
-            ts = time.time_ns()
-            if not engine.is_slap_valid():
-                res = engine.slap(user_id)
-                await self._broadcast_state(extra={"lastAction": {"type": "slap_invalid", "res": res}})
-                return
-
-            ctx = await self._ensure_slap_ctx()
-            async with ctx["lock"]:
-                if not ctx["open"]:
-                    ctx["open"] = True
-                    ctx["candidates"] = [(ts, user_id)]
-                    ctx["task"] = asyncio.create_task(self._resolve_slap_after_delay())
-                else:
-                    ctx["candidates"].append((ts, user_id))
-
-            await self._broadcast_state(extra={
-                "lastAction": {"type": "slap_pending"},
-                "graceMs": GRACE_MS
-            })
-
-        elif t == "ready":
-            value = content.get("value", False)
-            await self._set_ready(user_id, value)
-            ready_set = READY.setdefault(self.room_code, set())
-            if value:
-                ready_set.add(user_id)
-            else:
-                ready_set.discard(user_id)
-            await self._broadcast_state()
-
-        elif t == "start":
-            if await self._is_host(user_id):
-                players = await self._players_order()
-                if len(players) < 2:
-                    await self.send_json({"error": "not-enough-players"})
+            elif t == "slap":
+                ts = time.time_ns()
+                if not engine.is_slap_valid():
+                    res = engine.slap(user_id)
+                    await self._broadcast_state(extra={"lastAction": {"type": "slap_invalid", "res": res}})
                     return
-                try:
-                    if await self._all_players_ready():
-                      await self._reset_engine()
-                      await self._set_room_started()
-                      await self._reset_ready_flags()
-                      await self._broadcast_state()
+
+                ctx = await self._ensure_slap_ctx()
+                async with ctx["lock"]:
+                    if not ctx["open"]:
+                        ctx["open"] = True
+                        ctx["candidates"] = [(ts, user_id)]
+                        ctx["task"] = asyncio.create_task(self._resolve_slap_after_delay())
                     else:
-                      await self.send_json({"error": "not-ready"})
-                except Exception:
-                    await self.send_json({"error": "start-failed"})
-        else:
-            await self.send_json({"error": "unknown-event"})
+                        ctx["candidates"].append((ts, user_id))
+
+                await self._broadcast_state(extra={
+                    "lastAction": {"type": "slap_pending"},
+                    "graceMs": GRACE_MS
+                })
+
+            elif t == "ready":
+                value = content.get("value", False)
+                await self._set_ready(user_id, value)
+                ready_set = READY.setdefault(self.room_code, set())
+                if value:
+                    ready_set.add(user_id)
+                else:
+                    ready_set.discard(user_id)
+                await self._broadcast_state()
+
+            elif t == "start":
+                if await self._is_host(user_id):
+                    players = await self._players_order()
+                    if len(players) < 2:
+                        await self.send_json({"error": "not-enough-players"})
+                        return
+                    try:
+                        if await self._all_players_ready():
+                            await self._reset_engine()
+                            await self._set_room_started()
+                            await self._reset_ready_flags()
+                            await self._broadcast_state()
+                        else:
+                            await self.send_json({"error": "not-ready"})
+                    except Exception:
+                        await self.send_json({"error": "start-failed"})
+            else:
+                await self.send_json({"error": "unknown-event"})
+        except Exception:
+            logger.exception("Error in receive_json")
 
     async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.group, self.channel_name)
-        ready = READY.get(self.room_code)
-        uid = self.scope.get("user").id if self.scope.get("user") else None
-        if ready and uid:
-            ready.discard(uid)
-        group = getattr(self.channel_layer, "groups", {}).get(self.group)
-        if not group:
-            engine = ENGINES.pop(self.room_code, None)
-            if engine:
-                await self._persist_state(engine)
-            ctx = SLAP_CTX.pop(self.room_code, None)
-            if ctx and ctx.get("task"):
-                ctx["task"].cancel()
-            READY.pop(self.room_code, None)
+        try:
+            logger.debug("Disconnecting room %s", getattr(self, "room_code", None))
+            await self.channel_layer.group_discard(self.group, self.channel_name)
+            ready = READY.get(self.room_code)
+            uid = self.scope.get("user").id if self.scope.get("user") else None
+            if ready and uid:
+                ready.discard(uid)
+            group = getattr(self.channel_layer, "groups", {}).get(self.group)
+            if not group:
+                engine = ENGINES.pop(self.room_code, None)
+                if engine:
+                    await self._persist_state(engine)
+                ctx = SLAP_CTX.pop(self.room_code, None)
+                if ctx and ctx.get("task"):
+                    ctx["task"].cancel()
+                READY.pop(self.room_code, None)
+        except Exception:
+            logger.exception("Error in disconnect")
 
     async def _resolve_slap_after_delay(self):
         await asyncio.sleep(GRACE_MS / 1000.0)
