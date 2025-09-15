@@ -112,8 +112,22 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_discard(self.group, self.channel_name)
             ready = READY.get(self.room_code)
             uid = self.scope.get("user").id if self.scope.get("user") else None
+            broadcast_needed = False
+            reset_required = False
             if ready and uid:
+                if uid in ready:
+                    broadcast_needed = True
                 ready.discard(uid)
+            if uid:
+                removed_player = await self._remove_player_and_update_room(uid)
+                if removed_player:
+                    reset_required = True
+                    broadcast_needed = True
+            if reset_required:
+                await self._reset_ready_flags()
+                await self._reset_engine(clear_ready=True)
+            if broadcast_needed:
+                await self._broadcast_state()
             group = getattr(self.channel_layer, "groups", {}).get(self.group)
             if not group:
                 engine = ENGINES.pop(self.room_code, None)
@@ -190,9 +204,42 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
     async def _reset_engine(self, clear_ready=False):
         players = await self._players_order()
-        ENGINES[self.room_code] = GameEngine(players)
+        if players:
+            ENGINES[self.room_code] = GameEngine(players)
+        else:
+            ENGINES[self.room_code] = None
         if clear_ready:
             READY[self.room_code] = set()
+
+    @database_sync_to_async
+    def _remove_player_and_update_room(self, user_id):
+        try:
+            room = Room.objects.get(code=self.room_code)
+        except Room.DoesNotExist:
+            return False
+
+        try:
+            player = Player.objects.get(room=room, user_id=user_id)
+        except Player.DoesNotExist:
+            return False
+
+        seat = player.seat
+        player.delete()
+
+        update_fields = ["is_started"]
+        room.is_started = False
+
+        if room.host_id == user_id:
+            base_qs = room.players.order_by("seat").select_related("user")
+            next_player = base_qs.filter(seat__gt=seat).first()
+            if not next_player:
+                next_player = base_qs.first()
+            if next_player:
+                room.host = next_player.user
+                update_fields.append("host")
+
+        room.save(update_fields=update_fields)
+        return True
 
     @database_sync_to_async
     def _persist_state(self, engine):
