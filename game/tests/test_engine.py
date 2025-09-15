@@ -42,3 +42,18 @@ class GameEngineTests(SimpleTestCase):
         self.assertEqual(len(engine.center), 0)
         self.assertEqual(len(engine.hands[1]), 5)
         self.assertEqual(len(engine.hands[2]), 0)
+
+    def test_serialize_includes_last_three_center(self):
+        engine = GameEngine([1, 2])
+        engine.center = []
+        serialized = engine.serialize()
+        self.assertIn('last_three_center', serialized)
+        self.assertEqual(serialized['last_three_center'], [])
+
+        engine.center = ['2H', '3D']
+        serialized = engine.serialize()
+        self.assertEqual(serialized['last_three_center'], ['2H', '3D'])
+
+        engine.center.extend(['4S', '5C', '6D'])
+        serialized = engine.serialize()
+        self.assertEqual(serialized['last_three_center'], ['4S', '5C', '6D'])

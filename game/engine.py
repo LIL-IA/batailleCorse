@@ -38,6 +38,7 @@ class GameEngine:
             "counts": counts,                     # fix
             "center_count": len(self.center),
             "top_center": self.center[-1] if self.center else None,
+            "last_three_center": self.center[-3:],
             "turn": self.players[self.turn_idx],  # ok (valeur int)
             "face_chances": self.face_chances,
             "waiting_for_face_from": self.waiting_for_face_from,
