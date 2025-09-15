@@ -43,9 +43,11 @@ def join_room(request):
             next_seat = room.players.count()
             Player.objects.create(room=room, user=request.user, seat=next_seat)
             channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f"room_{room.code}", {"type": "refresh_state"}
-            )
+            if channel_layer is not None:
+                async_to_sync(channel_layer.group_send)(
+                    f"room_{room.code}",
+                    {"type": "player_joined", "user_id": request.user.id},
+                )
         return redirect('room', code=code)
     return render(request, 'game/join_room.html')
 
