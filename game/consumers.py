@@ -164,6 +164,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             for p in raw_players
         ]
         payload = {"type": "state", "players": players, "ready": list(READY.get(self.room_code, set()))}
+        payload["started"] = await self._is_started()
         if engine is None:
             payload["pending"] = "waiting_for_players"
         else:
