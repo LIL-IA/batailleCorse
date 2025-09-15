@@ -36,7 +36,9 @@
   }
 
   const currentUserId = parseId(playersList.dataset.currentUserId);
-  let lastStartedState = null;
+  let previousCountsMap = new Map();
+  let lastHandledActionKey = '';
+  let lastHandledActionTimestamp = 0;
 
   const setCurrentTurnDataset = (turnId) => {
     playersList.dataset.currentTurnId = turnId !== null && turnId !== undefined ? String(turnId) : '';
@@ -63,6 +65,7 @@
   };
 
   const SLAP_FEEDBACK_CLASSES = ['slap-success', 'slap-fail'];
+  const SLAP_OVERLAY_DURATION_MS = 1600;
 
   const clearSlapFeedback = (tableEl) => {
     if (!tableEl) {
@@ -110,6 +113,270 @@
       playSlapFeedback(tableEl, 'fail');
     } else {
       playSlapFeedback(tableEl, null);
+    }
+  };
+
+  const slapOverlayManager = (() => {
+    let overlayEl = null;
+    let fallbackTimerId = null;
+    let currentAnimationHandler = null;
+
+    const ensureOverlay = () => {
+      const tableEl = document.querySelector(tableSelector);
+      if (!tableEl) {
+        return null;
+      }
+      if (!overlayEl || overlayEl.parentElement !== tableEl) {
+        overlayEl = document.createElement('div');
+        overlayEl.className = 'slap-overlay';
+        overlayEl.setAttribute('role', 'alert');
+        overlayEl.setAttribute('aria-live', 'assertive');
+        overlayEl.setAttribute('aria-hidden', 'true');
+        tableEl.appendChild(overlayEl);
+      }
+      return overlayEl;
+    };
+
+    const clearTimer = () => {
+      if (fallbackTimerId !== null) {
+        window.clearTimeout(fallbackTimerId);
+        fallbackTimerId = null;
+      }
+    };
+
+    const hide = () => {
+      clearTimer();
+      if (!overlayEl) {
+        return;
+      }
+      if (currentAnimationHandler) {
+        overlayEl.removeEventListener('animationend', currentAnimationHandler);
+        currentAnimationHandler = null;
+      }
+      overlayEl.classList.remove('slap-overlay-visible', 'slap-overlay-animate');
+      overlayEl.setAttribute('aria-hidden', 'true');
+      overlayEl.innerHTML = '';
+    };
+
+    const scheduleFallback = () => {
+      clearTimer();
+      fallbackTimerId = window.setTimeout(() => {
+        if (overlayEl && currentAnimationHandler) {
+          overlayEl.removeEventListener('animationend', currentAnimationHandler);
+          currentAnimationHandler = null;
+        }
+        hide();
+      }, SLAP_OVERLAY_DURATION_MS + 200);
+    };
+
+    const showResolution = (action, playersById) => {
+      const overlay = ensureOverlay();
+      if (!overlay) {
+        return;
+      }
+      if (currentAnimationHandler) {
+        overlay.removeEventListener('animationend', currentAnimationHandler);
+        currentAnimationHandler = null;
+      }
+      overlay.innerHTML = '';
+      overlay.setAttribute('aria-hidden', 'false');
+      overlay.classList.add('slap-overlay-visible');
+
+      const content = document.createElement('div');
+      content.className = 'slap-overlay-content';
+
+      const title = document.createElement('h3');
+      title.textContent = 'Taper réussi !';
+      content.appendChild(title);
+
+      const winner = action && action.winner ? action.winner : null;
+      const winnerId = winner ? parseId(winner.userId) : null;
+      const winnerName =
+        (winnerId !== null && playersById.get(winnerId)) ||
+        (winnerId !== null ? `Joueur ${winnerId}` : 'Gagnant');
+      const winnerLine = document.createElement('p');
+      winnerLine.className = 'slap-overlay-winner';
+      winnerLine.textContent = 'Gagnant : ';
+      const winnerStrong = document.createElement('strong');
+      winnerStrong.textContent = winnerName;
+      winnerLine.appendChild(winnerStrong);
+      content.appendChild(winnerLine);
+
+      const candidates = Array.isArray(action && action.candidates) ? action.candidates : [];
+      if (candidates.length) {
+        const label = document.createElement('p');
+        label.className = 'slap-overlay-candidates-title';
+        label.textContent = candidates.length > 1 ? 'Candidats :' : 'Candidat :';
+        content.appendChild(label);
+
+        const list = document.createElement('ol');
+        list.className = 'slap-overlay-candidates';
+        candidates.forEach((candidate) => {
+          const li = document.createElement('li');
+          const cid = candidate ? parseId(candidate.userId) : null;
+          const candidateName =
+            (cid !== null && playersById.get(cid)) ||
+            (cid !== null ? `Joueur ${cid}` : 'Inconnu');
+          li.textContent = candidateName;
+          if (cid !== null && winnerId !== null && cid === winnerId) {
+            li.classList.add('is-winner');
+          }
+          list.appendChild(li);
+        });
+        content.appendChild(list);
+      }
+
+      overlay.appendChild(content);
+      overlay.classList.remove('slap-overlay-animate');
+      void overlay.offsetWidth;
+      overlay.classList.add('slap-overlay-animate');
+
+      const onAnimationEnd = (event) => {
+        if (event.target !== overlay) {
+          return;
+        }
+        currentAnimationHandler = null;
+        hide();
+      };
+      currentAnimationHandler = onAnimationEnd;
+      overlay.addEventListener('animationend', onAnimationEnd);
+      scheduleFallback();
+    };
+
+    return {
+      showResolution,
+      hide
+    };
+  })();
+
+  const triggerInvalidSlapAnimation = (userId) => {
+    const parsedId = parseId(userId);
+    if (parsedId === null) {
+      return;
+    }
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl) {
+      return;
+    }
+    const deck = tableEl.querySelector(`${playerDeckSelector}[data-user-id="${String(parsedId)}"]`);
+    if (!deck) {
+      return;
+    }
+    deck.classList.remove('slap-deck-error');
+    void deck.offsetWidth;
+    deck.classList.add('slap-deck-error');
+    const fallbackId = window.setTimeout(() => {
+      deck.classList.remove('slap-deck-error');
+    }, 700);
+    const cleanup = () => {
+      window.clearTimeout(fallbackId);
+      deck.classList.remove('slap-deck-error');
+    };
+    deck.addEventListener('animationend', cleanup, { once: true });
+  };
+
+  const inferPenalizedPlayerId = (previousCounts, nextCounts, lastAction) => {
+    if (!lastAction || !lastAction.res) {
+      return null;
+    }
+    const penalizedRaw = lastAction.res.penalized;
+    const penalized = typeof penalizedRaw === 'number' ? penalizedRaw : Number.parseInt(penalizedRaw, 10);
+    if (!Number.isFinite(penalized)) {
+      return null;
+    }
+    const matches = [];
+    previousCounts.forEach((prevCount, userId) => {
+      const nextCount = nextCounts.has(userId) ? nextCounts.get(userId) : 0;
+      const diff = prevCount - nextCount;
+      if (penalized > 0) {
+        if (diff === penalized) {
+          matches.push(userId);
+        }
+      } else if (penalized === 0 && diff !== 0) {
+        matches.push(userId);
+      }
+    });
+    return matches.length === 1 ? matches[0] : null;
+  };
+
+  const computeCountsMap = (state) => {
+    const map = new Map();
+    if (!state || !state.counts || typeof state.counts !== 'object') {
+      return map;
+    }
+    Object.entries(state.counts).forEach(([key, value]) => {
+      const userId = parseId(key);
+      if (userId === null) {
+        return;
+      }
+      const numeric = typeof value === 'number' ? value : Number.parseInt(value, 10);
+      map.set(userId, Number.isFinite(numeric) ? numeric : 0);
+    });
+    return map;
+  };
+
+  const computeLastActionKey = (lastAction) => {
+    if (!lastAction || typeof lastAction.type !== 'string') {
+      return '';
+    }
+    const type = lastAction.type;
+    if (type === 'slap_resolved') {
+      const winnerId = parseId(lastAction.winner && lastAction.winner.userId);
+      const winnerTs =
+        lastAction.winner && lastAction.winner.t_ns !== undefined ? lastAction.winner.t_ns : '';
+      const candidates = Array.isArray(lastAction.candidates)
+        ? lastAction.candidates.map((candidate) => {
+            const cid = candidate ? parseId(candidate.userId) : null;
+            return cid !== null ? cid : '';
+          })
+        : [];
+      return `${type}:${winnerId !== null ? winnerId : ''}:${winnerTs}:${candidates.join(',')}`;
+    }
+    if (type === 'slap_invalid') {
+      const actorId = parseId(lastAction.userId);
+      let penalized = null;
+      if (lastAction.res && lastAction.res.penalized !== undefined) {
+        const raw = lastAction.res.penalized;
+        penalized = typeof raw === 'number' ? raw : Number.parseInt(raw, 10);
+        if (!Number.isFinite(penalized)) {
+          penalized = null;
+        }
+      }
+      return `${type}:${actorId !== null ? actorId : ''}:${penalized !== null ? penalized : ''}`;
+    }
+    return type;
+  };
+
+  const handleStateLastAction = (lastAction, playersById, previousCounts, nextCounts) => {
+    const actionKey = computeLastActionKey(lastAction);
+    const now = Date.now();
+    if (actionKey === lastHandledActionKey && now - lastHandledActionTimestamp < 500) {
+      return;
+    }
+    lastHandledActionKey = actionKey;
+    lastHandledActionTimestamp = now;
+
+    if (!lastAction || typeof lastAction.type !== 'string') {
+      slapOverlayManager.hide();
+      return;
+    }
+
+    if (lastAction.type === 'slap_resolved') {
+      slapOverlayManager.showResolution(lastAction, playersById);
+      return;
+    }
+
+    slapOverlayManager.hide();
+
+    if (lastAction.type === 'slap_invalid') {
+      const explicit = parseId(lastAction.userId);
+      let targetId = explicit;
+      if (targetId === null) {
+        targetId = inferPenalizedPlayerId(previousCounts, nextCounts, lastAction);
+      }
+      if (targetId !== null) {
+        triggerInvalidSlapAnimation(targetId);
+      }
     }
   };
 
@@ -169,16 +436,21 @@
       const currentTurnId = state ? parseId(state.turn) : null;
       setCurrentTurnDataset(currentTurnId);
 
-      updateTopCard(state, started);
-      updateCenterCount(state, started);
-      updatePlayerCounts(state, players, started);
-      renderTable(state, players, msg.lastAction);
-
       const playersById = new Map(
         players
           .map((player) => [parseId(player.userId), player.username])
           .filter(([id]) => id !== null)
       );
+
+      const nextCountsMap = computeCountsMap(state);
+
+      updateTopCard(state, started);
+      updateCenterCount(state, started);
+      updatePlayerCounts(state, players, started);
+      renderTable(state, players, msg.lastAction);
+
+      handleStateLastAction(msg.lastAction, playersById, previousCountsMap, nextCountsMap);
+      previousCountsMap = nextCountsMap;
 
       const present = new Set(
         Array.from(playersList.querySelectorAll('li'))

@@ -58,7 +58,13 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                 ts = time.time_ns()
                 if not engine.is_slap_valid():
                     res = engine.slap(user_id)
-                    await self._broadcast_state(extra={"lastAction": {"type": "slap_invalid", "res": res}})
+                    await self._broadcast_state(extra={
+                        "lastAction": {
+                            "type": "slap_invalid",
+                            "userId": user_id,
+                            "res": res
+                        }
+                    })
                     return
 
                 ctx = await self._ensure_slap_ctx()
