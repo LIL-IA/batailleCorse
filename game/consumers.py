@@ -87,8 +87,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
             elif t == "start":
                 if await self._is_host(user_id):
-                    await self._reset_engine()
-                    await self._broadcast_state()
+                    players = await self._players_order()
                     if len(players) < 2:
                         await self.send_json({"error": "not-enough-players"})
                         return
