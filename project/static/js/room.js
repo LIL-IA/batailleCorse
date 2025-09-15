@@ -61,6 +61,57 @@
     window.setTimeout(() => setActionButtonsDisabled(false), durationMs);
   };
 
+  const SLAP_FEEDBACK_CLASSES = ['slap-success', 'slap-fail'];
+
+  const clearSlapFeedback = (tableEl) => {
+    if (!tableEl) {
+      return;
+    }
+    SLAP_FEEDBACK_CLASSES.forEach((cls) => tableEl.classList.remove(cls));
+  };
+
+  const playSlapFeedback = (tableEl, kind) => {
+    if (!tableEl) {
+      return;
+    }
+    if (!kind) {
+      clearSlapFeedback(tableEl);
+      return;
+    }
+    const className = kind === 'success' ? 'slap-success' : kind === 'fail' ? 'slap-fail' : null;
+    if (!className) {
+      clearSlapFeedback(tableEl);
+      return;
+    }
+    clearSlapFeedback(tableEl);
+    void tableEl.offsetWidth;
+    tableEl.classList.add(className);
+    const cleanup = () => {
+      clearSlapFeedback(tableEl);
+      tableEl.removeEventListener('animationend', cleanup);
+    };
+    tableEl.addEventListener('animationend', cleanup, { once: true });
+  };
+
+  const handleLastActionFeedback = (tableEl, lastAction) => {
+    if (!tableEl) {
+      return;
+    }
+    const actionType = lastAction && typeof lastAction.type === 'string' ? lastAction.type : '';
+    const previous = tableEl.dataset.lastActionType || '';
+    if (actionType === previous) {
+      return;
+    }
+    tableEl.dataset.lastActionType = actionType;
+    if (actionType === 'slap_resolved') {
+      playSlapFeedback(tableEl, 'success');
+    } else if (actionType === 'slap_invalid' || actionType === 'slap_none') {
+      playSlapFeedback(tableEl, 'fail');
+    } else {
+      playSlapFeedback(tableEl, null);
+    }
+  };
+
   socket.onopen = () => console.log('WS ouvert');
 
   socket.onmessage = (event) => {
@@ -94,7 +145,7 @@
       updateTopCard(state, started);
       updateCenterCount(state, started);
       updatePlayerCounts(state, players, started);
-      renderTable(state, players);
+      renderTable(state, players, msg.lastAction);
 
       const playersById = new Map(
         players
@@ -293,18 +344,15 @@
     playerCountsContent.appendChild(list);
   }
 
-  function renderTable(state, players) {
+  function renderTable(state, players, lastAction) {
     const tableEl = document.querySelector(tableSelector);
     const centerPileEl = document.querySelector(centerPileSelector);
     if (!tableEl || !centerPileEl) {
       return;
     }
 
-    if (!tableEl.dataset.tableInitialized) {
-      tableEl.style.position = tableEl.style.position || 'relative';
-      tableEl.style.minHeight = tableEl.style.minHeight || '420px';
-      tableEl.dataset.tableInitialized = '1';
-    }
+    tableEl.classList.add('table');
+    handleLastActionFeedback(tableEl, lastAction);
 
     let decksContainer = tableEl.querySelector('#player-decks');
     if (!decksContainer) {
@@ -317,15 +365,6 @@
       decksContainer = document.createElement('div');
       decksContainer.id = 'player-decks';
       tableEl.appendChild(decksContainer);
-    }
-
-    if (!decksContainer.dataset.positioned) {
-      decksContainer.style.position = 'absolute';
-      decksContainer.style.top = '0';
-      decksContainer.style.left = '0';
-      decksContainer.style.right = '0';
-      decksContainer.style.bottom = '0';
-      decksContainer.dataset.positioned = '1';
     }
 
     const counts = (state && state.counts) || {};
@@ -352,14 +391,22 @@
         }
 
         deck.dataset.username = player.username || '';
-        deck.style.position = 'absolute';
-        deck.style.transformOrigin = 'center';
         deck.classList.add('player-deck');
         deck.innerHTML = '';
 
+        const deckCard = document.createElement('div');
+        deckCard.className = 'deck-card';
+        const cardBack = document.createElement('div');
+        cardBack.className = 'card-back';
+        deckCard.appendChild(cardBack);
+        deck.appendChild(deckCard);
+
+        const info = document.createElement('div');
+        info.className = 'deck-info';
+
         const title = document.createElement('h3');
         title.textContent = player.username || `Joueur ${index + 1}`;
-        deck.appendChild(title);
+        info.appendChild(title);
 
         const countEl = document.createElement('p');
         countEl.className = 'deck-count';
@@ -371,7 +418,22 @@
           const safeCount = Number.isFinite(count) ? count : 0;
           countEl.textContent = `${safeCount} carte${safeCount > 1 ? 's' : ''}`;
         }
-        deck.appendChild(countEl);
+        info.appendChild(countEl);
+
+        deck.appendChild(info);
+
+        deck.style.removeProperty('transform');
+        deck.style.removeProperty('left');
+        deck.style.removeProperty('top');
+        deck.style.removeProperty('--deck-angle');
+        deck.style.removeProperty('z-index');
+        deck.classList.remove(
+          'player-deck-top',
+          'player-deck-bottom',
+          'player-deck-left',
+          'player-deck-right',
+          'player-deck-solo'
+        );
 
         deckElements.push(deck);
       });
@@ -385,65 +447,68 @@
     }
 
     const totalDecks = deckElements.length;
+    decksContainer.dataset.playerCount = String(totalDecks);
+
     if (totalDecks === 1) {
       const deck = deckElements[0];
       deck.style.left = '50%';
-      deck.style.top = '80%';
-      deck.style.transform = 'translate(-50%, -50%)';
-    } else if (totalDecks === 2) {
-      deckElements.forEach((deck, idx) => {
-        deck.style.left = '50%';
-        deck.style.top = idx === 0 ? '20%' : '80%';
-        deck.style.transform = 'translate(-50%, -50%)';
-      });
-    } else if (totalDecks > 2) {
-      const radiusPercent = 38;
+      deck.style.top = '78%';
+      deck.style.setProperty('--deck-angle', '0deg');
+      deck.classList.add('player-deck-solo', 'player-deck-bottom');
+      deck.classList.remove('player-deck-top', 'player-deck-left', 'player-deck-right');
+      deck.style.zIndex = '9';
+    } else if (totalDecks >= 2) {
+      const radiusPercent = totalDecks === 2 ? 32 : 38;
       deckElements.forEach((deck, idx) => {
         const angle = (idx / totalDecks) * Math.PI * 2 - Math.PI / 2;
         const x = 50 + radiusPercent * Math.cos(angle);
         const y = 50 + radiusPercent * Math.sin(angle);
+        const angleDeg = (angle * 180) / Math.PI;
         deck.style.left = `${x}%`;
         deck.style.top = `${y}%`;
-        deck.style.transform = 'translate(-50%, -50%)';
+        deck.style.setProperty('--deck-angle', `${angleDeg}deg`);
+        const isTop = y <= 50;
+        const isBottom = !isTop;
+        const isLeft = x < 50 - 0.5;
+        const isRight = x > 50 + 0.5;
+        deck.classList.toggle('player-deck-top', isTop);
+        deck.classList.toggle('player-deck-bottom', isBottom);
+        deck.classList.toggle('player-deck-left', isLeft);
+        deck.classList.toggle('player-deck-right', isRight);
+        deck.classList.remove('player-deck-solo');
+        deck.style.zIndex = isTop ? '6' : '9';
       });
     }
 
     centerPileEl.innerHTML = '';
-    centerPileEl.style.position = 'relative';
-    centerPileEl.style.minHeight = centerPileEl.style.minHeight || '200px';
-    centerPileEl.style.display = 'flex';
-    centerPileEl.style.alignItems = 'center';
-    centerPileEl.style.justifyContent = 'center';
 
     const lastThree = state && Array.isArray(state.last_three_center)
       ? state.last_three_center.slice(-3)
       : [];
 
     if (!state) {
+      centerPileEl.classList.add('center-empty');
       const p = document.createElement('p');
       p.textContent = 'En attente du début de la partie…';
       centerPileEl.appendChild(p);
     } else if (!lastThree.length) {
+      centerPileEl.classList.add('center-empty');
       const p = document.createElement('p');
       p.textContent = 'Tas central vide.';
       centerPileEl.appendChild(p);
     } else {
+      centerPileEl.classList.remove('center-empty');
       const stack = document.createElement('div');
-      stack.className = 'center-pile-cards';
-      stack.style.position = 'relative';
-      stack.style.width = '120px';
-      stack.style.height = '160px';
+      stack.className = 'center-pile';
 
-      const rotations = [-12, -4, 8];
+      const positions = ['bottom', 'mid', 'top'];
+      const offset = Math.max(positions.length - lastThree.length, 0);
+
       lastThree.forEach((card, idx) => {
         const pileCard = document.createElement('div');
-        pileCard.className = `card-visual center-card card-${idx + 1}`;
-        pileCard.style.position = 'absolute';
-        pileCard.style.top = '50%';
-        pileCard.style.left = '50%';
-        const rotation = rotations[idx] || 0;
-        pileCard.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
-        pileCard.style.zIndex = String(10 + idx);
+        pileCard.className = 'card-visual center-card';
+        const positionClass = positions[offset + idx] || 'top';
+        pileCard.classList.add(positionClass);
 
         if (card && (card[1] === 'H' || card[1] === 'D')) {
           pileCard.classList.add('red');
