@@ -20,6 +20,10 @@
     return;
   }
 
+  const tableSelector = playersList.dataset.tableSelector || '#table';
+  const centerPileSelector = playersList.dataset.centerPileSelector || '#center-pile';
+  const playerDeckSelector = playersList.dataset.playerDeckSelector || '.player-deck';
+
   const parseId = (value) => {
     const parsed = Number.parseInt(value, 10);
     return Number.isNaN(parsed) ? null : parsed;
@@ -90,6 +94,7 @@
       updateTopCard(state, started);
       updateCenterCount(state, started);
       updatePlayerCounts(state, players, started);
+      renderTable(state, players);
 
       const playersById = new Map(
         players
@@ -286,5 +291,179 @@
       list.appendChild(li);
     });
     playerCountsContent.appendChild(list);
+  }
+
+  function renderTable(state, players) {
+    const tableEl = document.querySelector(tableSelector);
+    const centerPileEl = document.querySelector(centerPileSelector);
+    if (!tableEl || !centerPileEl) {
+      return;
+    }
+
+    if (!tableEl.dataset.tableInitialized) {
+      tableEl.style.position = tableEl.style.position || 'relative';
+      tableEl.style.minHeight = tableEl.style.minHeight || '420px';
+      tableEl.dataset.tableInitialized = '1';
+    }
+
+    let decksContainer = tableEl.querySelector('#player-decks');
+    if (!decksContainer) {
+      const existingDeck = tableEl.querySelector(playerDeckSelector);
+      if (existingDeck && existingDeck.parentElement) {
+        decksContainer = existingDeck.parentElement;
+      }
+    }
+    if (!decksContainer) {
+      decksContainer = document.createElement('div');
+      decksContainer.id = 'player-decks';
+      tableEl.appendChild(decksContainer);
+    }
+
+    if (!decksContainer.dataset.positioned) {
+      decksContainer.style.position = 'absolute';
+      decksContainer.style.top = '0';
+      decksContainer.style.left = '0';
+      decksContainer.style.right = '0';
+      decksContainer.style.bottom = '0';
+      decksContainer.dataset.positioned = '1';
+    }
+
+    const counts = (state && state.counts) || {};
+    const activeIds = new Set();
+    const deckElements = [];
+
+    if (!Array.isArray(players) || players.length === 0) {
+      decksContainer.innerHTML = '';
+    } else {
+      players.forEach((player, index) => {
+        const userId = parseId(player.userId);
+        if (userId === null) {
+          return;
+        }
+        const key = String(userId);
+        activeIds.add(key);
+
+        let deck = decksContainer.querySelector(`${playerDeckSelector}[data-user-id="${key}"]`);
+        if (!deck) {
+          deck = document.createElement('div');
+          deck.classList.add('player-deck');
+          deck.dataset.userId = key;
+          decksContainer.appendChild(deck);
+        }
+
+        deck.dataset.username = player.username || '';
+        deck.style.position = 'absolute';
+        deck.style.transformOrigin = 'center';
+        deck.classList.add('player-deck');
+        deck.innerHTML = '';
+
+        const title = document.createElement('h3');
+        title.textContent = player.username || `Joueur ${index + 1}`;
+        deck.appendChild(title);
+
+        const countEl = document.createElement('p');
+        countEl.className = 'deck-count';
+        if (!state) {
+          countEl.textContent = 'En attente…';
+        } else {
+          const rawCount = counts[key];
+          const count = typeof rawCount === 'number' ? rawCount : Number.parseInt(rawCount, 10);
+          const safeCount = Number.isFinite(count) ? count : 0;
+          countEl.textContent = `${safeCount} carte${safeCount > 1 ? 's' : ''}`;
+        }
+        deck.appendChild(countEl);
+
+        deckElements.push(deck);
+      });
+
+      decksContainer.querySelectorAll(playerDeckSelector).forEach((deck) => {
+        const uid = deck.dataset.userId;
+        if (!activeIds.has(uid)) {
+          deck.remove();
+        }
+      });
+    }
+
+    const totalDecks = deckElements.length;
+    if (totalDecks === 1) {
+      const deck = deckElements[0];
+      deck.style.left = '50%';
+      deck.style.top = '80%';
+      deck.style.transform = 'translate(-50%, -50%)';
+    } else if (totalDecks === 2) {
+      deckElements.forEach((deck, idx) => {
+        deck.style.left = '50%';
+        deck.style.top = idx === 0 ? '20%' : '80%';
+        deck.style.transform = 'translate(-50%, -50%)';
+      });
+    } else if (totalDecks > 2) {
+      const radiusPercent = 38;
+      deckElements.forEach((deck, idx) => {
+        const angle = (idx / totalDecks) * Math.PI * 2 - Math.PI / 2;
+        const x = 50 + radiusPercent * Math.cos(angle);
+        const y = 50 + radiusPercent * Math.sin(angle);
+        deck.style.left = `${x}%`;
+        deck.style.top = `${y}%`;
+        deck.style.transform = 'translate(-50%, -50%)';
+      });
+    }
+
+    centerPileEl.innerHTML = '';
+    centerPileEl.style.position = 'relative';
+    centerPileEl.style.minHeight = centerPileEl.style.minHeight || '200px';
+    centerPileEl.style.display = 'flex';
+    centerPileEl.style.alignItems = 'center';
+    centerPileEl.style.justifyContent = 'center';
+
+    const lastThree = state && Array.isArray(state.last_three_center)
+      ? state.last_three_center.slice(-3)
+      : [];
+
+    if (!state) {
+      const p = document.createElement('p');
+      p.textContent = 'En attente du début de la partie…';
+      centerPileEl.appendChild(p);
+    } else if (!lastThree.length) {
+      const p = document.createElement('p');
+      p.textContent = 'Tas central vide.';
+      centerPileEl.appendChild(p);
+    } else {
+      const stack = document.createElement('div');
+      stack.className = 'center-pile-cards';
+      stack.style.position = 'relative';
+      stack.style.width = '120px';
+      stack.style.height = '160px';
+
+      const rotations = [-12, -4, 8];
+      lastThree.forEach((card, idx) => {
+        const pileCard = document.createElement('div');
+        pileCard.className = `card-visual center-card card-${idx + 1}`;
+        pileCard.style.position = 'absolute';
+        pileCard.style.top = '50%';
+        pileCard.style.left = '50%';
+        const rotation = rotations[idx] || 0;
+        pileCard.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+        pileCard.style.zIndex = String(10 + idx);
+
+        if (card && (card[1] === 'H' || card[1] === 'D')) {
+          pileCard.classList.add('red');
+        }
+
+        const symbol = document.createElement('span');
+        symbol.className = 'card-symbol';
+        symbol.textContent = formatCardSymbol(card);
+        pileCard.appendChild(symbol);
+
+        const readable = formatCardName(card);
+        if (readable) {
+          pileCard.setAttribute('aria-label', readable);
+          pileCard.title = readable;
+        }
+
+        stack.appendChild(pileCard);
+      });
+
+      centerPileEl.appendChild(stack);
+    }
   }
 })();
