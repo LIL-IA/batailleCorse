@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from .models import Room, Player
+from .models import Room, Player, GameState
 
 def _gen_code(n=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=n))
@@ -54,8 +54,18 @@ def room(request, code):
     room = get_object_or_404(Room, code=code)
     players = room.players.select_related("user").all()
     is_host = request.user == room.host
+    try:
+        initial_state = room.gamestate.state_json or {}
+    except GameState.DoesNotExist:
+        initial_state = {}
+    current_turn_id = initial_state.get("turn") if isinstance(initial_state, dict) else None
     return render(
         request,
         'game/room.html',
-        {"room": room, "players": players, "is_host": is_host},
+        {
+            "room": room,
+            "players": players,
+            "is_host": is_host,
+            "current_turn_id": current_turn_id,
+        },
     )

@@ -32,6 +32,11 @@
 
   const currentUserId = parseId(playersList.dataset.currentUserId);
 
+  const setCurrentTurnDataset = (turnId) => {
+    playersList.dataset.currentTurnId = turnId !== null && turnId !== undefined ? String(turnId) : '';
+  };
+  setCurrentTurnDataset(parseId(playersList.dataset.currentTurnId));
+
   const errorDiv = document.getElementById('error-message');
   const topCardContent = document.querySelector('#top-card .state-content');
   const centerCountContent = document.querySelector('#center-count .state-content');
@@ -75,6 +80,8 @@
       const players = Array.isArray(msg.players) ? msg.players : [];
       const started = Boolean(msg.started);
       const state = msg.state || null;
+      const currentTurnId = state ? parseId(state.turn) : null;
+      setCurrentTurnDataset(currentTurnId);
 
       updateTopCard(state, started);
       updateCenterCount(state, started);
@@ -99,6 +106,7 @@
         }
         const li = document.createElement('li');
         li.dataset.userId = String(userId);
+        li.classList.add('player-row');
         playersList.appendChild(li);
         present.add(userId);
       });
@@ -108,17 +116,30 @@
         const strong = li.querySelector('strong');
         const fallbackName = strong ? strong.textContent : '';
         const username = (uid !== null && playersById.get(uid)) || fallbackName;
-
-        if (started) {
-          li.innerHTML = `<strong>${username}</strong>`;
-          return;
-        }
+        li.classList.add('player-row');
 
         const isReady = uid !== null && readyIds.has(uid);
         const statusText = isReady ? 'prêt' : 'en attente';
+        const statusClass = isReady ? 'status-ready' : 'status-waiting';
         const shouldDisable =
           currentUserId === null || uid === null || uid !== currentUserId || isReady;
-        li.innerHTML = `<strong>${username}</strong> : <span class="status">${statusText}</span> ${createReadyButtonHtml(shouldDisable)}`;
+
+        if (started) {
+          li.innerHTML = `<strong>${username}</strong>`;
+        } else {
+          const readyButtonHtml = createReadyButtonHtml(shouldDisable);
+          li.innerHTML = `<strong>${username}</strong> <span class="status ${statusClass}">${statusText}</span> ${readyButtonHtml}`;
+        }
+
+        const isCurrentTurn = currentTurnId !== null && uid !== null && uid === currentTurnId;
+        li.classList.toggle('current-turn', isCurrentTurn);
+
+        if (started) {
+          li.classList.remove('player-ready', 'player-waiting');
+        } else {
+          li.classList.toggle('player-ready', isReady);
+          li.classList.toggle('player-waiting', !isReady);
+        }
       });
     }
   };
@@ -156,7 +177,7 @@
   });
 
   function createReadyButtonHtml(disabled) {
-    return `<button class="ready-btn" onclick="wsSend({type:'ready', value:true})"${disabled ? ' disabled' : ''}>Se déclarer prêt</button>`;
+    return `<button class="ready-btn" type="button" onclick="wsSend({type:'ready', value:true})"${disabled ? ' disabled' : ''}>Se déclarer prêt</button>`;
   }
 
   function formatCardSymbol(card) {
