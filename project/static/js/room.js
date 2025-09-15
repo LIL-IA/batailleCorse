@@ -13,6 +13,7 @@
     console.error('WebSocket non initialisée.');
   };
 
+  const startBtn = document.getElementById('start-btn');
   const playersList = document.getElementById('players');
   if (!playersList) {
     console.error("Élément #players introuvable.");
@@ -79,6 +80,9 @@
       );
       const players = Array.isArray(msg.players) ? msg.players : [];
       const started = Boolean(msg.started);
+      if (startBtn) {
+        startBtn.style.display = started ? 'none' : '';
+      }
       const state = msg.state || null;
       const currentTurnId = state ? parseId(state.turn) : null;
       setCurrentTurnDataset(currentTurnId);
