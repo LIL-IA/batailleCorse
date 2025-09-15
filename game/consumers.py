@@ -207,6 +207,9 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         await self._reset_engine(clear_ready=False)
         await self._broadcast_state()
 
+    async def player_joined(self, event):
+        await self._broadcast_state()
+
     async def _ensure_engine(self):
         if self.room_code not in ENGINES:
             players = await self._players_order()

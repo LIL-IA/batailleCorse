@@ -39,6 +39,7 @@
   let previousCountsMap = new Map();
   let lastHandledActionKey = '';
   let lastHandledActionTimestamp = 0;
+  let lastStartedState = null;
 
   const setCurrentTurnDataset = (turnId) => {
     playersList.dataset.currentTurnId = turnId !== null && turnId !== undefined ? String(turnId) : '';
@@ -382,6 +383,53 @@
 
   socket.onopen = () => console.log('WS ouvert');
 
+  function renderPlayersList(players, readyIds, started, currentTurnId) {
+    if (!playersList) {
+      return;
+    }
+    const readySet = readyIds instanceof Set ? readyIds : new Set();
+    const fragment = document.createDocumentFragment();
+    const seen = new Set();
+
+    (Array.isArray(players) ? players : []).forEach((player) => {
+      if (!player) {
+        return;
+      }
+      const userId = parseId(player.userId);
+      if (userId === null || seen.has(userId)) {
+        return;
+      }
+      seen.add(userId);
+
+      const li = document.createElement('li');
+      li.dataset.userId = String(userId);
+      li.classList.add('player-row');
+      li.classList.toggle('current-turn', currentTurnId !== null && userId === currentTurnId);
+
+      const rawUsername = typeof player.username === 'string' ? player.username : '';
+      const username = rawUsername || `Joueur ${userId}`;
+
+      if (started) {
+        li.innerHTML = `<strong>${username}</strong>`;
+        li.classList.remove('player-ready', 'player-waiting');
+      } else {
+        const isReady = readySet.has(userId);
+        const statusText = isReady ? 'prêt' : 'en attente';
+        const statusClass = isReady ? 'status-ready' : 'status-waiting';
+        const shouldDisable =
+          currentUserId === null || userId !== currentUserId || isReady;
+        const readyButtonHtml = createReadyButtonHtml(shouldDisable);
+        li.innerHTML = `<strong>${username}</strong> <span class="status ${statusClass}">${statusText}</span> ${readyButtonHtml}`;
+        li.classList.toggle('player-ready', isReady);
+        li.classList.toggle('player-waiting', !isReady);
+      }
+
+      fragment.appendChild(li);
+    });
+
+    playersList.innerHTML = '';
+    playersList.appendChild(fragment);
+  }
   socket.onmessage = (event) => {
     const msg = JSON.parse(event.data);
     if (Object.prototype.hasOwnProperty.call(msg, 'playerLeft')) {
@@ -415,7 +463,11 @@
       return;
     }
 
-    if (msg.type === 'state') {
+    if (msg.type === 'player_joined' && !Array.isArray(msg.players)) {
+      return;
+    }
+
+    if (msg.type === 'state' || msg.type === 'player_joined') {
       setActionButtonsDisabled(false);
       const started = Boolean(msg.started);
       const readyIds = new Set(
@@ -452,54 +504,7 @@
       handleStateLastAction(msg.lastAction, playersById, previousCountsMap, nextCountsMap);
       previousCountsMap = nextCountsMap;
 
-      const present = new Set(
-        Array.from(playersList.querySelectorAll('li'))
-          .map((li) => parseId(li.dataset.userId))
-          .filter((id) => id !== null)
-      );
-
-      players.forEach((player) => {
-        const userId = parseId(player.userId);
-        if (userId === null || present.has(userId)) {
-          return;
-        }
-        const li = document.createElement('li');
-        li.dataset.userId = String(userId);
-        li.classList.add('player-row');
-        playersList.appendChild(li);
-        present.add(userId);
-      });
-
-      playersList.querySelectorAll('li').forEach((li) => {
-        const uid = parseId(li.dataset.userId);
-        const strong = li.querySelector('strong');
-        const fallbackName = strong ? strong.textContent : '';
-        const username = (uid !== null && playersById.get(uid)) || fallbackName;
-        li.classList.add('player-row');
-
-        const isReady = uid !== null && readyIds.has(uid);
-        const statusText = isReady ? 'prêt' : 'en attente';
-        const statusClass = isReady ? 'status-ready' : 'status-waiting';
-        const shouldDisable =
-          currentUserId === null || uid === null || uid !== currentUserId || isReady;
-
-        if (started) {
-          li.innerHTML = `<strong>${username}</strong>`;
-        } else {
-          const readyButtonHtml = createReadyButtonHtml(shouldDisable);
-          li.innerHTML = `<strong>${username}</strong> <span class="status ${statusClass}">${statusText}</span> ${readyButtonHtml}`;
-        }
-
-        const isCurrentTurn = currentTurnId !== null && uid !== null && uid === currentTurnId;
-        li.classList.toggle('current-turn', isCurrentTurn);
-
-        if (started) {
-          li.classList.remove('player-ready', 'player-waiting');
-        } else {
-          li.classList.toggle('player-ready', isReady);
-          li.classList.toggle('player-waiting', !isReady);
-        }
-      });
+      renderPlayersList(players, readyIds, started, currentTurnId);
       lastStartedState = started;
     }
   };
