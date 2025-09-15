@@ -37,9 +37,14 @@
   {% endfor %}
 </ul>
 
-{% if is_host %}
-<button id="start-btn" class="action-btn" onclick="wsSend({type:'start'})">Démarrer une partie</button>
-{% endif %}
+<button
+  id="start-btn"
+  class="action-btn"
+  style="display:none"
+  onclick="wsSend({type:'start'})"
+>
+  Démarrer une partie
+</button>
 <button class="action-btn" onclick="wsSend({type:'play'})">Jouer une carte</button>
 <button class="action-btn" onclick="wsSend({type:'slap'})">TAPER !</button>
 
@@ -83,5 +88,13 @@
   </div>
 </section>
 <p><a href="/">Accueil</a></p>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var startBtn = document.getElementById('start-btn');
+    if (startBtn && {{ is_host|yesno:"true,false" }}) {
+      startBtn.style.display = '';
+    }
+  });
+</script>
 <script src="{% static 'js/room.js' %}"></script>
 {% endblock %}

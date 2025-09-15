@@ -133,7 +133,8 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                 await self._reset_ready_flags()
                 await self._reset_engine(clear_ready=True)
             if broadcast_needed:
-                await self._broadcast_state()
+                extra = {"playerLeft": uid} if uid else None
+                await self._broadcast_state(extra=extra)
             group = getattr(self.channel_layer, "groups", {}).get(self.group)
             if not group:
                 engine = ENGINES.pop(self.room_code, None)
@@ -183,7 +184,13 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             {"userId": p["user_id"], "username": p["user__username"]}
             for p in raw_players
         ]
-        payload = {"type": "state", "players": players, "ready": list(READY.get(self.room_code, set()))}
+        host_id = await self._get_host_id()
+        payload = {
+            "type": "state",
+            "players": players,
+            "ready": list(READY.get(self.room_code, set())),
+            "hostId": host_id,
+        }
         payload["started"] = await self._is_started()
         if engine is None:
             payload["pending"] = "waiting_for_players"
@@ -254,6 +261,14 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             room=room,
             defaults={"state_json": engine.serialize()},
         )
+
+    @database_sync_to_async
+    def _get_host_id(self):
+        try:
+            room = Room.objects.only("host_id").get(code=self.room_code)
+        except Room.DoesNotExist:
+            return None
+        return room.host_id
 
     @database_sync_to_async
     def _is_host(self, user_id):

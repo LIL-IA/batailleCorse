@@ -384,6 +384,27 @@
 
   socket.onmessage = (event) => {
     const msg = JSON.parse(event.data);
+    if (Object.prototype.hasOwnProperty.call(msg, 'playerLeft')) {
+      const leftId = parseId(msg.playerLeft);
+      let leftName = '';
+      if (leftId !== null) {
+        const leftPlayer = playersList.querySelector(
+          `li[data-user-id="${leftId}"] strong`
+        );
+        if (leftPlayer && leftPlayer.textContent) {
+          leftName = leftPlayer.textContent;
+        }
+      }
+      const leaveMessage = leftName
+        ? `${leftName} a quitté la partie.`
+        : 'Un joueur a quitté la partie.';
+      if (errorDiv) {
+        errorDiv.textContent = leaveMessage;
+      }
+      if (typeof window.alert === 'function') {
+        window.alert(leaveMessage);
+      }
+    }
     if (msg.error) {
       const err = errorMessages[msg.error] || msg.error;
       window.alert(err);
@@ -396,15 +417,20 @@
 
     if (msg.type === 'state') {
       setActionButtonsDisabled(false);
+      const started = Boolean(msg.started);
       const readyIds = new Set(
         (Array.isArray(msg.ready) ? msg.ready : [])
           .map(parseId)
           .filter((id) => id !== null)
       );
+      if (lastStartedState === true && !started) {
+        readyIds.clear();
+      }
       const players = Array.isArray(msg.players) ? msg.players : [];
-      const started = Boolean(msg.started);
       if (startBtn) {
-        startBtn.style.display = started ? 'none' : '';
+        const shouldShow =
+          currentUserId !== null && msg.hostId === currentUserId && !msg.started;
+        startBtn.style.display = shouldShow ? '' : 'none';
       }
       const state = msg.state || null;
       const currentTurnId = state ? parseId(state.turn) : null;
@@ -474,6 +500,7 @@
           li.classList.toggle('player-waiting', !isReady);
         }
       });
+      lastStartedState = started;
     }
   };
 
