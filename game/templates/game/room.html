@@ -53,6 +53,17 @@
       document.querySelectorAll('.action-btn').forEach(btn => (btn.disabled = false));
       document.getElementById("state").textContent = JSON.stringify(msg.state, null, 2);
       const ready = msg.ready || [];
+      const players = msg.players || [];
+      const list = document.getElementById('players');
+      const present = new Set(Array.from(list.querySelectorAll('li')).map(li => parseInt(li.dataset.userId,10)));
+      players.forEach(p => {
+        if (!present.has(p.userId)) {
+          const li = document.createElement('li');
+          li.dataset.userId = p.userId;
+          li.innerHTML = `<strong>${p.username}</strong> : <span class="status">en attente</span> <button class="ready-btn" onclick="wsSend({type:'ready', value:true})" ${p.userId !== currentUserId ? 'disabled' : ''}>Se déclarer prêt</button>`;
+          list.appendChild(li);
+        }
+      });
       document.querySelectorAll('#players li').forEach(li => {
         const uid = parseInt(li.dataset.userId, 10);
         const status = li.querySelector('.status');

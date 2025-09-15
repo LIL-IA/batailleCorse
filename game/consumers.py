@@ -87,8 +87,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
             elif t == "start":
                 if await self._is_host(user_id):
-                    await self._reset_engine()
-                    await self._broadcast_state()
+                    players = await self._players_order()
                     if len(players) < 2:
                         await self.send_json({"error": "not-enough-players"})
                         return
@@ -159,20 +158,26 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
     async def _broadcast_state(self, extra=None):
         engine = ENGINES.get(self.room_code)
+        raw_players = await self._players_info()
+        players = [
+            {"userId": p["user_id"], "username": p["user__username"]}
+            for p in raw_players
+        ]
+        payload = {"type": "state", "players": players, "ready": list(READY.get(self.room_code, set()))}
         if engine is None:
-            await self.send_json({"type":"state","pending":"waiting_for_players"})
-            return
-        payload = {
-            "type": "state",
-            "state": engine.serialize(),
-            "ready": list(READY.get(self.room_code, set())),
-        }
+            payload["pending"] = "waiting_for_players"
+        else:
+            payload["state"] = engine.serialize()
         if extra:
             payload.update(extra)
         await self.channel_layer.group_send(self.group, {"type": "deliver", "payload": payload})
 
     async def deliver(self, event):
         await self.send_json(event["payload"])
+
+    async def refresh_state(self, event):
+        await self._reset_engine(clear_ready=False)
+        await self._broadcast_state()
 
     async def _ensure_engine(self):
         if self.room_code not in ENGINES:
@@ -210,6 +215,13 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     def _players_order(self):
         r = Room.objects.get(code=self.room_code)
         return list(r.players.order_by("seat").values_list("user_id", flat=True))
+
+    @database_sync_to_async
+    def _players_info(self):
+        r = Room.objects.get(code=self.room_code)
+        return list(
+            r.players.order_by("seat").values("user_id", "user__username")
+        )
 
     @database_sync_to_async
     def _set_ready(self, user_id, value):
