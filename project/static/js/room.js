@@ -135,8 +135,11 @@
       );
       const players = Array.isArray(msg.players) ? msg.players : [];
       const started = Boolean(msg.started);
+      const hostId = parseId(msg.hostId);
+      const isCurrentHost = currentUserId !== null && hostId !== null && currentUserId === hostId;
       if (startBtn) {
-        startBtn.style.display = started ? 'none' : '';
+        const shouldShow = isCurrentHost && !started;
+        startBtn.style.display = shouldShow ? '' : 'none';
       }
       const state = msg.state || null;
       const currentTurnId = state ? parseId(state.turn) : null;

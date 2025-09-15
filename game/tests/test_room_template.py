@@ -17,8 +17,10 @@ class RoomTemplateTests(TestCase):
     def test_start_button_visible_only_to_host(self):
         self.client.force_login(self.host)
         response = self.client.get(reverse("room", args=[self.room.code]))
-        self.assertContains(response, "Démarrer une partie")
+        self.assertContains(response, 'id="start-btn"')
+        self.assertContains(response, "if (startBtn && true)")
 
         self.client.force_login(self.other)
         response = self.client.get(reverse("room", args=[self.room.code]))
-        self.assertNotContains(response, "Démarrer une partie")
+        self.assertContains(response, 'id="start-btn"')
+        self.assertContains(response, "if (startBtn && false)")
