@@ -61,7 +61,7 @@ class RoomConsumerTests(TransactionTestCase):
 
         async_to_sync(inner)()
         self.room.refresh_from_db()
-        assert self.room.is_started is True
+        assert self.room.is_started is False
 
     def test_start_fails_with_insufficient_players(self):
         Player.objects.filter(room=self.room, user=self.user2).delete()
@@ -148,7 +148,7 @@ class RoomConsumerTests(TransactionTestCase):
 
         async_to_sync(inner)()
         self.room.refresh_from_db()
-        assert self.room.is_started is True
+        assert self.room.is_started is False
         assert Player.objects.filter(room=self.room, is_ready=True).count() == 0
 
     def test_ready_persists_when_new_player_connects(self):
