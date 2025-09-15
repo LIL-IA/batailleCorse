@@ -35,7 +35,7 @@
 </ul>
 
 {% if is_host %}
-<button class="action-btn" onclick="wsSend({type:'start'})">Démarrer une partie</button>
+<button id="start-btn" class="action-btn" onclick="wsSend({type:'start'})">Démarrer une partie</button>
 {% endif %}
 <button class="action-btn" onclick="wsSend({type:'play'})">Jouer une carte</button>
 <button class="action-btn" onclick="wsSend({type:'slap'})">TAPER !</button>
