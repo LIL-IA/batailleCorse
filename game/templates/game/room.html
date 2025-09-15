@@ -8,6 +8,9 @@
   data-room-code="{{ room.code|escape }}"
   data-current-user-id="{{ request.user.id }}"
   data-current-turn-id="{{ current_turn_id|default_if_none:'' }}"
+  data-table-selector="#table"
+  data-center-pile-selector="#center-pile"
+  data-player-deck-selector=".player-deck"
 >
   {% for p in players %}
     {% with is_ready=p.is_ready %}
@@ -39,6 +42,23 @@
 {% endif %}
 <button class="action-btn" onclick="wsSend({type:'play'})">Jouer une carte</button>
 <button class="action-btn" onclick="wsSend({type:'slap'})">TAPER !</button>
+
+<div id="table">
+  <div id="center-pile" aria-live="polite">
+    <p>En attente du début de la partie…</p>
+  </div>
+  <div id="player-decks">
+    {% for p in players %}
+      <div
+        class="player-deck"
+        data-user-id="{{ p.user.id }}"
+        data-username="{{ p.user.username|escape }}"
+      >
+        <h3>{{ p.user.username }}</h3>
+      </div>
+    {% endfor %}
+  </div>
+</div>
 
 <div id="error-message" style="color:red"></div>
 
