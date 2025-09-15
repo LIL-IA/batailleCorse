@@ -19,7 +19,27 @@
 <button class="action-btn" onclick="wsSend({type:'slap'})">TAPER !</button>
 
 <div id="error-message" style="color:red"></div>
-<pre id="state"></pre>
+
+<section id="game-summary">
+  <div id="top-card" class="state-panel" aria-live="polite">
+    <h3>Carte du dessus</h3>
+    <div class="state-content">
+      <p>En attente du début de la partie…</p>
+    </div>
+  </div>
+  <div id="center-count" class="state-panel" aria-live="polite">
+    <h3>Tas central</h3>
+    <div class="state-content">
+      <p>En attente du début de la partie…</p>
+    </div>
+  </div>
+  <div id="player-counts" class="state-panel" aria-live="polite">
+    <h3>Cartes par joueur</h3>
+    <div class="state-content">
+      <p>En attente du début de la partie…</p>
+    </div>
+  </div>
+</section>
 <p><a href="/">Accueil</a></p>
 
 <script>
@@ -33,6 +53,12 @@
   const wsScheme = location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${wsScheme}://${location.host}/ws/room/${roomCode}/`);
   const errorDiv = document.getElementById("error-message");
+  const topCardContent = document.querySelector('#top-card .state-content');
+  const centerCountContent = document.querySelector('#center-count .state-content');
+  const playerCountsContent = document.querySelector('#player-counts .state-content');
+  const SUIT_SYMBOLS = { S: "♠", H: "♥", D: "♦", C: "♣" };
+  const SUIT_NAMES = { S: "pique", H: "cœur", D: "carreau", C: "trèfle" };
+  const RANK_NAMES = { A: "As", K: "Roi", Q: "Dame", J: "Valet", T: "10" };
 
   socket.onopen = () => console.log("WS ouvert");
   socket.onmessage = (ev) => {
@@ -51,10 +77,13 @@
     }
     if (msg.type === "state") {
       document.querySelectorAll('.action-btn').forEach(btn => (btn.disabled = false));
-      document.getElementById("state").textContent = JSON.stringify(msg.state, null, 2);
       const ready = msg.ready || [];
       const players = msg.players || [];
       const started = Boolean(msg.started);
+      const state = msg.state || null;
+      updateTopCard(state, started);
+      updateCenterCount(state, started);
+      updatePlayerCounts(state, players, started);
       const playersById = new Map(players.map(p => [p.userId, p.username]));
       const list = document.getElementById('players');
       const present = new Set(Array.from(list.querySelectorAll('li')).map(li => parseInt(li.dataset.userId,10)));
@@ -113,5 +142,109 @@
       wsSend({type: 'slap'});
     }
   });
+
+  function formatCardSymbol(card) {
+    if (!card) {
+      return "";
+    }
+    const rank = card[0];
+    const suit = card[1];
+    const displayRank = rank === 'T' ? '10' : rank;
+    const symbol = SUIT_SYMBOLS[suit] || "";
+    return `${displayRank}${symbol}`;
+  }
+
+  function formatCardName(card) {
+    if (!card) {
+      return "";
+    }
+    const rank = card[0];
+    const suit = card[1];
+    const rankName = RANK_NAMES[rank] || rank;
+    const suitName = SUIT_NAMES[suit];
+    return suitName ? `${rankName} de ${suitName}` : rankName;
+  }
+
+  function updateTopCard(state, started) {
+    if (!topCardContent) {
+      return;
+    }
+    topCardContent.innerHTML = "";
+    if (!state || !state.top_center) {
+      const message = started ? "Tas central vide." : "En attente du début de la partie.";
+      const p = document.createElement('p');
+      p.textContent = message;
+      topCardContent.appendChild(p);
+      return;
+    }
+    const card = state.top_center;
+    const visual = document.createElement('div');
+    visual.className = 'card-visual';
+    const suit = card[1];
+    if (suit === 'H' || suit === 'D') {
+      visual.classList.add('red');
+    }
+    const symbol = document.createElement('span');
+    symbol.className = 'card-symbol';
+    symbol.textContent = formatCardSymbol(card);
+    visual.appendChild(symbol);
+    visual.setAttribute('aria-label', formatCardName(card));
+    topCardContent.appendChild(visual);
+
+    const label = document.createElement('p');
+    label.className = 'card-name';
+    label.textContent = formatCardName(card);
+    topCardContent.appendChild(label);
+  }
+
+  function updateCenterCount(state, started) {
+    if (!centerCountContent) {
+      return;
+    }
+    centerCountContent.innerHTML = "";
+    if (!state) {
+      const p = document.createElement('p');
+      p.textContent = started ? "Tas central vide." : "En attente du début de la partie.";
+      centerCountContent.appendChild(p);
+      return;
+    }
+    const count = typeof state.center_count === 'number' ? state.center_count : 0;
+    const p = document.createElement('p');
+    if (count === 0) {
+      p.textContent = "Tas central vide.";
+    } else {
+      p.textContent = `${count} carte${count > 1 ? 's' : ''} dans le tas central.`;
+    }
+    centerCountContent.appendChild(p);
+  }
+
+  function updatePlayerCounts(state, players, started) {
+    if (!playerCountsContent) {
+      return;
+    }
+    playerCountsContent.innerHTML = "";
+    if (!state || !state.counts) {
+      const p = document.createElement('p');
+      p.textContent = started ? "Cartes non disponibles." : "En attente du début de la partie.";
+      playerCountsContent.appendChild(p);
+      return;
+    }
+    const counts = state.counts || {};
+    if (!players.length) {
+      const p = document.createElement('p');
+      p.textContent = "Aucun joueur trouvé.";
+      playerCountsContent.appendChild(p);
+      return;
+    }
+    const list = document.createElement('ul');
+    list.className = 'player-counts-list';
+    players.forEach(player => {
+      const li = document.createElement('li');
+      const count = counts[String(player.userId)] ?? 0;
+      li.textContent = `${player.username} : ${count} carte${count > 1 ? 's' : ''}`;
+      list.appendChild(li);
+    });
+    playerCountsContent.appendChild(list);
+  }
 </script>
 {% endblock %}
