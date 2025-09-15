@@ -2,7 +2,12 @@
 {% block content %}
 <h1>Bataille Corse</h1>
 {% if user.is_authenticated %}
-  <p>Connecté en tant que {{ user.username }} — <a href="{% url 'logout' %}">Se déconnecter</a></p>
+  <p>Connecté en tant que {{ user.username }} —
+    <form action="{% url 'logout' %}" method="post" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit">Se déconnecter</button>
+    </form>
+  </p>
   <ul>
     <li><a href="{% url 'create_room' %}">Créer une salle</a></li>
     <li><a href="{% url 'join_room' %}">Rejoindre une salle</a></li>
