@@ -54,23 +54,36 @@
       document.getElementById("state").textContent = JSON.stringify(msg.state, null, 2);
       const ready = msg.ready || [];
       const players = msg.players || [];
+      const started = Boolean(msg.started);
+      const playersById = new Map(players.map(p => [p.userId, p.username]));
       const list = document.getElementById('players');
       const present = new Set(Array.from(list.querySelectorAll('li')).map(li => parseInt(li.dataset.userId,10)));
       players.forEach(p => {
         if (!present.has(p.userId)) {
           const li = document.createElement('li');
           li.dataset.userId = p.userId;
-          li.innerHTML = `<strong>${p.username}</strong> : <span class="status">en attente</span> <button class="ready-btn" onclick="wsSend({type:'ready', value:true})" ${p.userId !== currentUserId ? 'disabled' : ''}>Se déclarer prêt</button>`;
+          if (started) {
+            li.innerHTML = `<strong>${p.username}</strong>`;
+          } else {
+            const disabledAttr = p.userId !== currentUserId ? ' disabled' : '';
+            const buttonHtml = `<button class="ready-btn" onclick="wsSend({type:'ready', value:true})"${disabledAttr}>Se déclarer prêt</button>`;
+            li.innerHTML = `<strong>${p.username}</strong> : <span class="status">en attente</span> ${buttonHtml}`;
+          }
           list.appendChild(li);
         }
       });
       document.querySelectorAll('#players li').forEach(li => {
         const uid = parseInt(li.dataset.userId, 10);
-        const status = li.querySelector('.status');
-        status.textContent = ready.includes(uid) ? 'prêt' : 'en attente';
-        const btn = li.querySelector('.ready-btn');
-        if (btn && uid === currentUserId) {
-          btn.disabled = ready.includes(uid);
+        const username = playersById.get(uid) || (li.querySelector('strong') ? li.querySelector('strong').textContent : '');
+        if (started) {
+          li.innerHTML = `<strong>${username}</strong>`;
+        } else {
+          const isReady = ready.includes(uid);
+          const statusText = isReady ? 'prêt' : 'en attente';
+          const shouldDisable = uid !== currentUserId || isReady;
+          const disabledAttr = shouldDisable ? ' disabled' : '';
+          const buttonHtml = `<button class="ready-btn" onclick="wsSend({type:'ready', value:true})"${disabledAttr}>Se déclarer prêt</button>`;
+          li.innerHTML = `<strong>${username}</strong> : <span class="status">${statusText}</span> ${buttonHtml}`;
         }
       });
     }
