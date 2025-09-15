@@ -1,10 +1,11 @@
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from game.models import Room, Player
 
 
+@override_settings(STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage")
 class RoomTemplateTests(TestCase):
     def setUp(self):
         self.host = User.objects.create_user("host", password="pass")

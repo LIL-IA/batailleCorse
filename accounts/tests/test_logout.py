@@ -8,5 +8,6 @@ class LogoutViewTests(TestCase):
         user = User.objects.create_user(username="alice", password="secret")
         self.client.login(username="alice", password="secret")
         response = self.client.post(reverse("logout"))
-        self.assertRedirects(response, reverse("home"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("home"))
         self.assertNotIn("_auth_user_id", self.client.session)
