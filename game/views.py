@@ -4,6 +4,8 @@ from django.http import HttpResponseServerError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from .models import Room, Player
 
 def _gen_code(n=6):
@@ -40,6 +42,10 @@ def join_room(request):
         if not room.players.filter(user=request.user).exists():
             next_seat = room.players.count()
             Player.objects.create(room=room, user=request.user, seat=next_seat)
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"room_{room.code}", {"type": "refresh_state"}
+            )
         return redirect('room', code=code)
     return render(request, 'game/join_room.html')
 
