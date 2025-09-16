@@ -24,7 +24,7 @@ class GameEngine:
             "allow_sandwich": True,
             "allow_double": True,
             "allow_runs": False,
-            "allow_ten": False,
+            "allow_ten": True,
             "bad_slap_penalty": 2,
         }
         if options:
@@ -53,17 +53,20 @@ class GameEngine:
         return card[0] in FACE_PENALTIES
 
     def _slap_valid(self):
-        if len(self.center) < 2:
+        if len(self.center) == 0:
             return False
+        if len(self.center) == 1:
+            return self.options["allow_ten"] and self.center[-1][0] == "T"
         a = self.center[-1][0]
         b = self.center[-2][0]
         if self.options["allow_double"] and a == b:
             return True
-        if self.options["allow_sandwich"] and len(self.center) >= 3:
+        has_three = len(self.center) >= 3
+        if self.options["allow_sandwich"] and has_three:
             c = self.center[-3][0]
             if a == c:
                 return True
-        if self.options["allow_runs"] and len(self.center) >= 3:
+        if self.options["allow_runs"] and has_three:
             vals = [RANK_VALUE[self.center[-i][0]] for i in (1,2,3)]
             if vals[0] == vals[1]+1 == vals[2]+2:
                 return True
@@ -71,6 +74,10 @@ class GameEngine:
             v1, v2 = RANK_VALUE[a], RANK_VALUE[b]
             if (v1 + v2) == 10:
                 return True
+            if has_three:
+                c = self.center[-3][0]
+                if (v1 + RANK_VALUE[c]) == 10:
+                    return True
         return False
 
     def play_card(self, player_id):
