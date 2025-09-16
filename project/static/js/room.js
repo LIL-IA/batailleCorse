@@ -448,9 +448,8 @@
         const isReady = readySet.has(userId);
         const statusText = isReady ? 'prêt' : 'en attente';
         const statusClass = isReady ? 'status-ready' : 'status-waiting';
-        const shouldDisable =
-          currentUserId === null || userId !== currentUserId || isReady;
-        const readyButtonHtml = createReadyButtonHtml(shouldDisable);
+        const shouldDisable = currentUserId === null || userId !== currentUserId;
+        const readyButtonHtml = createReadyButtonHtml(shouldDisable, isReady);
         li.innerHTML = `<strong>${username}</strong> <span class="status ${statusClass}">${statusText}</span> ${readyButtonHtml}`;
         li.classList.toggle('player-ready', isReady);
         li.classList.toggle('player-waiting', !isReady);
@@ -586,8 +585,9 @@
     }
   });
 
-  function createReadyButtonHtml(disabled) {
-    return `<button class="ready-btn" type="button" onclick="wsSend({type:'ready', value:true})"${disabled ? ' disabled' : ''}>Se déclarer prêt</button>`;
+  function createReadyButtonHtml(disabled, isReady) {
+    const nextValue = isReady ? 'false' : 'true';
+    const label = isReady ? "Annuler l'état prêt" : 'Se déclarer prêt';
   }
 
   function formatCardSymbol(card) {
