@@ -69,6 +69,20 @@ class GameEngineTests(SimpleTestCase):
         self.assertEqual(list(engine.hands[1]), ['4S'])
         self.assertEqual(engine.center, ['2H', '3D'])
 
+    def test_play_card_out_of_turn_penalizes_two_cards(self):
+        engine = GameEngine([1, 2])
+        engine.hands[1] = deque(['2H', '3D', '4S'])
+        engine.hands[2] = deque(['5C'])
+        engine.center = ['9H']
+        engine.turn_idx = 1  # player's index 1 corresponds to player 2's turn
+
+        result = engine.play_card(1)
+
+        self.assertEqual(result['error'], 'not-your-turn')
+        self.assertEqual(result['penalized'], 2)
+        self.assertEqual(list(engine.hands[1]), ['4S'])
+        self.assertEqual(engine.center, ['2H', '3D', '9H'])
+
     def test_serialize_includes_last_three_center(self):
         engine = GameEngine([1, 2])
         engine.center = []
