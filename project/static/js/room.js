@@ -47,9 +47,6 @@
   setCurrentTurnDataset(parseId(playersList.dataset.currentTurnId));
 
   const errorDiv = document.getElementById('error-message');
-  const topCardContent = document.querySelector('#top-card .state-content');
-  const centerCountContent = document.querySelector('#center-count .state-content');
-  const playerCountsContent = document.querySelector('#player-counts .state-content');
 
   const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
   const socket = new WebSocket(`${wsScheme}://${location.host}/ws/room/${roomCode}/`);
@@ -496,9 +493,6 @@
 
       const nextCountsMap = computeCountsMap(state);
 
-      updateTopCard(state, started);
-      updateCenterCount(state, started);
-      updatePlayerCounts(state, players, started);
       renderTable(state, players, msg.lastAction);
 
       handleStateLastAction(msg.lastAction, playersById, previousCountsMap, nextCountsMap);
@@ -573,98 +567,6 @@
     const rankName = RANK_NAMES[rank] || rank;
     const suitName = SUIT_NAMES[suit];
     return suitName ? `${rankName} de ${suitName}` : rankName;
-  }
-
-  function updateTopCard(state, started) {
-    if (!topCardContent) {
-      return;
-    }
-    topCardContent.innerHTML = '';
-    if (!state || !state.top_center) {
-      const message = started ? 'Tas central vide.' : 'En attente du début de la partie.';
-      const p = document.createElement('p');
-      p.textContent = message;
-      topCardContent.appendChild(p);
-      return;
-    }
-    const card = state.top_center;
-    const visual = document.createElement('div');
-    visual.className = 'card-visual';
-    const suit = card[1];
-    if (suit === 'H' || suit === 'D') {
-      visual.classList.add('red');
-    }
-    const topLeft = document.createElement('span');
-    topLeft.className = 'card-corner top-left';
-    topLeft.textContent = formatCardSymbol(card);
-    visual.appendChild(topLeft);
-
-    const symbol = document.createElement('span');
-    symbol.className = 'card-symbol';
-    symbol.textContent = formatSuitSymbol(card);
-    visual.appendChild(symbol);
-
-    const bottomRight = document.createElement('span');
-    bottomRight.className = 'card-corner bottom-right';
-    bottomRight.textContent = formatCardSymbol(card);
-    visual.appendChild(bottomRight);
-    visual.setAttribute('aria-label', formatCardName(card));
-    topCardContent.appendChild(visual);
-
-    const label = document.createElement('p');
-    label.className = 'card-name';
-    label.textContent = formatCardName(card);
-    topCardContent.appendChild(label);
-  }
-
-  function updateCenterCount(state, started) {
-    if (!centerCountContent) {
-      return;
-    }
-    centerCountContent.innerHTML = '';
-    if (!state) {
-      const p = document.createElement('p');
-      p.textContent = started ? 'Tas central vide.' : 'En attente du début de la partie.';
-      centerCountContent.appendChild(p);
-      return;
-    }
-    const count = typeof state.center_count === 'number' ? state.center_count : 0;
-    const p = document.createElement('p');
-    if (count === 0) {
-      p.textContent = 'Tas central vide.';
-    } else {
-      p.textContent = `${count} carte${count > 1 ? 's' : ''} dans le tas central.`;
-    }
-    centerCountContent.appendChild(p);
-  }
-
-  function updatePlayerCounts(state, players, started) {
-    if (!playerCountsContent) {
-      return;
-    }
-    playerCountsContent.innerHTML = '';
-    if (!state || !state.counts) {
-      const p = document.createElement('p');
-      p.textContent = started ? 'Cartes non disponibles.' : 'En attente du début de la partie.';
-      playerCountsContent.appendChild(p);
-      return;
-    }
-    const counts = state.counts || {};
-    if (!players.length) {
-      const p = document.createElement('p');
-      p.textContent = 'Aucun joueur trouvé.';
-      playerCountsContent.appendChild(p);
-      return;
-    }
-    const list = document.createElement('ul');
-    list.className = 'player-counts-list';
-    players.forEach((player) => {
-      const li = document.createElement('li');
-      const count = counts[String(player.userId)] ?? 0;
-      li.textContent = `${player.username} : ${count} carte${count > 1 ? 's' : ''}`;
-      list.appendChild(li);
-    });
-    playerCountsContent.appendChild(list);
   }
 
   function renderTable(state, players, lastAction) {
