@@ -61,15 +61,48 @@
   const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
   const socket = new WebSocket(`${wsScheme}://${location.host}/ws/room/${roomCode}/`);
 
+  let playCardShouldBeDisabled = false;
+  let temporaryActionsDisabled = false;
+  let temporaryDisableTimerId = null;
+
+  const applyPlayCardDisabledState = () => {
+    if (!playCardBtn) {
+      return;
+    }
+    const shouldDisable = temporaryActionsDisabled || playCardShouldBeDisabled;
+    const ariaValue = shouldDisable ? 'true' : 'false';
+    playCardBtn.disabled = shouldDisable;
+    playCardBtn.setAttribute('aria-disabled', ariaValue);
+  };
+
   const setActionButtonsDisabled = (disabled) => {
+    const effectiveDisabled = disabled || temporaryActionsDisabled;
     document.querySelectorAll('.action-btn').forEach((btn) => {
-      btn.disabled = disabled;
+      if (effectiveDisabled) {
+        btn.disabled = true;
+        btn.setAttribute('aria-disabled', 'true');
+        return;
+      }
+      if (btn === playCardBtn) {
+        applyPlayCardDisabledState();
+      } else {
+        btn.disabled = false;
+        btn.setAttribute('aria-disabled', 'false');
+      }
     });
   };
 
   const disableActionButtonsTemporarily = (durationMs = 1000) => {
+    temporaryActionsDisabled = true;
     setActionButtonsDisabled(true);
-    window.setTimeout(() => setActionButtonsDisabled(false), durationMs);
+    if (temporaryDisableTimerId !== null) {
+      window.clearTimeout(temporaryDisableTimerId);
+    }
+    temporaryDisableTimerId = window.setTimeout(() => {
+      temporaryActionsDisabled = false;
+      temporaryDisableTimerId = null;
+      setActionButtonsDisabled(false);
+    }, durationMs);
   };
 
   const SLAP_FEEDBACK_CLASSES = ['slap-success', 'slap-fail'];
@@ -275,6 +308,69 @@
 
     return {
       showResolution,
+      hide
+    };
+  })();
+
+  const gameWinnerOverlay = (() => {
+    let overlayEl = null;
+
+    const ensureOverlay = () => {
+      const tableEl = document.querySelector(tableSelector);
+      if (!tableEl) {
+        return null;
+      }
+      if (!overlayEl || overlayEl.parentElement !== tableEl) {
+        overlayEl = document.createElement('div');
+        overlayEl.className = 'slap-overlay game-winner-overlay';
+        overlayEl.setAttribute('role', 'alert');
+        overlayEl.setAttribute('aria-live', 'assertive');
+        overlayEl.setAttribute('aria-hidden', 'true');
+        tableEl.appendChild(overlayEl);
+      }
+      return overlayEl;
+    };
+
+    const hide = () => {
+      if (!overlayEl) {
+        return;
+      }
+      overlayEl.classList.remove('slap-overlay-visible', 'slap-overlay-animate');
+      overlayEl.setAttribute('aria-hidden', 'true');
+      overlayEl.innerHTML = '';
+    };
+
+    const show = (winnerName) => {
+      const overlay = ensureOverlay();
+      if (!overlay) {
+        return;
+      }
+      overlay.innerHTML = '';
+      overlay.classList.remove('slap-overlay-animate');
+      overlay.classList.add('slap-overlay-visible');
+      overlay.setAttribute('aria-hidden', 'false');
+
+      const content = document.createElement('div');
+      content.className = 'slap-overlay-content';
+
+      const title = document.createElement('h3');
+      title.textContent = 'Partie terminée';
+      content.appendChild(title);
+
+      const message = document.createElement('p');
+      message.className = 'slap-overlay-winner';
+      message.textContent = 'Victoire de ';
+      const strong = document.createElement('strong');
+      strong.textContent = winnerName;
+      message.appendChild(strong);
+      message.appendChild(document.createTextNode(' !'));
+      content.appendChild(message);
+
+      overlay.appendChild(content);
+    };
+
+    return {
+      show,
       hide
     };
   })();
@@ -493,6 +589,10 @@
       if (errorDiv) {
         errorDiv.textContent = err;
       }
+      if (msg.error === 'no-cards' || msg.error === 'game-over') {
+        playCardShouldBeDisabled = true;
+        applyPlayCardDisabledState();
+      }
       disableActionButtonsTemporarily();
       return;
     }
@@ -543,7 +643,7 @@
 
       const nextCountsMap = computeCountsMap(state);
 
-      renderTable(state, players, msg.lastAction);
+      renderTable(state, players, msg.lastAction, playersById);
 
       handleStateLastAction(msg.lastAction, playersById, previousCountsMap, nextCountsMap);
       previousCountsMap = nextCountsMap;
@@ -626,7 +726,7 @@
     return suitName ? `${rankName} de ${suitName}` : rankName;
   }
 
-  function renderTable(state, players, lastAction) {
+  function renderTable(state, players, lastAction, playersById) {
     const tableEl = document.querySelector(tableSelector);
     const centerPileEl = document.querySelector(centerPileSelector);
     const penaltyPileEl = document.querySelector(penaltyPileSelector);
@@ -639,6 +739,15 @@
 
     const currentTurnId = parseId(playersList.dataset.currentTurnId);
     const currentTurnKey = currentTurnId !== null ? String(currentTurnId) : '';
+    const currentUserKey = currentUserId !== null ? String(currentUserId) : null;
+    const resolvedPlayersById =
+      playersById instanceof Map
+        ? playersById
+        : new Map(
+            (Array.isArray(players) ? players : [])
+              .map((player) => [parseId(player.userId), player.username])
+              .filter(([id]) => id !== null)
+          );
 
     let decksContainer = tableEl.querySelector('#player-decks');
     if (!decksContainer) {
@@ -654,6 +763,17 @@
     }
 
     const counts = (state && state.counts) || {};
+    let currentUserCount = null;
+    if (state && currentUserKey && Object.prototype.hasOwnProperty.call(counts, currentUserKey)) {
+      const rawCurrentCount = counts[currentUserKey];
+      const parsedCurrentCount =
+        typeof rawCurrentCount === 'number'
+          ? rawCurrentCount
+          : Number.parseInt(rawCurrentCount, 10);
+      if (Number.isFinite(parsedCurrentCount)) {
+        currentUserCount = parsedCurrentCount;
+      }
+    }
     const activeIds = new Set();
     const deckElements = [];
 
@@ -776,6 +896,8 @@
       collectWinnerId !== null &&
       currentUserId !== null &&
       collectWinnerId === currentUserId;
+    const hasWinner = Boolean(state && state.winner !== undefined && state.winner !== null);
+    const winnerId = hasWinner ? parseId(state.winner) : null;
 
     if (playCardBtn) {
       playCardBtn.classList.toggle('collect-highlight', isCollectWinner);
@@ -783,6 +905,29 @@
         ? 'Récupérer les cartes'
         : 'Jouer une carte';
     }
+
+    if (hasWinner) {
+      const resolvedName = winnerId !== null ? resolvedPlayersById.get(winnerId) : null;
+      const fallbackName = winnerId !== null ? `Joueur ${winnerId}` : 'Gagnant';
+      const winnerName =
+        typeof resolvedName === 'string' && resolvedName && resolvedName.trim()
+          ? resolvedName
+          : fallbackName;
+      gameWinnerOverlay.show(winnerName);
+      slapOverlayManager.hide();
+    } else {
+      gameWinnerOverlay.hide();
+    }
+
+    let shouldDisablePlayButton = false;
+    if (hasWinner) {
+      shouldDisablePlayButton = true;
+    } else if (state && currentUserCount === 0) {
+      shouldDisablePlayButton = !isCollectWinner;
+    }
+
+    playCardShouldBeDisabled = shouldDisablePlayButton;
+    applyPlayCardDisabledState();
 
     centerPileEl.classList.toggle('pending-collect', pendingCollect);
     centerPileEl.innerHTML = '';
