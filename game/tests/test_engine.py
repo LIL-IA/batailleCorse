@@ -1,4 +1,6 @@
 from collections import deque
+from unittest.mock import patch
+
 from django.test import SimpleTestCase
 
 from game.engine import GameEngine
@@ -11,6 +13,13 @@ class GameEngineTests(SimpleTestCase):
         self.assertEqual(len(engine.hands[2]), 26)
         self.assertEqual(sum(len(h) for h in engine.hands.values()), 52)
         self.assertEqual(len(engine.center), 0)
+
+    def test_initial_turn_idx_uses_random_selection(self):
+        with patch('game.engine.random.randrange', return_value=1):
+            engine = GameEngine([1, 2, 3])
+
+        self.assertEqual(engine.turn_idx, 1)
+        self.assertEqual(engine.players[engine.turn_idx], 2)
 
     def test_slap_validity(self):
         engine = GameEngine([1, 2])

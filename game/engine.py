@@ -18,7 +18,7 @@ class GameEngine:
         self.hands = {pid: deque() for pid in players}
         self.center = []
         self.penalties = []
-        self.turn_idx = 0
+        self.turn_idx = random.randrange(self.n)
         self.face_chances = 0
         self.waiting_for_face_from = None
         self.pending_collect = False
