@@ -60,9 +60,15 @@ class GameEngine:
     def _slap_valid(self):
         if len(self.center) == 0:
             return False
-        if len(self.center) == 1:
-            return self.options["allow_ten"] and self.center[-1][0] == "T"
+
         a = self.center[-1][0]
+
+        if self.options["allow_ten"] and a == "T":
+            return True
+
+        if len(self.center) == 1:
+            return False
+
         b = self.center[-2][0]
         if self.options["allow_double"] and a == b:
             return True
