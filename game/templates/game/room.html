@@ -27,10 +27,10 @@
           <button
             class="ready-btn"
             type="button"
-            onclick="wsSend({type:'ready', value:true})"
-            {% if p.user != request.user or is_ready %}disabled{% endif %}
+            onclick="wsSend({type:'ready', value:{% if is_ready %}false{% else %}true{% endif %}})"
+            {% if p.user != request.user %}disabled{% endif %}
           >
-            Se déclarer prêt
+            {% if is_ready %}Annuler l'état prêt{% else %}Se déclarer prêt{% endif %}
           </button>
         {% endif %}
       </li>
