@@ -2,41 +2,43 @@
 {% load static %}
 {% block content %}
 <h2>Salle {{ room.code }}</h2>
-<p>Joueurs :</p>
-<ul
-  id="players"
-  data-room-code="{{ room.code|escape }}"
-  data-current-user-id="{{ request.user.id }}"
-  data-current-turn-id="{{ current_turn_id|default_if_none:'' }}"
-  data-table-selector="#table"
-  data-center-pile-selector="#center-pile"
-  data-penalty-pile-selector="#penalty-pile"
-  data-player-deck-selector=".player-deck"
->
-  {% for p in players %}
-    {% with is_ready=p.is_ready %}
-      <li
-        class="player-row{% if is_ready %} player-ready{% else %} player-waiting{% endif %}{% if current_turn_id and current_turn_id == p.user.id %} current-turn{% endif %}"
-        data-user-id="{{ p.user.id }}"
-      >
-        <strong>{{ p.user.username }}</strong>
-        {% if not room.is_started %}
-          <span class="status {% if is_ready %}status-ready{% else %}status-waiting{% endif %}">
-            {% if is_ready %}prêt{% else %}en attente{% endif %}
-          </span>
-          <button
-            class="ready-btn"
-            type="button"
-            onclick="wsSend({type:'ready', value:{% if is_ready %}false{% else %}true{% endif %}})"
-            {% if p.user != request.user %}disabled{% endif %}
-          >
-            {% if is_ready %}Annuler l'état prêt{% else %}Se déclarer prêt{% endif %}
-          </button>
-        {% endif %}
-      </li>
-    {% endwith %}
-  {% endfor %}
-</ul>
+<div id="players-section">
+  <p>Joueurs :</p>
+  <ul
+    id="players"
+    data-room-code="{{ room.code|escape }}"
+    data-current-user-id="{{ request.user.id }}"
+    data-current-turn-id="{{ current_turn_id|default_if_none:'' }}"
+    data-table-selector="#table"
+    data-center-pile-selector="#center-pile"
+    data-penalty-pile-selector="#penalty-pile"
+    data-player-deck-selector=".player-deck"
+  >
+    {% for p in players %}
+      {% with is_ready=p.is_ready %}
+        <li
+          class="player-row{% if is_ready %} player-ready{% else %} player-waiting{% endif %}{% if current_turn_id and current_turn_id == p.user.id %} current-turn{% endif %}"
+          data-user-id="{{ p.user.id }}"
+        >
+          <strong>{{ p.user.username }}</strong>
+          {% if not room.is_started %}
+            <span class="status {% if is_ready %}status-ready{% else %}status-waiting{% endif %}">
+              {% if is_ready %}prêt{% else %}en attente{% endif %}
+            </span>
+            <button
+              class="ready-btn"
+              type="button"
+              onclick="wsSend({type:'ready', value:true})"
+              {% if p.user != request.user or is_ready %}disabled{% endif %}
+            >
+              Se déclarer prêt
+            </button>
+          {% endif %}
+        </li>
+      {% endwith %}
+    {% endfor %}
+  </ul>
+</div>
 
 <button
   id="start-btn"
