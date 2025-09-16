@@ -10,6 +10,7 @@
   data-current-turn-id="{{ current_turn_id|default_if_none:'' }}"
   data-table-selector="#table"
   data-center-pile-selector="#center-pile"
+  data-penalty-pile-selector="#penalty-pile"
   data-player-deck-selector=".player-deck"
 >
   {% for p in players %}
@@ -63,6 +64,7 @@
   <div id="center-pile" aria-live="polite">
     <p>En attente du début de la partie…</p>
   </div>
+  <div id="penalty-pile" aria-label="Tas de pénalités"></div>
   <div id="player-decks">
     {% for p in players %}
       <div

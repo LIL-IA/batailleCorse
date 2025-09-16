@@ -17,6 +17,7 @@ class GameEngine:
         self.n = len(players)
         self.hands = {pid: deque() for pid in players}
         self.center = []
+        self.penalties = []
         self.turn_idx = 0
         self.face_chances = 0
         self.waiting_for_face_from = None
@@ -42,6 +43,7 @@ class GameEngine:
             "center_count": len(self.center),
             "top_center": self.center[-1] if self.center else None,
             "last_three_center": self.center[-3:],
+            "penalty_count": len(self.penalties),
             "turn": self.players[self.turn_idx],  # ok (valeur int)
             "face_chances": self.face_chances,
             "waiting_for_face_from": self.waiting_for_face_from,
@@ -105,7 +107,7 @@ class GameEngine:
                 if self.hands[player_id]:
                     taken.append(self.hands[player_id].popleft())
             if taken:
-                self.center = taken + self.center
+                self.penalties.extend(taken)
             return {"error": "not-your-turn", "penalized": len(taken)}
         if not self.hands[player_id]:
             return {"error":"no-cards"}
@@ -143,13 +145,16 @@ class GameEngine:
             for _ in range(pen):
                 if self.hands[player_id]:
                     taken.append(self.hands[player_id].popleft())
-            self.center = taken + self.center
+            self.penalties.extend(taken)
             return {"ok": True, "valid": False, "penalized": len(taken)}
 
     def _collect_center(self, player_id):
         random.shuffle(self.center)
         self.hands[player_id].extend(self.center)
+        if self.penalties:
+            self.hands[player_id].extend(self.penalties)
         self.center = []
+        self.penalties = []
         self.pending_collect = False
         self.collect_winner = None
 

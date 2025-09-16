@@ -24,3 +24,8 @@ class RoomTemplateTests(TestCase):
         response = self.client.get(reverse("room", args=[self.room.code]))
         self.assertContains(response, 'id="start-btn"')
         self.assertContains(response, "if (startBtn && false)")
+
+    def test_room_contains_penalty_pile_container(self):
+        self.client.force_login(self.host)
+        response = self.client.get(reverse("room", args=[self.room.code]))
+        self.assertContains(response, 'id="penalty-pile"')
