@@ -824,14 +824,16 @@
       const stack = document.createElement('div');
       stack.className = 'center-pile';
 
-      const positions = ['bottom', 'mid', 'top'];
-      const offset = Math.max(positions.length - lastThree.length, 0);
+      const totalCount = typeof state.center_count === 'number' ? state.center_count : lastThree.length;
+      const startIndex = totalCount - lastThree.length;
 
       lastThree.forEach((card, idx) => {
         const pileCard = document.createElement('div');
         pileCard.className = 'card-visual center-card';
-        const positionClass = positions[offset + idx] || 'top';
-        pileCard.classList.add(positionClass);
+
+        const rotation = ((startIndex + idx) * 45) % 360;
+        pileCard.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+        pileCard.style.zIndex = String(10 + idx);
 
         if (card && (card[1] === 'H' || card[1] === 'D')) {
           pileCard.classList.add('red');
