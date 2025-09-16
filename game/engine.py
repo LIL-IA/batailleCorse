@@ -20,6 +20,8 @@ class GameEngine:
         self.turn_idx = 0
         self.face_chances = 0
         self.waiting_for_face_from = None
+        self.pending_collect = False
+        self.collect_winner = None
         self.options = {
             "allow_sandwich": True,
             "allow_double": True,
@@ -42,6 +44,8 @@ class GameEngine:
             "turn": self.players[self.turn_idx],  # ok (valeur int)
             "face_chances": self.face_chances,
             "waiting_for_face_from": self.waiting_for_face_from,
+            "pending_collect": self.pending_collect,
+            "collect_winner": self.collect_winner,
         }
 
     def _deal(self):
@@ -74,6 +78,12 @@ class GameEngine:
         return False
 
     def play_card(self, player_id):
+        if self.pending_collect and player_id == self.collect_winner:
+            self._collect_center(player_id)
+            self.pending_collect = False
+            self.collect_winner = None
+            self.turn_idx = self.players.index(player_id)
+            return {"ok": True, "collected": True}
         if self.players[self.turn_idx] != player_id:
             return {"error":"not-your-turn"}
         if not self.hands[player_id]:
@@ -91,7 +101,8 @@ class GameEngine:
                 self.face_chances -= 1
                 if self.face_chances == 0:
                     winner = self._prev_player()
-                    self._collect_center(winner)
+                    self.pending_collect = True
+                    self.collect_winner = winner
                     self.turn_idx = self.players.index(winner)
                     self.waiting_for_face_from = None
             else:
@@ -118,6 +129,8 @@ class GameEngine:
         random.shuffle(self.center)
         self.hands[player_id].extend(self.center)
         self.center = []
+        self.pending_collect = False
+        self.collect_winner = None
 
     def _next_player(self):
         return self.players[(self.turn_idx+1) % self.n]

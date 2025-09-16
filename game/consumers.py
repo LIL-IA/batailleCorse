@@ -52,7 +52,8 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
             if t == "play":
                 res = engine.play_card(user_id)
-                await self._broadcast_state(extra={"lastAction": {"type": "play", "res": res}})
+                last_action = {"type": "play", "res": res, "collected": res.get("collected", False)}
+                await self._broadcast_state(extra={"lastAction": last_action})
 
             elif t == "slap":
                 ts = time.time_ns()
