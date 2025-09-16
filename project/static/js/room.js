@@ -22,6 +22,7 @@
 
   const startBtn = document.getElementById('start-btn');
   const stopBtn = document.getElementById('stop-btn');
+  const restartBtn = document.getElementById('restart-btn');
   const playCardBtn = document.getElementById('play-card-btn');
   const playersList = document.getElementById('players');
   if (!playersList) {
@@ -604,6 +605,7 @@
     if (msg.type === 'state' || msg.type === 'player_joined') {
       setActionButtonsDisabled(false);
       const started = Boolean(msg.started);
+      const hasWinner = msg.winner !== undefined && msg.winner !== null;
       const readyIds = new Set(
         (Array.isArray(msg.ready) ? msg.ready : [])
           .map(parseId)
@@ -620,8 +622,13 @@
       }
       if (stopBtn) {
         const showStop =
-          currentUserId !== null && msg.hostId === currentUserId && msg.started;
+          currentUserId !== null && msg.hostId === currentUserId && msg.started && !hasWinner;
         stopBtn.style.display = showStop ? '' : 'none';
+      }
+      if (restartBtn) {
+        const showRestart =
+          currentUserId !== null && msg.hostId === currentUserId && hasWinner;
+        restartBtn.style.display = showRestart ? '' : 'none';
       }
       if (playersSection) {
         playersSection.style.display = started ? 'none' : '';

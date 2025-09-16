@@ -163,6 +163,92 @@ class RoomConsumerTests(TransactionTestCase):
 
         async_to_sync(inner)()
 
+    def test_host_can_restart_game(self):
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            await host.receive_json_from()
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+            await guest.receive_json_from()
+            await host.receive_json_from()
+
+            await host.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await guest.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await host.send_json_to({"type": "start"})
+            state_host_started = await host.receive_json_from()
+            state_guest_started = await guest.receive_json_from()
+            assert state_host_started["started"] is True
+            assert state_guest_started["started"] is True
+
+            await host.send_json_to({"type": "restart"})
+            state_host_restarted = await host.receive_json_from()
+            state_guest_restarted = await guest.receive_json_from()
+            assert state_host_restarted["started"] is False
+            assert state_guest_restarted["started"] is False
+            assert state_host_restarted.get("ready") == []
+            assert state_guest_restarted.get("ready") == []
+
+            started_db = await sync_to_async(lambda: Room.objects.get(pk=self.room.pk).is_started)()
+            assert started_db is False
+
+            await guest.disconnect()
+            await host.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_non_host_cannot_restart_game(self):
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            await host.receive_json_from()
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+            await guest.receive_json_from()
+            await host.receive_json_from()
+
+            await host.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await guest.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await host.send_json_to({"type": "start"})
+            state_host_started = await host.receive_json_from()
+            state_guest_started = await guest.receive_json_from()
+            assert state_host_started["started"] is True
+            assert state_guest_started["started"] is True
+
+            await guest.send_json_to({"type": "restart"})
+            assert await guest.receive_nothing(timeout=0.1)
+            assert await host.receive_nothing(timeout=0.1)
+
+            started_db = await sync_to_async(lambda: Room.objects.get(pk=self.room.pk).is_started)()
+            assert started_db is True
+
+            await guest.disconnect()
+            await host.disconnect()
+
+        async_to_sync(inner)()
+
     def test_start_fails_with_insufficient_players(self):
         Player.objects.filter(room=self.room, user=self.user2).delete()
 

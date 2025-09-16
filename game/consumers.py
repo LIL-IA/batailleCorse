@@ -139,6 +139,12 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     await self._reset_engine(clear_ready=True)
                     await self._reset_ready_flags()
                     await self._broadcast_state()
+            elif t == "restart":
+                if await self._is_host(user_id):
+                    await self._set_room_stopped()
+                    await self._reset_engine(clear_ready=True)
+                    await self._reset_ready_flags()
+                    await self._broadcast_state()
             else:
                 await self.send_json({"error": "unknown-event"})
         except Exception:
