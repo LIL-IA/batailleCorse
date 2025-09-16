@@ -555,6 +555,9 @@ textarea:focus {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  width: 120px;
+  height: 168px;
+  font-size: 3rem;
   box-shadow: 0 24px 36px -24px rgba(15, 23, 42, 0.9);
   transition: transform 0.3s ease;
 }
