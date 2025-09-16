@@ -1,6 +1,7 @@
 (function () {
   const playActionContainer = document.getElementById('play-action-container');
   const slapBtn = document.getElementById('slap-btn');
+  const playersSection = document.getElementById('players-section');
 
   const errorMessages = {
     'not-ready': 'Tous les joueurs doivent être prêts.',
@@ -513,6 +514,12 @@
         const showStop =
           currentUserId !== null && msg.hostId === currentUserId && msg.started;
         stopBtn.style.display = showStop ? '' : 'none';
+      }
+      if (playersSection) {
+        playersSection.style.display = started ? 'none' : '';
+      }
+      if (playersList) {
+        playersList.style.display = started ? 'none' : '';
       }
       if (playActionContainer) playActionContainer.style.display = started ? '' : 'none';
       if (slapBtn) slapBtn.style.display = started ? '' : 'none';
