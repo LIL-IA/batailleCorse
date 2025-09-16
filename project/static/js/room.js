@@ -6,7 +6,10 @@
   const errorMessages = {
     'not-ready': 'Tous les joueurs doivent être prêts.',
     'not-enough-players': 'Il faut au moins deux joueurs.',
-    'start-failed': 'Erreur lors du démarrage.'
+    'start-failed': 'Erreur lors du démarrage.',
+    'game-not-started': "La partie n'a pas encore commencé.",
+    'game-over': 'La partie est terminée.',
+    'no-cards': "Vous n'avez plus de cartes."
   };
 
   const SUIT_SYMBOLS = { S: '♠', H: '♥', D: '♦', C: '♣' };
