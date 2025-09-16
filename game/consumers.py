@@ -168,10 +168,18 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             await self._broadcast_state(extra={"lastAction": {"type": "slap_none"}})
             return
 
-        candidates.sort(key=lambda x: (x[0], x[1]))
-        winner_ts, winner_id = candidates[0]
+        # If a player taps multiple times within the grace period, the server can
+        # receive duplicate entries for that user in ``candidates``.  Deduplicate
+        # by user ID while keeping the earliest timestamp for each player so the
+        # leaderboard reflects each participant only once.
+        dedup = {}
+        for ts, uid in candidates:
+            if uid not in dedup or ts < dedup[uid]:
+                dedup[uid] = ts
+        deduped = sorted(((ts, uid) for uid, ts in dedup.items()), key=lambda x: (x[0], x[1]))
+        winner_ts, winner_id = deduped[0]
         engine.resolve_slap(winner_id)
-        pretty = [{"userId": uid, "t_ns": ts} for ts, uid in candidates]
+        pretty = [{"userId": uid, "t_ns": ts} for ts, uid in deduped]
         await self._broadcast_state(extra={
             "lastAction": {
                 "type": "slap_resolved",
