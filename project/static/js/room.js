@@ -15,6 +15,8 @@
 
   const startBtn = document.getElementById('start-btn');
   const stopBtn = document.getElementById('stop-btn');
+  const playActionContainer = document.getElementById('play-action-container');
+  const slapBtn = document.getElementById('slap-btn');
   const playCardBtn = document.getElementById('play-card-btn');
   const playersList = document.getElementById('players');
   if (!playersList) {
@@ -488,6 +490,8 @@
           currentUserId !== null && msg.hostId === currentUserId && msg.started;
         stopBtn.style.display = showStop ? '' : 'none';
       }
+      if (playActionContainer) playActionContainer.style.display = started ? '' : 'none';
+      if (slapBtn) slapBtn.style.display = started ? '' : 'none';
       const state = msg.state || null;
       const currentTurnId = state ? parseId(state.turn) : null;
       setCurrentTurnDataset(currentTurnId);
