@@ -43,6 +43,20 @@ class GameEngineTests(SimpleTestCase):
         self.assertEqual(len(engine.hands[1]), 5)
         self.assertEqual(len(engine.hands[2]), 0)
 
+    def test_invalid_slap_penalizes_two_cards(self):
+        engine = GameEngine([1, 2])
+        engine.hands[1] = deque(['2H', '3D', '4S'])
+        engine.hands[2] = deque()
+        engine.center = []
+
+        result = engine.slap(1)
+
+        self.assertTrue(result['ok'])
+        self.assertFalse(result['valid'])
+        self.assertEqual(result['penalized'], 2)
+        self.assertEqual(list(engine.hands[1]), ['4S'])
+        self.assertEqual(engine.center, ['2H', '3D'])
+
     def test_serialize_includes_last_three_center(self):
         engine = GameEngine([1, 2])
         engine.center = []

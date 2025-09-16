@@ -25,7 +25,7 @@ class GameEngine:
             "allow_double": True,
             "allow_runs": False,
             "allow_ten": False,
-            "bad_slap_penalty": 1,
+            "bad_slap_penalty": 2,
         }
         if options:
             self.options.update(options)
