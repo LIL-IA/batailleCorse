@@ -42,7 +42,7 @@ class GameEngine:
             "counts": counts,                     # fix
             "center_count": len(self.center),
             "top_center": self.center[-1] if self.center else None,
-            "last_three_center": self.center[-3:],
+            "last_four_center": self.center[-4:],
             "penalty_count": len(self.penalties),
             "turn": self.players[self.turn_idx],  # ok (valeur int)
             "face_chances": self.face_chances,
