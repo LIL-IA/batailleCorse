@@ -63,6 +63,106 @@ class RoomConsumerTests(TransactionTestCase):
         self.room.refresh_from_db()
         assert self.room.is_started is False
 
+    def test_host_can_stop_game(self):
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            state = await host.receive_json_from()
+            assert state["type"] == "state"
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+            state = await guest.receive_json_from()
+            assert state["type"] == "state"
+            state = await host.receive_json_from()
+            assert state["type"] == "state"
+
+            await host.send_json_to({"type": "ready", "value": True})
+            state = await host.receive_json_from()
+            assert state["type"] == "state"
+            state = await guest.receive_json_from()
+            assert state["type"] == "state"
+
+            await guest.send_json_to({"type": "ready", "value": True})
+            state = await host.receive_json_from()
+            assert state["type"] == "state"
+            state = await guest.receive_json_from()
+            assert state["type"] == "state"
+
+            await host.send_json_to({"type": "start"})
+            state_host_started = await host.receive_json_from()
+            state_guest_started = await guest.receive_json_from()
+            assert state_host_started["started"] is True
+            assert state_guest_started["started"] is True
+
+            await host.send_json_to({"type": "stop"})
+            state_host_stopped = await host.receive_json_from()
+            state_guest_stopped = await guest.receive_json_from()
+            assert state_host_stopped["started"] is False
+            assert state_guest_stopped["started"] is False
+            assert state_host_stopped.get("ready") == []
+            assert state_guest_stopped.get("ready") == []
+
+            started_db = await sync_to_async(lambda: Room.objects.get(pk=self.room.pk).is_started)()
+            assert started_db is False
+
+            await guest.disconnect()
+            await host.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_non_host_cannot_stop_game(self):
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            state = await host.receive_json_from()
+            assert state["type"] == "state"
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+            state = await guest.receive_json_from()
+            assert state["type"] == "state"
+            state = await host.receive_json_from()
+            assert state["type"] == "state"
+
+            await host.send_json_to({"type": "ready", "value": True})
+            state = await host.receive_json_from()
+            assert state["type"] == "state"
+            state = await guest.receive_json_from()
+            assert state["type"] == "state"
+
+            await guest.send_json_to({"type": "ready", "value": True})
+            state = await host.receive_json_from()
+            assert state["type"] == "state"
+            state = await guest.receive_json_from()
+            assert state["type"] == "state"
+
+            await host.send_json_to({"type": "start"})
+            state_host_started = await host.receive_json_from()
+            state_guest_started = await guest.receive_json_from()
+            assert state_host_started["started"] is True
+            assert state_guest_started["started"] is True
+
+            await guest.send_json_to({"type": "stop"})
+            assert await guest.receive_nothing(timeout=0.1)
+            assert await host.receive_nothing(timeout=0.1)
+
+            started_db = await sync_to_async(lambda: Room.objects.get(pk=self.room.pk).is_started)()
+            assert started_db is True
+
+            await guest.disconnect()
+            await host.disconnect()
+
+        async_to_sync(inner)()
+
     def test_start_fails_with_insufficient_players(self):
         Player.objects.filter(room=self.room, user=self.user2).delete()
 

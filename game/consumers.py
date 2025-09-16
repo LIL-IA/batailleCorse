@@ -108,6 +108,12 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                             await self.send_json({"error": "not-ready"})
                     except Exception:
                         await self.send_json({"error": "start-failed"})
+            elif t == "stop":
+                if await self._is_host(user_id):
+                    await self._set_room_stopped()
+                    await self._reset_engine(clear_ready=True)
+                    await self._reset_ready_flags()
+                    await self._broadcast_state()
             else:
                 await self.send_json({"error": "unknown-event"})
         except Exception:
@@ -312,6 +318,12 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     def _set_room_started(self):
         room = Room.objects.get(code=self.room_code)
         room.is_started = True
+        room.save(update_fields=["is_started"])
+
+    @database_sync_to_async
+    def _set_room_stopped(self):
+        room = Room.objects.get(code=self.room_code)
+        room.is_started = False
         room.save(update_fields=["is_started"])
 
     @database_sync_to_async

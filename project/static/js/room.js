@@ -14,6 +14,7 @@
   };
 
   const startBtn = document.getElementById('start-btn');
+  const stopBtn = document.getElementById('stop-btn');
   const playersList = document.getElementById('players');
   if (!playersList) {
     console.error("Élément #players introuvable.");
@@ -480,6 +481,11 @@
         const shouldShow =
           currentUserId !== null && msg.hostId === currentUserId && !msg.started;
         startBtn.style.display = shouldShow ? '' : 'none';
+      }
+      if (stopBtn) {
+        const showStop =
+          currentUserId !== null && msg.hostId === currentUserId && msg.started;
+        stopBtn.style.display = showStop ? '' : 'none';
       }
       const state = msg.state || null;
       const currentTurnId = state ? parseId(state.turn) : null;
