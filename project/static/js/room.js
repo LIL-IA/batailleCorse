@@ -556,6 +556,14 @@
     return `${displayRank}${symbol}`;
   }
 
+  function formatSuitSymbol(card) {
+    if (!card) {
+      return '';
+    }
+    const suit = card[1];
+    return SUIT_SYMBOLS[suit] || '';
+  }
+
   function formatCardName(card) {
     if (!card) {
       return '';
@@ -586,10 +594,20 @@
     if (suit === 'H' || suit === 'D') {
       visual.classList.add('red');
     }
+    const topLeft = document.createElement('span');
+    topLeft.className = 'card-corner top-left';
+    topLeft.textContent = formatCardSymbol(card);
+    visual.appendChild(topLeft);
+
     const symbol = document.createElement('span');
     symbol.className = 'card-symbol';
-    symbol.textContent = formatCardSymbol(card);
+    symbol.textContent = formatSuitSymbol(card);
     visual.appendChild(symbol);
+
+    const bottomRight = document.createElement('span');
+    bottomRight.className = 'card-corner bottom-right';
+    bottomRight.textContent = formatCardSymbol(card);
+    visual.appendChild(bottomRight);
     visual.setAttribute('aria-label', formatCardName(card));
     topCardContent.appendChild(visual);
 
@@ -819,10 +837,20 @@
           pileCard.classList.add('red');
         }
 
+        const topLeft = document.createElement('span');
+        topLeft.className = 'card-corner top-left';
+        topLeft.textContent = formatCardSymbol(card);
+        pileCard.appendChild(topLeft);
+
         const symbol = document.createElement('span');
         symbol.className = 'card-symbol';
-        symbol.textContent = formatCardSymbol(card);
+        symbol.textContent = formatSuitSymbol(card);
         pileCard.appendChild(symbol);
+
+        const bottomRight = document.createElement('span');
+        bottomRight.className = 'card-corner bottom-right';
+        bottomRight.textContent = formatCardSymbol(card);
+        pileCard.appendChild(bottomRight);
 
         const readable = formatCardName(card);
         if (readable) {
