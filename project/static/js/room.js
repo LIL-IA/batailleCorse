@@ -16,7 +16,6 @@
   const startBtn = document.getElementById('start-btn');
   const stopBtn = document.getElementById('stop-btn');
   const playCardBtn = document.getElementById('play-card-btn');
-  const collectBanner = document.getElementById('collect-banner');
   const playersList = document.getElementById('players');
   if (!playersList) {
     console.error("Élément #players introuvable.");
@@ -726,26 +725,11 @@
       currentUserId !== null &&
       collectWinnerId === currentUserId;
 
-    if (collectBanner) {
-      if (isCollectWinner) {
-        const message = 'Cliquez sur « Jouer une carte » pour ramasser le tas.';
-        if (collectBanner.textContent !== message) {
-          collectBanner.textContent = message;
-        }
-        collectBanner.hidden = false;
-      } else {
-        collectBanner.hidden = true;
-        collectBanner.textContent = '';
-      }
-    }
-
     if (playCardBtn) {
       playCardBtn.classList.toggle('collect-highlight', isCollectWinner);
-      if (isCollectWinner && collectBanner) {
-        playCardBtn.setAttribute('aria-describedby', 'collect-banner');
-      } else if (playCardBtn.getAttribute('aria-describedby') === 'collect-banner') {
-        playCardBtn.removeAttribute('aria-describedby');
-      }
+      playCardBtn.textContent = isCollectWinner
+        ? 'Récupérer les cartes'
+        : 'Jouer une carte';
     }
 
     centerPileEl.classList.toggle('pending-collect', pendingCollect);
