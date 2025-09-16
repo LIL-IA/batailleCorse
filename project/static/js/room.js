@@ -27,6 +27,7 @@
 
   const tableSelector = playersList.dataset.tableSelector || '#table';
   const centerPileSelector = playersList.dataset.centerPileSelector || '#center-pile';
+  const penaltyPileSelector = playersList.dataset.penaltyPileSelector || '#penalty-pile';
   const playerDeckSelector = playersList.dataset.playerDeckSelector || '.player-deck';
 
   const parseId = (value) => {
@@ -587,6 +588,7 @@
   function renderTable(state, players, lastAction) {
     const tableEl = document.querySelector(tableSelector);
     const centerPileEl = document.querySelector(centerPileSelector);
+    const penaltyPileEl = document.querySelector(penaltyPileSelector);
     if (!tableEl || !centerPileEl) {
       return;
     }
@@ -739,6 +741,28 @@
 
     centerPileEl.classList.toggle('pending-collect', pendingCollect);
     centerPileEl.innerHTML = '';
+
+    if (penaltyPileEl) {
+      let rawPenaltyCount = state ? state.penalty_count : 0;
+      let penaltyCount =
+        typeof rawPenaltyCount === 'number'
+          ? rawPenaltyCount
+          : Number.parseInt(rawPenaltyCount, 10);
+      if (!Number.isFinite(penaltyCount) || penaltyCount < 0) {
+        penaltyCount = 0;
+      }
+      penaltyPileEl.innerHTML = '';
+      penaltyPileEl.classList.toggle('penalty-empty', penaltyCount === 0);
+      if (penaltyCount > 0) {
+        const back = document.createElement('div');
+        back.className = 'card-back';
+        penaltyPileEl.appendChild(back);
+        const countEl = document.createElement('span');
+        countEl.className = 'penalty-count';
+        countEl.textContent = String(penaltyCount);
+        penaltyPileEl.appendChild(countEl);
+      }
+    }
 
     const lastThree = state && Array.isArray(state.last_three_center)
       ? state.last_three_center.slice(-3)

@@ -79,7 +79,8 @@ class GameEngineTests(SimpleTestCase):
         self.assertFalse(result['valid'])
         self.assertEqual(result['penalized'], 2)
         self.assertEqual(list(engine.hands[1]), ['4S'])
-        self.assertEqual(engine.center, ['2H', '3D'])
+        self.assertEqual(engine.center, [])
+        self.assertEqual(engine.penalties, ['2H', '3D'])
 
     def test_play_card_out_of_turn_penalizes_two_cards(self):
         engine = GameEngine([1, 2])
@@ -93,7 +94,8 @@ class GameEngineTests(SimpleTestCase):
         self.assertEqual(result['error'], 'not-your-turn')
         self.assertEqual(result['penalized'], 2)
         self.assertEqual(list(engine.hands[1]), ['4S'])
-        self.assertEqual(engine.center, ['2H', '3D', '9H'])
+        self.assertEqual(engine.center, ['9H'])
+        self.assertEqual(engine.penalties, ['2H', '3D'])
 
     def test_serialize_includes_last_three_center(self):
         engine = GameEngine([1, 2])
@@ -144,3 +146,23 @@ class GameEngineTests(SimpleTestCase):
         self.assertEqual(serialized_after['center_count'], 0)
         self.assertFalse(serialized_after['pending_collect'])
         self.assertIsNone(serialized_after['collect_winner'])
+
+    def test_penalty_cards_placed_under_pile_on_collect(self):
+        engine = GameEngine([1, 2])
+        engine.hands[1] = deque(['AH'])
+        engine.hands[2] = deque()
+        engine.center = ['5S']
+        engine.penalties = ['9H', '8D']
+
+        engine._collect_center(1)
+
+        self.assertEqual(list(engine.hands[1]), ['AH', '5S', '9H', '8D'])
+        self.assertEqual(engine.center, [])
+        self.assertEqual(engine.penalties, [])
+
+    def test_serialize_includes_penalty_count(self):
+        engine = GameEngine([1, 2])
+        engine.penalties = ['2H', '3D']
+        serialized = engine.serialize()
+        self.assertIn('penalty_count', serialized)
+        self.assertEqual(serialized['penalty_count'], 2)
