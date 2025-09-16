@@ -1,4 +1,7 @@
 (function () {
+  const playActionContainer = document.getElementById('play-action-container');
+  const slapBtn = document.getElementById('slap-btn');
+
   const errorMessages = {
     'not-ready': 'Tous les joueurs doivent être prêts.',
     'not-enough-players': 'Il faut au moins deux joueurs.',
@@ -15,8 +18,6 @@
 
   const startBtn = document.getElementById('start-btn');
   const stopBtn = document.getElementById('stop-btn');
-  const playActionContainer = document.getElementById('play-action-container');
-  const slapBtn = document.getElementById('slap-btn');
   const playCardBtn = document.getElementById('play-card-btn');
   const playersList = document.getElementById('players');
   if (!playersList) {
