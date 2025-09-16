@@ -416,6 +416,9 @@
     const readySet = readyIds instanceof Set ? readyIds : new Set();
     const fragment = document.createDocumentFragment();
     const seen = new Set();
+    const listHidden =
+      (playersSection && playersSection.style.display === 'none') ||
+      (playersList && playersList.style.display === 'none');
 
     (Array.isArray(players) ? players : []).forEach((player) => {
       if (!player) {
@@ -430,7 +433,10 @@
       const li = document.createElement('li');
       li.dataset.userId = String(userId);
       li.classList.add('player-row');
-      li.classList.toggle('current-turn', currentTurnId !== null && userId === currentTurnId);
+      li.classList.toggle(
+        'current-turn',
+        !listHidden && currentTurnId !== null && userId === currentTurnId
+      );
 
       const rawUsername = typeof player.username === 'string' ? player.username : '';
       const username = rawUsername || `Joueur ${userId}`;
@@ -626,6 +632,9 @@
     tableEl.classList.add('table');
     handleLastActionFeedback(tableEl, lastAction);
 
+    const currentTurnId = parseId(playersList.dataset.currentTurnId);
+    const currentTurnKey = currentTurnId !== null ? String(currentTurnId) : '';
+
     let decksContainer = tableEl.querySelector('#player-decks');
     if (!decksContainer) {
       const existingDeck = tableEl.querySelector(playerDeckSelector);
@@ -706,6 +715,7 @@
           'player-deck-right',
           'player-deck-solo'
         );
+        deck.classList.toggle('current-turn', currentTurnKey !== '' && key === currentTurnKey);
 
         deckElements.push(deck);
       });

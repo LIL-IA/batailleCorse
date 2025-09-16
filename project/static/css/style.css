@@ -331,6 +331,22 @@ textarea:focus {
   transition: transform 0.35s ease, box-shadow 0.35s ease;
 }
 
+#player-decks .player-deck.current-turn {
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.55),
+    0 28px 60px -26px rgba(59, 130, 246, 0.65);
+  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.04);
+}
+
+#player-decks .player-deck.current-turn:hover,
+#player-decks .player-deck.current-turn:focus-within {
+  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.06);
+}
+
+#player-decks .player-deck.current-turn .deck-count {
+  color: #dbeafe;
+}
+
 #player-decks .player-deck.player-deck-solo {
   left: 50%;
   top: 78%;
