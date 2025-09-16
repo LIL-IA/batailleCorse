@@ -588,6 +588,9 @@
   function createReadyButtonHtml(disabled, isReady) {
     const nextValue = isReady ? 'false' : 'true';
     const label = isReady ? "Annuler l'état prêt" : 'Se déclarer prêt';
+    const disabledAttributes = disabled ? ' disabled aria-disabled="true"' : '';
+    const ariaPressed = isReady ? 'true' : 'false';
+    return `<button class="ready-btn" type="button"${disabledAttributes} aria-pressed="${ariaPressed}" onclick="wsSend({type:'ready', value:${nextValue}})">${label}</button>`;
   }
 
   function formatCardSymbol(card) {
