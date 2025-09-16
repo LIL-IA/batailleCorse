@@ -67,6 +67,17 @@
 
 <div id="error-message" style="color:red"></div>
 
+<div class="page-bottom-actions">
+  <button
+    id="stop-btn"
+    class="action-btn"
+    style="display:none"
+    onclick="wsSend({type:'stop'})"
+  >
+    Arrêter la partie
+  </button>
+</div>
+
 <p><a href="/">Accueil</a></p>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
