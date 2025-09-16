@@ -21,6 +21,18 @@ class GameEngineTests(SimpleTestCase):
         engine.center = ['5H', '7D']
         self.assertFalse(engine.is_slap_valid())
 
+    def test_ten_based_slap_rules(self):
+        engine = GameEngine([1, 2])
+
+        engine.center = ['TH']
+        self.assertTrue(engine.is_slap_valid())
+
+        engine.center = ['2H', '8D']
+        self.assertTrue(engine.is_slap_valid())
+
+        engine.center = ['2H', '5D', '8S']
+        self.assertTrue(engine.is_slap_valid())
+
     def test_face_card_rules(self):
         engine = GameEngine([1, 2])
         engine.hands[1] = deque(['AH'])
