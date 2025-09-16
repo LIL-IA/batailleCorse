@@ -6,3 +6,5 @@ db.sqlite3
 .env
 .env.*
 staticfiles/
+ScielPrivateKey.ppk
+vivaglint-20250916.pub
