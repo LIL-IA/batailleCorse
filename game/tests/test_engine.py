@@ -51,6 +51,18 @@ class GameEngineTests(SimpleTestCase):
 
         self.assertEqual(engine.face_chances, 0)
         self.assertEqual(engine.turn_idx, 0)
+        self.assertTrue(engine.pending_collect)
+        self.assertEqual(engine.collect_winner, 1)
+        self.assertEqual(len(engine.center), 5)
+        self.assertEqual(len(engine.hands[1]), 0)
+        self.assertEqual(len(engine.hands[2]), 0)
+
+        collect_res = engine.play_card(1)
+        self.assertTrue(collect_res['ok'])
+        self.assertTrue(collect_res['collected'])
+        self.assertEqual(engine.turn_idx, 0)
+        self.assertFalse(engine.pending_collect)
+        self.assertIsNone(engine.collect_winner)
         self.assertEqual(len(engine.center), 0)
         self.assertEqual(len(engine.hands[1]), 5)
         self.assertEqual(len(engine.hands[2]), 0)
@@ -83,3 +95,38 @@ class GameEngineTests(SimpleTestCase):
         engine.center.extend(['4S', '5C', '6D'])
         serialized = engine.serialize()
         self.assertEqual(serialized['last_three_center'], ['4S', '5C', '6D'])
+
+    def test_pending_collect_keeps_center_visible_until_winner_confirms(self):
+        engine = GameEngine([1, 2])
+        engine.hands[1] = deque(['JH'])
+        engine.hands[2] = deque(['3D'])
+        engine.center = []
+        engine.turn_idx = 0
+
+        first = engine.play_card(1)
+        self.assertTrue(first['ok'])
+        second = engine.play_card(2)
+        self.assertTrue(second['ok'])
+
+        self.assertTrue(engine.pending_collect)
+        self.assertEqual(engine.collect_winner, 1)
+        self.assertEqual(len(engine.center), 2)
+
+        serialized = engine.serialize()
+        self.assertEqual(serialized['center_count'], 2)
+        self.assertEqual(serialized['top_center'], '3D')
+        self.assertTrue(serialized['pending_collect'])
+        self.assertEqual(serialized['collect_winner'], 1)
+
+        collect = engine.play_card(1)
+        self.assertTrue(collect['ok'])
+        self.assertTrue(collect['collected'])
+        self.assertEqual(len(engine.center), 0)
+        self.assertFalse(engine.pending_collect)
+        self.assertIsNone(engine.collect_winner)
+        self.assertEqual(len(engine.hands[1]), 2)
+
+        serialized_after = engine.serialize()
+        self.assertEqual(serialized_after['center_count'], 0)
+        self.assertFalse(serialized_after['pending_collect'])
+        self.assertIsNone(serialized_after['collect_winner'])
