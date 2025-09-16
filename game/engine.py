@@ -28,6 +28,7 @@ class GameEngine:
             "allow_runs": False,
             "allow_ten": True,
             "bad_slap_penalty": 2,
+            "bad_play_penalty": 2,
         }
         if options:
             self.options.update(options)
@@ -92,7 +93,14 @@ class GameEngine:
             self.turn_idx = self.players.index(player_id)
             return {"ok": True, "collected": True}
         if self.players[self.turn_idx] != player_id:
-            return {"error":"not-your-turn"}
+            pen = self.options.get("bad_play_penalty", 0)
+            taken = []
+            for _ in range(pen):
+                if self.hands[player_id]:
+                    taken.append(self.hands[player_id].popleft())
+            if taken:
+                self.center = taken + self.center
+            return {"error": "not-your-turn", "penalized": len(taken)}
         if not self.hands[player_id]:
             return {"error":"no-cards"}
 
