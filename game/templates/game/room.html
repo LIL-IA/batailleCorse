@@ -45,7 +45,18 @@
 >
   Démarrer une partie
 </button>
-<button class="action-btn" onclick="wsSend({type:'play'})">Jouer une carte</button>
+<div class="play-action-container">
+  <button id="play-card-btn" class="action-btn" onclick="wsSend({type:'play'})">
+    Jouer une carte
+  </button>
+  <div
+    id="collect-banner"
+    class="collect-banner"
+    role="status"
+    aria-live="polite"
+    hidden
+  ></div>
+</div>
 <button class="action-btn" onclick="wsSend({type:'slap'})">TAPER !</button>
 
 <div id="table">
