@@ -52,9 +52,33 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             engine = ENGINES.get(self.room_code)
 
             if t == "play":
+                if engine is None:
+                    await self.send_json({"error": "game-not-started"})
+                    return
+
+                pending_collect_for_user = engine.pending_collect and engine.collect_winner == user_id
+                if engine.winner is not None and engine.winner != user_id:
+                    await self.send_json({"error": "game-over"})
+                    return
+
+                if not pending_collect_for_user:
+                    hand = engine.hands.get(user_id)
+                    if not hand:
+                        await self.send_json({"error": "no-cards"})
+                        return
+
                 res = engine.play_card(user_id)
-                last_action = {"type": "play", "res": res, "collected": res.get("collected", False)}
-                await self._broadcast_state(extra={"lastAction": last_action})
+                last_action = {
+                    "type": "play",
+                    "res": res,
+                    "collected": res.get("collected", False),
+                }
+                winner = engine.winner
+                extra = {"lastAction": last_action}
+                if winner is not None:
+                    last_action["winner"] = winner
+                    extra["winner"] = winner
+                await self._broadcast_state(extra=extra)
 
             elif t == "slap":
                 ts = time.time_ns()
@@ -180,13 +204,17 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         winner_ts, winner_id = deduped[0]
         engine.resolve_slap(winner_id)
         pretty = [{"userId": uid, "t_ns": ts} for ts, uid in deduped]
-        await self._broadcast_state(extra={
-            "lastAction": {
-                "type": "slap_resolved",
-                "winner": {"userId": winner_id, "t_ns": winner_ts},
-                "candidates": pretty
-            }
-        })
+        last_action = {
+            "type": "slap_resolved",
+            "winner": {"userId": winner_id, "t_ns": winner_ts},
+            "candidates": pretty,
+        }
+        game_winner = engine.winner
+        extra = {"lastAction": last_action}
+        if game_winner is not None:
+            last_action["gameWinner"] = game_winner
+            extra["winner"] = game_winner
+        await self._broadcast_state(extra=extra)
 
     async def _ensure_slap_ctx(self):
         if self.room_code not in SLAP_CTX:
@@ -211,7 +239,11 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         if engine is None:
             payload["pending"] = "waiting_for_players"
         else:
-            payload["state"] = engine.serialize()
+            state = engine.serialize()
+            payload["state"] = state
+            winner = state.get("winner")
+            if winner is not None:
+                payload.setdefault("winner", winner)
         if extra:
             payload.update(extra)
         await self.channel_layer.group_send(self.group, {"type": "deliver", "payload": payload})

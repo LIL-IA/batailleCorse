@@ -23,6 +23,8 @@ class GameEngine:
         self.waiting_for_face_from = None
         self.pending_collect = False
         self.collect_winner = None
+        self.winner = None
+        self.last_face_player = None
         self.options = {
             "allow_sandwich": True,
             "allow_double": True,
@@ -37,18 +39,24 @@ class GameEngine:
 
     def serialize(self, mask_for=None):
         counts = {str(pid): len(self.hands[pid]) for pid in self.players}  # <-- clés en str
+        active_players = [
+            pid for pid in self.players
+            if self.hands[pid] or (self.pending_collect and pid == self.collect_winner)
+        ]
         return {
             "players": self.players,              # ok (liste d’int)
             "counts": counts,                     # fix
             "center_count": len(self.center),
             "top_center": self.center[-1] if self.center else None,
-            "last_three_center": self.center[-3:],
+            "last_four_center": self.center[-4:],
             "penalty_count": len(self.penalties),
             "turn": self.players[self.turn_idx],  # ok (valeur int)
             "face_chances": self.face_chances,
             "waiting_for_face_from": self.waiting_for_face_from,
             "pending_collect": self.pending_collect,
             "collect_winner": self.collect_winner,
+            "winner": self.winner,
+            "active_players": active_players,
         }
 
     def _deal(self):
@@ -95,10 +103,9 @@ class GameEngine:
 
     def play_card(self, player_id):
         if self.pending_collect and player_id == self.collect_winner:
-            self._collect_center(player_id)
-            self.pending_collect = False
-            self.collect_winner = None
             self.turn_idx = self.players.index(player_id)
+            self._collect_center(player_id)
+            self._advance_turn()
             return {"ok": True, "collected": True}
         if self.players[self.turn_idx] != player_id:
             pen = self.options.get("bad_play_penalty", 0)
@@ -119,25 +126,27 @@ class GameEngine:
             self.face_chances = FACE_PENALTIES[card[0]]
             self.waiting_for_face_from = self._next_player()
             self.turn_idx = self.players.index(self.waiting_for_face_from)
+            self.last_face_player = player_id
         else:
             if self.face_chances > 0:
                 self.face_chances -= 1
                 if self.face_chances == 0:
-                    winner = self._prev_player()
-                    self.pending_collect = True
-                    self.collect_winner = winner
-                    self.turn_idx = self.players.index(winner)
-                    self.waiting_for_face_from = None
+                    winner = self.last_face_player or self._prev_player()
+                    self._resolve_face_failure(winner)
             else:
                 self.turn_idx = self.players.index(self._next_player())
+                self.waiting_for_face_from = None
+                self.last_face_player = None
+
+        self._advance_turn()
         return {"ok": True, "card": card}
 
     def slap(self, player_id):
         if self._slap_valid():
-            self._collect_center(player_id)
-            self.turn_idx = self.players.index(player_id)
             self.face_chances = 0
             self.waiting_for_face_from = None
+            self.turn_idx = self.players.index(player_id)
+            self._collect_center(player_id)
             return {"ok": True, "valid": True}
         else:
             pen = self.options["bad_slap_penalty"]
@@ -157,6 +166,9 @@ class GameEngine:
         self.penalties = []
         self.pending_collect = False
         self.collect_winner = None
+        self.last_face_player = None
+        self.turn_idx = self.players.index(player_id)
+        self._advance_turn()
 
     def _next_player(self):
         return self.players[(self.turn_idx+1) % self.n]
@@ -164,12 +176,82 @@ class GameEngine:
     def _prev_player(self):
         return self.players[(self.turn_idx-1) % self.n]
 
+    def _active_players(self):
+        return [pid for pid in self.players if self.hands[pid]]
+
+    def _next_active_idx(self, idx):
+        for _ in range(self.n):
+            idx = (idx + 1) % self.n
+            if self.hands[self.players[idx]]:
+                return idx
+        return None
+
+    def _prev_active_idx(self, idx):
+        for _ in range(self.n):
+            idx = (idx - 1) % self.n
+            if self.hands[self.players[idx]]:
+                return idx
+        return None
+
+    def _resolve_face_failure(self, winner):
+        if winner is not None:
+            self.pending_collect = True
+            self.collect_winner = winner
+            self.turn_idx = self.players.index(winner)
+        self.waiting_for_face_from = None
+        self.face_chances = 0
+        self.last_face_player = None
+
+    def _advance_turn(self):
+        active_players = self._active_players()
+        if len(active_players) == 1 and self.face_chances == 0:
+            self.winner = active_players[0]
+            self.turn_idx = self.players.index(self.winner)
+        else:
+            self.winner = None
+
+        if self.face_chances > 0:
+            if self.waiting_for_face_from is None and self.last_face_player is not None:
+                last_idx = self.players.index(self.last_face_player)
+                next_idx = self._next_active_idx(last_idx)
+                if next_idx is None:
+                    self._resolve_face_failure(self.last_face_player)
+                else:
+                    self.waiting_for_face_from = self.players[next_idx]
+
+            while self.face_chances > 0 and self.waiting_for_face_from is not None and not self.hands[self.waiting_for_face_from]:
+                self.face_chances -= 1
+                if self.face_chances <= 0:
+                    self._resolve_face_failure(self.last_face_player)
+                    break
+                next_idx = self._next_active_idx(self.players.index(self.waiting_for_face_from))
+                if next_idx is None:
+                    self._resolve_face_failure(self.last_face_player)
+                    break
+                self.waiting_for_face_from = self.players[next_idx]
+
+            if self.face_chances > 0 and self.waiting_for_face_from is not None:
+                self.turn_idx = self.players.index(self.waiting_for_face_from)
+                return
+
+        if self.pending_collect and self.collect_winner is not None:
+            self.turn_idx = self.players.index(self.collect_winner)
+            return
+
+        current_player = self.players[self.turn_idx]
+        if self.hands[current_player]:
+            return
+        next_idx = self._next_active_idx(self.turn_idx)
+        if next_idx is not None:
+            self.turn_idx = next_idx
+
     # Added for arbitration
     def is_slap_valid(self):
         return self._slap_valid()
 
     def resolve_slap(self, winner_id):
-        self._collect_center(winner_id)
-        self.turn_idx = self.players.index(winner_id)
         self.face_chances = 0
         self.waiting_for_face_from = None
+        self.turn_idx = self.players.index(winner_id)
+        self._collect_center(winner_id)
+        self._advance_turn()
