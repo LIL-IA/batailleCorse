@@ -106,20 +106,20 @@ class GameEngineTests(SimpleTestCase):
         self.assertEqual(engine.center, ['9H'])
         self.assertEqual(engine.penalties, ['2H', '3D'])
 
-    def test_serialize_includes_last_three_center(self):
+    def test_serialize_includes_last_four_center(self):
         engine = GameEngine([1, 2])
         engine.center = []
         serialized = engine.serialize()
-        self.assertIn('last_three_center', serialized)
-        self.assertEqual(serialized['last_three_center'], [])
+        self.assertIn('last_four_center', serialized)
+        self.assertEqual(serialized['last_four_center'], [])
 
         engine.center = ['2H', '3D']
         serialized = engine.serialize()
-        self.assertEqual(serialized['last_three_center'], ['2H', '3D'])
+        self.assertEqual(serialized['last_four_center'], ['2H', '3D'])
 
         engine.center.extend(['4S', '5C', '6D'])
         serialized = engine.serialize()
-        self.assertEqual(serialized['last_three_center'], ['4S', '5C', '6D'])
+        self.assertEqual(serialized['last_four_center'], ['3D', '4S', '5C', '6D'])
 
     def test_pending_collect_keeps_center_visible_until_winner_confirms(self):
         engine = GameEngine([1, 2])

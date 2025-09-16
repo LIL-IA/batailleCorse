@@ -806,8 +806,8 @@
       }
     }
 
-    const lastThree = state && Array.isArray(state.last_three_center)
-      ? state.last_three_center.slice(-3)
+    const lastFour = state && Array.isArray(state.last_four_center)
+      ? state.last_four_center.slice(-4)
       : [];
 
     let rawCenterCount = state ? state.center_count : 0;
@@ -816,7 +816,7 @@
         ? rawCenterCount
         : Number.parseInt(rawCenterCount, 10);
     if (!Number.isFinite(centerCount)) {
-      centerCount = lastThree.length;
+      centerCount = lastFour.length;
     }
     if (centerCount < 0) {
       centerCount = 0;
@@ -827,8 +827,8 @@
 
     let cardsToRender = [];
     if (!justCollected && centerCount > 0) {
-      if (lastThree.length) {
-        cardsToRender = lastThree;
+      if (lastFour.length) {
+        cardsToRender = lastFour;
       } else if (topCard) {
         cardsToRender = [topCard];
       }
