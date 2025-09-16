@@ -532,6 +532,9 @@
     if (event.code === 'Space') {
       event.preventDefault();
       wsSend({ type: 'slap' });
+    } else if (event.code === 'Enter') {
+      event.preventDefault();
+      wsSend({ type: 'play' });
     }
   });
 
