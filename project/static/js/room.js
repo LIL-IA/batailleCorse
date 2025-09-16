@@ -194,6 +194,9 @@
 
       const winner = action && action.winner ? action.winner : null;
       const winnerId = winner ? parseId(winner.userId) : null;
+      const winnerTsRaw = winner && winner.t_ns !== undefined ? winner.t_ns : null;
+      const winnerTs =
+        typeof winnerTsRaw === 'number' ? winnerTsRaw : Number.parseInt(winnerTsRaw, 10);
       const winnerName =
         (winnerId !== null && playersById.get(winnerId)) ||
         (winnerId !== null ? `Joueur ${winnerId}` : 'Gagnant');
@@ -203,6 +206,11 @@
       const winnerStrong = document.createElement('strong');
       winnerStrong.textContent = winnerName;
       winnerLine.appendChild(winnerStrong);
+      if (Number.isFinite(winnerTs)) {
+        const winnerTimeSpan = document.createElement('span');
+        winnerTimeSpan.textContent = ` (${(0).toFixed(2)} ms)`;
+        winnerLine.appendChild(winnerTimeSpan);
+      }
       content.appendChild(winnerLine);
 
       const candidates = Array.isArray(action && action.candidates) ? action.candidates : [];
@@ -214,13 +222,27 @@
 
         const list = document.createElement('ol');
         list.className = 'slap-overlay-candidates';
+        const baseTs = Number.isFinite(winnerTs)
+          ? winnerTs
+          : (() => {
+              const first = candidates[0] && candidates[0].t_ns;
+              const parsed = typeof first === 'number' ? first : Number.parseInt(first, 10);
+              return Number.isFinite(parsed) ? parsed : null;
+            })();
         candidates.forEach((candidate) => {
           const li = document.createElement('li');
           const cid = candidate ? parseId(candidate.userId) : null;
           const candidateName =
             (cid !== null && playersById.get(cid)) ||
             (cid !== null ? `Joueur ${cid}` : 'Inconnu');
-          li.textContent = candidateName;
+          const tsRaw = candidate && candidate.t_ns !== undefined ? candidate.t_ns : null;
+          const ts = typeof tsRaw === 'number' ? tsRaw : Number.parseInt(tsRaw, 10);
+          let text = candidateName;
+          if (Number.isFinite(ts) && Number.isFinite(baseTs)) {
+            const deltaMs = (ts - baseTs) / 1e6;
+            text += ` - ${deltaMs.toFixed(2)} ms`;
+          }
+          li.textContent = text;
           if (cid !== null && winnerId !== null && cid === winnerId) {
             li.classList.add('is-winner');
           }

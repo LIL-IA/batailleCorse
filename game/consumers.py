@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 ENGINES = {}
 SLAP_CTX = {}
 READY = {}
-GRACE_MS = 40
+# Delay in milliseconds to collect all slap candidates before resolving
+GRACE_MS = 1000
 
 class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
