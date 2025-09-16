@@ -15,6 +15,8 @@
 
   const startBtn = document.getElementById('start-btn');
   const stopBtn = document.getElementById('stop-btn');
+  const playCardBtn = document.getElementById('play-card-btn');
+  const collectBanner = document.getElementById('collect-banner');
   const playersList = document.getElementById('players');
   if (!playersList) {
     console.error("Élément #players introuvable.");
@@ -711,18 +713,82 @@
       });
     }
 
+    const justCollected = Boolean(lastAction && lastAction.collected);
+    const pendingCollect = !justCollected && Boolean(state && state.pending_collect);
+    const collectWinnerId =
+      pendingCollect && state ? parseId(state.collect_winner) : null;
+    const isCollectWinner =
+      pendingCollect &&
+      collectWinnerId !== null &&
+      currentUserId !== null &&
+      collectWinnerId === currentUserId;
+
+    if (collectBanner) {
+      if (isCollectWinner) {
+        const message = 'Cliquez sur « Jouer une carte » pour ramasser le tas.';
+        if (collectBanner.textContent !== message) {
+          collectBanner.textContent = message;
+        }
+        collectBanner.hidden = false;
+      } else {
+        collectBanner.hidden = true;
+        collectBanner.textContent = '';
+      }
+    }
+
+    if (playCardBtn) {
+      playCardBtn.classList.toggle('collect-highlight', isCollectWinner);
+      if (isCollectWinner && collectBanner) {
+        playCardBtn.setAttribute('aria-describedby', 'collect-banner');
+      } else if (playCardBtn.getAttribute('aria-describedby') === 'collect-banner') {
+        playCardBtn.removeAttribute('aria-describedby');
+      }
+    }
+
+    centerPileEl.classList.toggle('pending-collect', pendingCollect);
     centerPileEl.innerHTML = '';
 
     const lastThree = state && Array.isArray(state.last_three_center)
       ? state.last_three_center.slice(-3)
       : [];
 
+    let rawCenterCount = state ? state.center_count : 0;
+    let centerCount =
+      typeof rawCenterCount === 'number'
+        ? rawCenterCount
+        : Number.parseInt(rawCenterCount, 10);
+    if (!Number.isFinite(centerCount)) {
+      centerCount = lastThree.length;
+    }
+    if (centerCount < 0) {
+      centerCount = 0;
+    }
+
+    const topCard =
+      state && typeof state.top_center === 'string' ? state.top_center : null;
+
+    let cardsToRender = [];
+    if (!justCollected && centerCount > 0) {
+      if (lastThree.length) {
+        cardsToRender = lastThree;
+      } else if (topCard) {
+        cardsToRender = [topCard];
+      }
+    }
+
+    const hasCards = cardsToRender.length > 0;
+
     if (!state) {
       centerPileEl.classList.add('center-empty');
       const p = document.createElement('p');
       p.textContent = 'En attente du début de la partie…';
       centerPileEl.appendChild(p);
-    } else if (!lastThree.length) {
+    } else if (!hasCards && pendingCollect) {
+      centerPileEl.classList.remove('center-empty');
+      const p = document.createElement('p');
+      p.textContent = 'Tas en attente de ramassage.';
+      centerPileEl.appendChild(p);
+    } else if (!hasCards) {
       centerPileEl.classList.add('center-empty');
       const p = document.createElement('p');
       p.textContent = 'Tas central vide.';
@@ -732,10 +798,10 @@
       const stack = document.createElement('div');
       stack.className = 'center-pile';
 
-      const totalCount = typeof state.center_count === 'number' ? state.center_count : lastThree.length;
-      const startIndex = totalCount - lastThree.length;
+      const totalCount = centerCount || cardsToRender.length;
+      const startIndex = Math.max(totalCount - cardsToRender.length, 0);
 
-      lastThree.forEach((card, idx) => {
+      cardsToRender.forEach((card, idx) => {
         const pileCard = document.createElement('div');
         pileCard.className = 'card-visual center-card';
 
