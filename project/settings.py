@@ -10,6 +10,21 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
 
+def env_bool(name, default="False"):
+    return os.getenv(name, default).strip().lower() in ("1","true","yes","on")
+
+# Django doit faire confiance au proxy (Cloudflare/Cloudflared)
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Cookies sécurisés (par défaut en prod)
+SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", "False" if DEBUG else "True")
+CSRF_COOKIE_SECURE    = env_bool("CSRF_COOKIE_SECURE",    "False" if DEBUG else "True")
+
+# Redirection HTTPS configurable (on ne force pas si on est derrière un tunnel HTTP interne)
+SECURE_SSL_REDIRECT   = env_bool("SECURE_SSL_REDIRECT", "False" if DEBUG else "True")
+
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -100,12 +115,6 @@ STATICFILES_DIRS = [BASE_DIR / "project" / "static"]
 STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
-
-# Security (prod)
-if not DEBUG:
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = True
 
 LOGGING = {
     "version": 1,
