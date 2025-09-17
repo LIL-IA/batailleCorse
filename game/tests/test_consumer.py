@@ -57,11 +57,11 @@ class RoomConsumerTests(TransactionTestCase):
             await communicator.receive_json_from()
             await other.receive_json_from()
             await other.disconnect()
+            started_db = await sync_to_async(lambda: Room.objects.get(pk=self.room.pk).is_started)()
+            assert started_db is False
             await communicator.disconnect()
 
         async_to_sync(inner)()
-        self.room.refresh_from_db()
-        assert self.room.is_started is False
 
     def test_host_can_stop_game(self):
         async def inner():
@@ -261,11 +261,11 @@ class RoomConsumerTests(TransactionTestCase):
             await communicator.send_json_to({"type": "start"})
             response = await communicator.receive_json_from()
             assert response["error"] == "not-enough-players"
+            started_db = await sync_to_async(lambda: Room.objects.get(pk=self.room.pk).is_started)()
+            assert started_db is False
             await communicator.disconnect()
 
         async_to_sync(inner)()
-        self.room.refresh_from_db()
-        assert self.room.is_started is False
 
     def test_connect_resets_engine_only_if_not_started(self):
         async def connect_and_get_engine():
@@ -330,12 +330,13 @@ class RoomConsumerTests(TransactionTestCase):
             await comm2.receive_json_from()
 
             await comm1.disconnect()
+            started_db = await sync_to_async(lambda: Room.objects.get(pk=self.room.pk).is_started)()
+            assert started_db is False
+            ready_count = await sync_to_async(lambda: Player.objects.filter(room=self.room, is_ready=True).count())()
+            assert ready_count == 0
             await comm2.disconnect()
 
         async_to_sync(inner)()
-        self.room.refresh_from_db()
-        assert self.room.is_started is False
-        assert Player.objects.filter(room=self.room, is_ready=True).count() == 0
 
     def test_ready_persists_when_new_player_connects(self):
         async def inner():
@@ -362,5 +363,32 @@ class RoomConsumerTests(TransactionTestCase):
 
             await comm1.disconnect()
             await comm2.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_room_deleted_when_last_player_leaves(self):
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            await host.receive_json_from()
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+
+            await guest.receive_json_from()
+            await host.receive_json_from()
+
+            await host.disconnect()
+            state_after_host_disconnect = await guest.receive_json_from()
+            assert state_after_host_disconnect["type"] == "state"
+
+            await guest.disconnect()
+
+            exists = await sync_to_async(lambda: Room.objects.filter(pk=self.room.pk).exists())()
+            assert exists is False
 
         async_to_sync(inner)()
