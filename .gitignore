@@ -6,3 +6,4 @@ db.sqlite3
 .env
 .env.*
 staticfiles/
+Prod sur serv sciel.txt
