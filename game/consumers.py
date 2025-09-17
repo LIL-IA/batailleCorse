@@ -14,6 +14,7 @@ ENGINES = {}
 SLAP_CTX = {}
 READY = {}
 CONNECTION_COUNTS = defaultdict(int)
+ROOM_CONNECTION_COUNTS = defaultdict(int)
 # Delay in milliseconds to collect all slap candidates before resolving
 GRACE_MS = 1000
 
@@ -31,6 +32,8 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             self.user_id = user.id
             self._connection_key = (self.room_code, self.user_id)
             CONNECTION_COUNTS[self._connection_key] += 1
+            ROOM_CONNECTION_COUNTS[self.room_code] += 1
+            self._room_connection_tracked = True
             READY.setdefault(self.room_code, set())
             if await self._is_room_started():
                 await self._ensure_engine()
@@ -166,6 +169,18 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             broadcast_needed = False
             reset_required = False
             room_deleted = False
+            room_code = getattr(self, "room_code", None)
+            room_empty = False
+            if room_code:
+                if getattr(self, "_room_connection_tracked", False):
+                    room_connections = ROOM_CONNECTION_COUNTS.get(room_code, 0)
+                    if room_connections <= 1:
+                        ROOM_CONNECTION_COUNTS.pop(room_code, None)
+                        room_empty = True
+                    else:
+                        ROOM_CONNECTION_COUNTS[room_code] = room_connections - 1
+                else:
+                    room_empty = room_code not in ROOM_CONNECTION_COUNTS
             final_connection = False
             key = getattr(self, "_connection_key", None)
             if key is None and uid is not None:
@@ -199,8 +214,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                 if broadcast_needed:
                     extra = {"playerLeft": uid} if uid else None
                     await self._broadcast_state(extra=extra)
-            group = getattr(self.channel_layer, "groups", {}).get(self.group)
-            if not group:
+            if room_empty:
                 engine = ENGINES.pop(self.room_code, None)
                 if engine and not room_deleted:
                     await self._persist_state(engine)
