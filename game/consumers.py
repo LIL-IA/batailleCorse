@@ -158,15 +158,21 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             uid = self.scope.get("user").id if self.scope.get("user") else None
             broadcast_needed = False
             reset_required = False
+            room_deleted = False
             if ready and uid:
                 if uid in ready:
                     broadcast_needed = True
                 ready.discard(uid)
             if uid:
-                removed_player = await self._remove_player_and_update_room(uid)
+                result = await self._remove_player_and_update_room(uid)
+                if isinstance(result, tuple):
+                    removed_player, room_deleted = result
+                else:
+                    removed_player = result
                 if removed_player:
-                    reset_required = True
-                    broadcast_needed = True
+                    if not room_deleted:
+                        reset_required = True
+                        broadcast_needed = True
             if reset_required:
                 await self._reset_ready_flags()
                 await self._reset_engine(clear_ready=True)
@@ -176,7 +182,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             group = getattr(self.channel_layer, "groups", {}).get(self.group)
             if not group:
                 engine = ENGINES.pop(self.room_code, None)
-                if engine:
+                if engine and not room_deleted:
                     await self._persist_state(engine)
                 ctx = SLAP_CTX.pop(self.room_code, None)
                 if ctx and ctx.get("task"):
@@ -286,15 +292,19 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         try:
             room = Room.objects.get(code=self.room_code)
         except Room.DoesNotExist:
-            return False
+            return False, False
 
         try:
             player = Player.objects.get(room=room, user_id=user_id)
         except Player.DoesNotExist:
-            return False
+            return False, False
 
         seat = player.seat
         player.delete()
+
+        if not room.players.exists():
+            room.delete()
+            return True, True
 
         update_fields = ["is_started"]
         room.is_started = False
@@ -309,7 +319,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                 update_fields.append("host")
 
         room.save(update_fields=update_fields)
-        return True
+        return True, False
 
     @database_sync_to_async
     def _persist_state(self, engine):
