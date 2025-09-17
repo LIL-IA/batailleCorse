@@ -51,3 +51,4 @@ python manage.py test
 - Sauvegardes périodiques de `GameState`
 - Ratelimiting & anti-spam
 - Reconnexion robuste / mobile
+- test
