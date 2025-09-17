@@ -2,6 +2,7 @@ import random
 import string
 from django.http import HttpResponseServerError
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from asgiref.sync import async_to_sync
@@ -22,6 +23,23 @@ def _gen_unique_code():
 @login_required
 def create_room(request):
     if request.method == "POST":
+        existing_room = (
+            request.user.hosted_rooms.filter(is_started=False)
+            .order_by("-created_at")
+            .first()
+        )
+        if existing_room is not None:
+            if not existing_room.players.filter(user=request.user).exists():
+                Player.objects.create(
+                    room=existing_room,
+                    user=request.user,
+                    seat=existing_room.players.count(),
+                )
+            messages.info(
+                request,
+                f"Vous hébergez déjà une salle active (code {existing_room.code}).",
+            )
+            return redirect("room", code=existing_room.code)
         for _ in range(10):
             code = _gen_unique_code()
             room, created = Room.objects.get_or_create(
