@@ -1070,6 +1070,21 @@ body.room-options-lock {
   padding: 0.75rem;
 }
 
+.center-pile-clickable {
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+
+.center-pile-clickable:hover,
+.center-pile-clickable:focus-visible {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.45),
+    0 22px 38px -26px rgba(37, 99, 235, 0.55);
+}
+
+.center-pile-clickable:focus-visible {
+  outline: none;
+}
+
 #penalty-pile {
   position: absolute;
   top: 50%;
