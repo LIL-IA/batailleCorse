@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 ENGINES = {}
 SLAP_CTX = {}
 READY = {}
+ROOM_OPTIONS = {}
 CONNECTION_COUNTS = defaultdict(int)
 ROOM_CONNECTION_COUNTS = defaultdict(int)
 # Delay in milliseconds to collect all slap candidates before resolving
@@ -153,6 +154,26 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     await self._reset_engine(clear_ready=True)
                     await self._reset_ready_flags()
                     await self._broadcast_state()
+            elif t == "set_options":
+                if not await self._is_host(user_id):
+                    await self.send_json({"error": "not-host"})
+                    return
+                if await self._is_started():
+                    await self.send_json({"error": "game-started"})
+                    return
+                raw_options = content.get("options")
+                if not isinstance(raw_options, dict):
+                    await self.send_json({"error": "invalid-options"})
+                    return
+                sanitized = GameEngine.sanitize_options(
+                    overrides=raw_options,
+                    base=ROOM_OPTIONS.get(self.room_code),
+                )
+                ROOM_OPTIONS[self.room_code] = sanitized
+                engine = ENGINES.get(self.room_code)
+                if engine:
+                    engine.set_options(sanitized)
+                await self._broadcast_state()
             else:
                 await self.send_json({"error": "unknown-event"})
         except Exception:
@@ -222,6 +243,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                 if ctx and ctx.get("task"):
                     ctx["task"].cancel()
                 READY.pop(self.room_code, None)
+                ROOM_OPTIONS.pop(self.room_code, None)
                 stale_keys = [key for key in CONNECTION_COUNTS if key[0] == self.room_code]
                 for stale_key in stale_keys:
                     CONNECTION_COUNTS.pop(stale_key, None)
@@ -278,11 +300,17 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             for p in raw_players
         ]
         host_id = await self._get_host_id()
+        sanitized_options = GameEngine.sanitize_options(
+            base=ROOM_OPTIONS.get(self.room_code)
+        )
+        ROOM_OPTIONS[self.room_code] = sanitized_options
+
         payload = {
             "type": "state",
             "players": players,
             "ready": list(READY.get(self.room_code, set())),
             "hostId": host_id,
+            "options": sanitized_options,
         }
         payload["started"] = await self._is_started()
         if engine is None:
@@ -310,15 +338,23 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def _ensure_engine(self):
         if self.room_code not in ENGINES:
             players = await self._players_order()
+            options = GameEngine.sanitize_options(
+                base=ROOM_OPTIONS.get(self.room_code)
+            )
+            ROOM_OPTIONS[self.room_code] = options
             if not players:  # pas encore de joueurs -> ne pas créer le moteur
                 ENGINES[self.room_code] = None
                 return
-            ENGINES[self.room_code] = GameEngine(players)
+            ENGINES[self.room_code] = GameEngine(players, options=options)
 
     async def _reset_engine(self, clear_ready=False):
         players = await self._players_order()
+        options = GameEngine.sanitize_options(
+            base=ROOM_OPTIONS.get(self.room_code)
+        )
+        ROOM_OPTIONS[self.room_code] = options
         if players:
-            ENGINES[self.room_code] = GameEngine(players)
+            ENGINES[self.room_code] = GameEngine(players, options=options)
         else:
             ENGINES[self.room_code] = None
         if clear_ready:

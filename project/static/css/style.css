@@ -711,8 +711,345 @@ textarea:focus {
   font-weight: 600;
 }
 
+
 .slap-overlay-animate {
   animation: slapOverlayReveal 1.6s ease-in-out forwards;
+}
+
+.room-options-access {
+  margin: 1.5rem 0 2.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.room-options-trigger {
+  padding-inline: 1.6rem;
+  padding-block: 0.7rem;
+  font-size: 1rem;
+}
+
+.room-options-trigger--readonly,
+.room-options-trigger--readonly:hover,
+.room-options-trigger--readonly:focus {
+  background: #a8b5d6;
+  cursor: default;
+  box-shadow: none;
+  filter: none;
+}
+
+.room-options-trigger-hint {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+body.room-options-lock {
+  overflow: hidden;
+}
+
+.room-options-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 80;
+}
+
+.room-options-modal[hidden] {
+  display: none !important;
+}
+
+.room-options-modal--open {
+  display: flex;
+}
+
+.room-options-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.room-options-modal__panel {
+  position: relative;
+  width: min(90vw, 520px);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 2.2rem 2.4rem;
+  box-shadow: 0 28px 48px -24px rgba(15, 23, 42, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.room-options-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.room-options-modal__close {
+  background: none;
+  color: #1f2933;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.45rem;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.room-options-modal__close:hover,
+.room-options-modal__close:focus-visible {
+  background: rgba(148, 163, 184, 0.2);
+  color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.room-options-intro {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.room-options-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.room-options-form--readonly .room-options-switch,
+.room-options-form--readonly .room-options-counter {
+  opacity: 0.75;
+}
+
+.room-options-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.room-options-note.is-hidden {
+  display: none;
+}
+
+.room-options-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.room-options-section__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.room-options-switches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.room-options-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.32);
+}
+
+.room-options-switch__texts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: clamp(55%, 60%, 70%);
+}
+
+.room-options-switch__label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.room-options-switch__description {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.room-options-switch__control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.room-options-switch__control input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.room-options-switch__slider {
+  width: 3rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.55);
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.room-options-switch__slider::after {
+  content: '';
+  position: absolute;
+  top: 0.2rem;
+  left: 0.25rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.room-options-switch__control input:checked + .room-options-switch__slider {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.room-options-switch__control input:checked + .room-options-switch__slider::after {
+  transform: translateX(1.35rem);
+}
+
+.room-options-switch__control input:disabled + .room-options-switch__slider {
+  background: rgba(148, 163, 184, 0.32);
+  cursor: not-allowed;
+}
+
+.room-options-switch__control input:disabled + .room-options-switch__slider::after {
+  box-shadow: none;
+}
+
+.room-options-counters {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.room-options-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.32);
+}
+
+.room-options-counter__texts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.room-options-counter__label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.room-options-counter__description {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.room-options-counter__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(226, 232, 240, 0.8);
+  padding: 0.25rem 0.4rem;
+  border-radius: 999px;
+}
+
+.room-options-counter__btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 12px 26px -18px rgba(37, 99, 235, 0.8);
+}
+
+.room-options-counter__btn:disabled,
+.room-options-form--readonly .room-options-counter__btn {
+  cursor: not-allowed;
+  background: #a5b4fc;
+  box-shadow: none;
+}
+
+.room-options-counter__value {
+  min-width: 2.4rem;
+  text-align: center;
+  font-weight: 600;
+  color: #1f2937;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
+}
+
+.room-options-footer {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.room-options-modal--readonly .room-options-counter__controls,
+.room-options-modal--readonly .room-options-switch__control {
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .room-options-modal__panel {
+    width: 92vw;
+    padding: 1.6rem 1.75rem;
+  }
+
+  .room-options-switch {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .room-options-switch__texts {
+    max-width: 100%;
+  }
+
+  .room-options-switch__control {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .room-options-counter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .room-options-counter__controls {
+    align-self: flex-end;
+  }
 }
 
 #player-decks .player-deck.slap-deck-error {
