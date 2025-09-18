@@ -853,9 +853,23 @@
     }
   };
 
+  const parseGraceMs = (value) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Math.max(0, value);
+    }
+    if (typeof value === 'string') {
+      const parsed = Number.parseFloat(value);
+      if (Number.isFinite(parsed)) {
+        return Math.max(0, parsed);
+      }
+    }
+    return null;
+  };
+
   const slapOverlayManager = (() => {
     let overlayEl = null;
-    let fallbackTimerId = null;
+    let hideTimerId = null;
+    let countdownIntervalId = null;
     let currentAnimationHandler = null;
 
     const ensureOverlay = () => {
@@ -874,50 +888,73 @@
       return overlayEl;
     };
 
-    const clearTimer = () => {
-      if (fallbackTimerId !== null) {
-        window.clearTimeout(fallbackTimerId);
-        fallbackTimerId = null;
+    const stopAnimationHandler = () => {
+      if (overlayEl && currentAnimationHandler) {
+        overlayEl.removeEventListener('animationend', currentAnimationHandler);
+        currentAnimationHandler = null;
+      }
+    };
+
+    const clearHideTimer = () => {
+      if (hideTimerId !== null) {
+        window.clearTimeout(hideTimerId);
+        hideTimerId = null;
+      }
+    };
+
+    const clearCountdown = () => {
+      if (countdownIntervalId !== null) {
+        window.clearInterval(countdownIntervalId);
+        countdownIntervalId = null;
       }
     };
 
     const hide = () => {
-      clearTimer();
+      clearHideTimer();
+      clearCountdown();
+      stopAnimationHandler();
       if (!overlayEl) {
         return;
       }
-      if (currentAnimationHandler) {
-        overlayEl.removeEventListener('animationend', currentAnimationHandler);
-        currentAnimationHandler = null;
-      }
-      overlayEl.classList.remove('slap-overlay-visible', 'slap-overlay-animate');
+      overlayEl.classList.remove('slap-overlay-visible', 'slap-overlay-animate', 'slap-overlay-pending');
       overlayEl.setAttribute('aria-hidden', 'true');
       overlayEl.innerHTML = '';
     };
 
-    const scheduleFallback = () => {
-      clearTimer();
-      fallbackTimerId = window.setTimeout(() => {
-        if (overlayEl && currentAnimationHandler) {
-          overlayEl.removeEventListener('animationend', currentAnimationHandler);
-          currentAnimationHandler = null;
-        }
+    const prepareOverlay = () => {
+      const overlay = ensureOverlay();
+      if (!overlay) {
+        return null;
+      }
+      stopAnimationHandler();
+      clearHideTimer();
+      clearCountdown();
+      overlay.innerHTML = '';
+      overlay.classList.remove('slap-overlay-animate', 'slap-overlay-pending');
+      overlay.classList.add('slap-overlay-visible');
+      overlay.setAttribute('aria-hidden', 'false');
+      return overlay;
+    };
+
+    const scheduleHide = (delay) => {
+      clearHideTimer();
+      if (!Number.isFinite(delay)) {
+        return;
+      }
+      if (delay <= 0) {
+        return;
+      }
+      hideTimerId = window.setTimeout(() => {
+        hideTimerId = null;
         hide();
-      }, SLAP_OVERLAY_DURATION_MS + 200);
+      }, delay);
     };
 
     const showResolution = (action, playersById) => {
-      const overlay = ensureOverlay();
+      const overlay = prepareOverlay();
       if (!overlay) {
         return;
       }
-      if (currentAnimationHandler) {
-        overlay.removeEventListener('animationend', currentAnimationHandler);
-        currentAnimationHandler = null;
-      }
-      overlay.innerHTML = '';
-      overlay.setAttribute('aria-hidden', 'false');
-      overlay.classList.add('slap-overlay-visible');
 
       const content = document.createElement('div');
       content.className = 'slap-overlay-content';
@@ -999,11 +1036,61 @@
       };
       currentAnimationHandler = onAnimationEnd;
       overlay.addEventListener('animationend', onAnimationEnd);
-      scheduleFallback();
+      scheduleHide(SLAP_OVERLAY_DURATION_MS + 200);
+    };
+
+    const showPending = (graceMs) => {
+      const overlay = prepareOverlay();
+      if (!overlay) {
+        return;
+      }
+
+      overlay.classList.add('slap-overlay-pending');
+
+      const content = document.createElement('div');
+      content.className = 'slap-overlay-content';
+
+      const title = document.createElement('h3');
+      title.textContent = 'Tape valide enregistrée !';
+      content.appendChild(title);
+
+      const description = document.createElement('p');
+      description.className = 'slap-overlay-winner';
+      description.textContent = 'Résolution en cours…';
+      content.appendChild(description);
+
+      const countdown = document.createElement('p');
+      countdown.className = 'slap-overlay-pending-countdown';
+      content.appendChild(countdown);
+
+      overlay.appendChild(content);
+
+      const numericGrace = parseGraceMs(graceMs);
+      if (numericGrace === null) {
+        countdown.textContent = 'Résolution imminente…';
+        return;
+      }
+
+      const endTime = Date.now() + numericGrace;
+
+      const updateCountdown = () => {
+        const remaining = Math.max(0, endTime - Date.now());
+        const seconds = remaining / 1000;
+        const formatted = seconds >= 1 ? seconds.toFixed(1) : seconds.toFixed(2);
+        countdown.textContent = `Résolution dans ${formatted} s`;
+        if (remaining <= 0) {
+          hide();
+        }
+      };
+
+      updateCountdown();
+      countdownIntervalId = window.setInterval(updateCountdown, 50);
+      scheduleHide(numericGrace + 200);
     };
 
     return {
       showResolution,
+      showPending,
       hide
     };
   })();
@@ -1169,7 +1256,13 @@
     return type;
   };
 
-  const handleStateLastAction = (lastAction, playersById, previousCounts, nextCounts) => {
+  const handleStateLastAction = (
+    lastAction,
+    playersById,
+    previousCounts,
+    nextCounts,
+    graceMs
+  ) => {
     const actionKey = computeLastActionKey(lastAction);
     const now = Date.now();
     if (actionKey === lastHandledActionKey && now - lastHandledActionTimestamp < 500) {
@@ -1185,6 +1278,11 @@
 
     if (lastAction.type === 'slap_resolved') {
       slapOverlayManager.showResolution(lastAction, playersById);
+      return;
+    }
+
+    if (lastAction.type === 'slap_pending') {
+      slapOverlayManager.showPending(graceMs);
       return;
     }
 
@@ -1353,10 +1451,17 @@
       );
 
       const nextCountsMap = computeCountsMap(state);
+      const graceMs = msg.type === 'state' ? parseGraceMs(msg.graceMs) : null;
 
       renderTable(state, players, msg.lastAction, playersById);
 
-      handleStateLastAction(msg.lastAction, playersById, previousCountsMap, nextCountsMap);
+      handleStateLastAction(
+        msg.lastAction,
+        playersById,
+        previousCountsMap,
+        nextCountsMap,
+        graceMs
+      );
       previousCountsMap = nextCountsMap;
 
       renderPlayersList(players, readyIds, started, currentTurnId);
