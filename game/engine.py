@@ -4,6 +4,9 @@ from collections import deque
 RANKS = "23456789TJQKA"
 RANK_VALUE = {r: i for i, r in enumerate(RANKS, start=2)}
 FACE_PENALTIES = {"J": 1, "Q": 2, "K": 3, "A": 4}
+PENALTY_STEPS = (0, 1, 2, 5)
+PENALTY_MODE_FIXED = "fixed"
+PENALTY_MODE_SUDDEN_DEATH = "sudden_death"
 
 def new_deck():
     suits = "CDHS"
@@ -19,6 +22,7 @@ class GameEngine:
         "allow_ten": True,
         "bad_slap_penalty": 2,
         "bad_play_penalty": 2,
+        "penalty_mode": PENALTY_MODE_FIXED,
     }
 
     @classmethod
@@ -42,13 +46,28 @@ class GameEngine:
             elif isinstance(value, (int, float)):
                 numeric = int(value)
             elif isinstance(value, str):
+                lowered = value.strip().lower()
+                if lowered in {"off", "none", "no", "false", "disable", "disabled"}:
+                    return 0
                 try:
-                    numeric = int(value.strip())
+                    numeric = int(lowered)
                 except ValueError:
                     return default
             else:
                 return default
             return max(0, numeric)
+        if isinstance(default, str):
+            if value is None:
+                return default
+            if isinstance(value, str):
+                lowered = value.strip().lower().replace("-", "_").replace(" ", "_")
+            else:
+                lowered = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+            if key == "penalty_mode":
+                if lowered in {PENALTY_MODE_SUDDEN_DEATH, "suddendeath", "sudden_death", "mort_subite"}:
+                    return PENALTY_MODE_SUDDEN_DEATH
+                return PENALTY_MODE_FIXED
+            return value if isinstance(value, str) else default
         return default
 
     @classmethod
@@ -64,7 +83,51 @@ class GameEngine:
 
         apply(base)
         apply(overrides)
+        result["penalty_mode"] = cls._normalize_penalty_mode(result.get("penalty_mode"))
+        result["bad_slap_penalty"] = cls._normalize_penalty_value(
+            result.get("bad_slap_penalty"),
+            cls.DEFAULT_OPTIONS["bad_slap_penalty"],
+        )
+        result["bad_play_penalty"] = cls._normalize_penalty_value(
+            result.get("bad_play_penalty"),
+            cls.DEFAULT_OPTIONS["bad_play_penalty"],
+        )
         return result
+
+    @classmethod
+    def _normalize_penalty_mode(cls, value):
+        if isinstance(value, str):
+            lowered = value.strip().lower().replace("-", "_").replace(" ", "_")
+            if lowered in {PENALTY_MODE_SUDDEN_DEATH, "suddendeath", "mort_subite"}:
+                return PENALTY_MODE_SUDDEN_DEATH
+        return PENALTY_MODE_FIXED
+
+    @classmethod
+    def _normalize_penalty_value(cls, value, default):
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"off", "none", "no", "false", "disable", "disabled"}:
+                return 0
+            try:
+                numeric = int(lowered)
+            except ValueError:
+                return default
+        elif isinstance(value, (int, float)):
+            numeric = int(value)
+        else:
+            try:
+                numeric = int(value)
+            except (TypeError, ValueError):
+                return default
+        if numeric <= 0:
+            return 0
+        allowed = [step for step in PENALTY_STEPS if step > 0]
+        if numeric in allowed:
+            return numeric
+        for step in sorted(allowed, reverse=True):
+            if numeric >= step:
+                return step
+        return allowed[0]
 
     def __init__(self, players, options=None):
         self.players = players[:]
@@ -162,13 +225,7 @@ class GameEngine:
             self._advance_turn()
             return {"ok": True, "collected": True}
         if self.players[self.turn_idx] != player_id:
-            pen = self.options.get("bad_play_penalty", 0)
-            taken = []
-            for _ in range(pen):
-                if self.hands[player_id]:
-                    taken.append(self.hands[player_id].popleft())
-            if taken:
-                self.penalties.extend(taken)
+            taken = self._apply_penalty(player_id, "bad_play_penalty")
             return {"error": "not-your-turn", "penalized": len(taken)}
         if not self.hands[player_id]:
             return {"error":"no-cards"}
@@ -203,13 +260,27 @@ class GameEngine:
             self._collect_center(player_id)
             return {"ok": True, "valid": True}
         else:
-            pen = self.options["bad_slap_penalty"]
-            taken = []
-            for _ in range(pen):
+            taken = self._apply_penalty(player_id, "bad_slap_penalty")
+            return {"ok": True, "valid": False, "penalized": len(taken)}
+
+    def _apply_penalty(self, player_id, key):
+        taken = []
+        mode = self.options.get("penalty_mode", PENALTY_MODE_FIXED)
+        if mode == PENALTY_MODE_SUDDEN_DEATH:
+            while self.hands[player_id]:
+                taken.append(self.hands[player_id].popleft())
+        else:
+            raw_count = self.options.get(key, 0)
+            try:
+                count = max(0, int(raw_count))
+            except (TypeError, ValueError):
+                count = 0
+            for _ in range(count):
                 if self.hands[player_id]:
                     taken.append(self.hands[player_id].popleft())
+        if taken:
             self.penalties.extend(taken)
-            return {"ok": True, "valid": False, "penalized": len(taken)}
+        return taken
 
     def _collect_center(self, player_id):
         random.shuffle(self.center)
