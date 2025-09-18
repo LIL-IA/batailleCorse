@@ -173,42 +173,6 @@
       </section>
 
       <section class="room-options-section">
-        <h4 id="penalty-mode-title" class="room-options-section__title">Mode de pénalité</h4>
-        <div class="room-options-choices" role="radiogroup" aria-labelledby="penalty-mode-title">
-          <label class="room-options-choice">
-            <input
-              type="radio"
-              name="penalty_mode"
-              value="fixed"
-              data-option-type="choice"
-              data-option-key="penalty_mode"
-            />
-            <span class="room-options-choice__texts">
-              <span class="room-options-choice__label">Retrait fixe</span>
-              <span class="room-options-choice__description">
-                Applique une pénalité de 0, 1, 2 ou 5 cartes selon les réglages ci-dessous.
-              </span>
-            </span>
-          </label>
-          <label class="room-options-choice">
-            <input
-              type="radio"
-              name="penalty_mode"
-              value="sudden_death"
-              data-option-type="choice"
-              data-option-key="penalty_mode"
-            />
-            <span class="room-options-choice__texts">
-              <span class="room-options-choice__label">Mort subite</span>
-              <span class="room-options-choice__description">
-                Toute pénalité retire immédiatement toutes les cartes restantes du joueur fautif.
-              </span>
-            </span>
-          </label>
-        </div>
-      </section>
-
-      <section class="room-options-section">
         <h4 id="deck-options-title" class="room-options-section__title">Paquets</h4>
         <div class="room-options-choices" role="radiogroup" aria-labelledby="deck-options-title">
           <label class="room-options-choice">
@@ -294,64 +258,102 @@
             class="room-options-counter"
             data-option-type="counter"
             data-option-key="bad_slap_penalty"
+            data-sudden-death-key="bad_slap_sudden_death"
             role="spinbutton"
             aria-valuemin="0"
+            aria-valuemax="5"
             aria-valuenow="2"
           >
-            <div class="room-options-counter__texts">
-              <span class="room-options-counter__label">Tape invalide</span>
-              <span class="room-options-counter__description">Cartes ajoutées à la pile de pénalité (0, 1, 2 ou 5).</span>
-            </div>
-            <div class="room-options-counter__controls">
-              <button
-                type="button"
-                class="room-options-counter__btn"
-                data-option-step="down"
-                aria-label="Diminuer la pénalité pour une tape invalide"
-              >
-                &minus;
-              </button>
-              <span class="room-options-counter__value" data-counter-value>2</span>
-              <button
-                type="button"
-                class="room-options-counter__btn"
-                data-option-step="up"
-                aria-label="Augmenter la pénalité pour une tape invalide"
-              >
-                +
-              </button>
+            <div class="room-options-counter__content">
+              <div class="room-options-counter__texts">
+                <span class="room-options-counter__label">Tape invalide</span>
+                <span class="room-options-counter__description">
+                  Cartes ajoutées à la pile de pénalité (0 à 5).
+                </span>
+              </div>
+              <div class="room-options-counter__settings">
+                <label class="room-options-counter__toggle">
+                  <span class="room-options-counter__toggle-label">Mort subite</span>
+                  <span class="room-options-switch__control">
+                    <input
+                      type="checkbox"
+                      data-option-type="toggle"
+                      data-option-key="bad_slap_sudden_death"
+                    />
+                    <span class="room-options-switch__slider" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <div class="room-options-counter__controls">
+                  <button
+                    type="button"
+                    class="room-options-counter__btn"
+                    data-option-step="down"
+                    aria-label="Diminuer la pénalité pour une tape invalide"
+                  >
+                    &minus;
+                  </button>
+                  <span class="room-options-counter__value" data-counter-value>2</span>
+                  <button
+                    type="button"
+                    class="room-options-counter__btn"
+                    data-option-step="up"
+                    aria-label="Augmenter la pénalité pour une tape invalide"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           <div
             class="room-options-counter"
             data-option-type="counter"
             data-option-key="bad_play_penalty"
+            data-sudden-death-key="bad_play_sudden_death"
             role="spinbutton"
             aria-valuemin="0"
+            aria-valuemax="5"
             aria-valuenow="2"
           >
-            <div class="room-options-counter__texts">
-              <span class="room-options-counter__label">Jeu hors tour</span>
-              <span class="room-options-counter__description">Retrait appliqué en cas de jeu hors tour (0, 1, 2 ou 5).</span>
-            </div>
-            <div class="room-options-counter__controls">
-              <button
-                type="button"
-                class="room-options-counter__btn"
-                data-option-step="down"
-                aria-label="Diminuer la pénalité pour un jeu hors tour"
-              >
-                &minus;
-              </button>
-              <span class="room-options-counter__value" data-counter-value>2</span>
-              <button
-                type="button"
-                class="room-options-counter__btn"
-                data-option-step="up"
-                aria-label="Augmenter la pénalité pour un jeu hors tour"
-              >
-                +
-              </button>
+            <div class="room-options-counter__content">
+              <div class="room-options-counter__texts">
+                <span class="room-options-counter__label">Jeu hors tour</span>
+                <span class="room-options-counter__description">
+                  Retrait appliqué en cas de jeu hors tour (0 à 5).
+                </span>
+              </div>
+              <div class="room-options-counter__settings">
+                <label class="room-options-counter__toggle">
+                  <span class="room-options-counter__toggle-label">Mort subite</span>
+                  <span class="room-options-switch__control">
+                    <input
+                      type="checkbox"
+                      data-option-type="toggle"
+                      data-option-key="bad_play_sudden_death"
+                    />
+                    <span class="room-options-switch__slider" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <div class="room-options-counter__controls">
+                  <button
+                    type="button"
+                    class="room-options-counter__btn"
+                    data-option-step="down"
+                    aria-label="Diminuer la pénalité pour un jeu hors tour"
+                  >
+                    &minus;
+                  </button>
+                  <span class="room-options-counter__value" data-counter-value>2</span>
+                  <button
+                    type="button"
+                    class="room-options-counter__btn"
+                    data-option-step="up"
+                    aria-label="Augmenter la pénalité pour un jeu hors tour"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
