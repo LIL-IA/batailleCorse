@@ -1202,7 +1202,6 @@
       deck.style.left = '50%';
       deck.style.top = '78%';
       deck.style.setProperty('--deck-angle', '0deg');
-      deck.style.setProperty('--deck-text-angle', '0deg');
       deck.classList.add('player-deck-solo', 'player-deck-bottom');
       deck.classList.remove('player-deck-top', 'player-deck-left', 'player-deck-right');
       deck.style.zIndex = '9';
@@ -1213,24 +1212,9 @@
         const x = 50 + radiusPercent * Math.cos(angle);
         const y = 50 + radiusPercent * Math.sin(angle);
         const angleDeg = (angle * 180) / Math.PI;
-        const normalizedAngleDeg = ((angleDeg % 360) + 360) % 360;
-        let textAngleDeg = angleDeg;
-        if (normalizedAngleDeg > 90 && normalizedAngleDeg < 270) {
-          textAngleDeg += 180;
-        }
-        let textAngleDegNormalized = ((textAngleDeg % 360) + 360) % 360;
-        if (textAngleDegNormalized > 180) {
-          textAngleDegNormalized -= 360;
-        }
-        let textAngleDiff = textAngleDegNormalized - angleDeg;
-        textAngleDiff = ((textAngleDiff % 360) + 360) % 360;
-        if (textAngleDiff > 180) {
-          textAngleDiff -= 360;
-        }
         deck.style.left = `${x}%`;
         deck.style.top = `${y}%`;
         deck.style.setProperty('--deck-angle', `${angleDeg}deg`);
-        deck.style.setProperty('--deck-text-angle', `${textAngleDiff}deg`);
         const isTop = y <= 50;
         const isBottom = !isTop;
         const isLeft = x < 50 - 0.5;
