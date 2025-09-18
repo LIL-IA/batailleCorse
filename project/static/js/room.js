@@ -1,6 +1,7 @@
 (function () {
   const playActionContainer = document.getElementById('play-action-container');
   const slapBtn = document.getElementById('slap-btn');
+  const tableActionButtons = document.querySelector('.table-action-buttons');
   const playersSection = document.getElementById('players-section');
 
   const errorMessages = {
@@ -1244,6 +1245,7 @@
       if (playersList) {
         playersList.style.display = started ? 'none' : '';
       }
+      if (tableActionButtons) tableActionButtons.style.display = started ? '' : 'none';
       if (playActionContainer) playActionContainer.style.display = started ? '' : 'none';
       if (slapBtn) slapBtn.style.display = started ? '' : 'none';
       const state = msg.state || null;
