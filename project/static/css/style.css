@@ -146,6 +146,31 @@ button:disabled,
   margin-bottom: 0.75rem;
 }
 
+.table-bottom-actions {
+  width: min(100%, 820px);
+  margin: clamp(1.25rem, 4vw, 2.25rem) auto clamp(1.5rem, 5vw, 2.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.table-bottom-actions__error {
+  width: 100%;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.table-bottom-actions__error:empty {
+  display: none;
+}
+
+.table-bottom-actions .play-action-container {
+  margin-bottom: 0;
+  align-items: center;
+}
+
 .action-btn.collect-highlight {
   box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.58), 0 18px 36px -18px rgba(245, 158, 11, 0.55);
   filter: brightness(1.08);
@@ -865,6 +890,11 @@ body.room-options-lock {
 .room-options-choices {
   display: grid;
   gap: 0.9rem;
+}
+
+.room-options-choices[hidden],
+.room-options-choices[data-deck-count-container][hidden] {
+  display: none !important;
 }
 
 .room-options-choice {

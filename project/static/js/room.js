@@ -60,7 +60,9 @@
     allow_double: true,
     allow_sandwich: true,
     allow_runs: false,
-    allow_ten: true,
+    allow_ten_card: true,
+    allow_ten_sum: true,
+    allow_ten_sandwich: true,
     bad_slap_penalty: 2,
     bad_play_penalty: 2,
     bad_slap_sudden_death: false,
@@ -68,6 +70,12 @@
     deck_mode: DECK_MODE_AUTO,
     deck_count: 1
   });
+
+  const TEN_OPTION_KEYS = Object.freeze([
+    'allow_ten_card',
+    'allow_ten_sum',
+    'allow_ten_sandwich'
+  ]);
 
   const optionsDataScript = document.getElementById('initial-room-options');
 
@@ -254,12 +262,14 @@
       if (!source || typeof source !== 'object') {
         return;
       }
+
       if (Object.prototype.hasOwnProperty.call(source, 'penalty_mode')) {
         const normalizedLegacy = normalizeLegacyPenaltyMode(source.penalty_mode);
         if (normalizedLegacy) {
           legacyPenaltyMode = normalizedLegacy;
         }
       }
+      const provided = new Set();
       Object.keys(result).forEach((key) => {
         if (Object.prototype.hasOwnProperty.call(source, key)) {
           const coerced = coerceOptionValue(key, source[key]);
@@ -268,9 +278,18 @@
             if (trackIncoming && PENALTY_SUDDEN_DEATH_KEYS.has(key)) {
               togglesFromIncoming.add(key);
             }
+            provided.add(key);
           }
         }
       });
+      if (Object.prototype.hasOwnProperty.call(source, 'allow_ten')) {
+        const aliasValue = coerceOptionValue('allow_ten_card', source.allow_ten);
+        TEN_OPTION_KEYS.forEach((tenKey) => {
+          if (!provided.has(tenKey) && aliasValue !== undefined) {
+            result[tenKey] = aliasValue;
+          }
+        });
+      }
     };
     apply(base, false);
     apply(incoming, true);
@@ -351,52 +370,13 @@
     });
   };
 
-  const computePlayerCountFromDom = () => {
-    if (!playersList) {
-      return null;
-    }
-    const items = playersList.querySelectorAll('li[data-user-id]');
-    if (items.length) {
-      return items.length;
-    }
-    if (playersList.children && playersList.children.length) {
-      return playersList.children.length;
-    }
-    return null;
-  };
-
-  const computeAutoDeckCount = (playerCount) => {
-    if (!Number.isFinite(playerCount) || playerCount <= 0) {
-      return DEFAULT_RULE_OPTIONS.deck_count;
-    }
-    const normalizedCount = Math.max(0, Math.trunc(playerCount));
-    const decks = 1 + Math.floor(Math.max(0, normalizedCount - 1) / 4);
-    return Math.min(3, Math.max(1, decks));
-  };
-
-  const renderOptionsSummary = (state, playerCountOverride) => {
+  const renderOptionsSummary = () => {
     if (!optionsSummaryElement) {
       return;
     }
     const baseText =
       defaultOptionsSummaryText || 'Ajustez les règles avant de lancer la partie.';
-    const mode = normalizeDeckMode(state && state.deck_mode);
-    let summary = '';
-    if (mode === DECK_MODE_MANUAL) {
-      const manualCount = normalizeDeckCount(state && state.deck_count);
-      summary = `Paquets\u00a0: manuel (${manualCount} paquet${manualCount > 1 ? 's' : ''})`;
-    } else {
-      const playersCount = Number.isFinite(playerCountOverride)
-        ? playerCountOverride
-        : computePlayerCountFromDom();
-      const effectiveDecks = computeAutoDeckCount(playersCount);
-      if (Number.isFinite(playersCount) && playersCount > 0) {
-        summary = `Paquets\u00a0: automatique (${effectiveDecks} paquet${effectiveDecks > 1 ? 's' : ''} pour ${playersCount} joueur${playersCount > 1 ? 's' : ''})`;
-      } else {
-        summary = `Paquets\u00a0: automatique (${effectiveDecks} paquet${effectiveDecks > 1 ? 's' : ''})`;
-      }
-    }
-    optionsSummaryElement.textContent = summary ? `${baseText} — ${summary}` : baseText;
+    optionsSummaryElement.textContent = baseText;
   };
 
   const syncPenaltyCounterStates = (state, interactiveOverride) => {
@@ -1275,7 +1255,7 @@
 
     playersList.innerHTML = '';
     playersList.appendChild(fragment);
-    renderOptionsSummary(roomOptionsState, seen.size);
+    renderOptionsSummary();
   }
   socket.onmessage = (event) => {
     const msg = JSON.parse(event.data);
