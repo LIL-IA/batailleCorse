@@ -51,3 +51,29 @@ class CreateRoomViewTests(TestCase):
         self.assertRedirects(response, reverse("room", args=["NEW001"]))
         self.assertTrue(Room.objects.filter(code="WAIT01").exists())
         self.assertEqual(Room.objects.count(), 2)
+
+
+@override_settings(
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage"
+)
+class JoinRoomViewTests(TestCase):
+    def setUp(self):
+        self.host = User.objects.create_user("host", password="pass123")
+        self.room = Room.objects.create(code="FULL12", host=self.host)
+        Player.objects.create(room=self.room, user=self.host, seat=0)
+        for i in range(1, 12):
+            player = User.objects.create_user(f"player{i}", password="pass123")
+            Player.objects.create(room=self.room, user=player, seat=i)
+        self.user = User.objects.create_user("latecomer", password="pass123")
+        self.client.force_login(self.user)
+
+    def test_cannot_join_full_room(self):
+        response = self.client.post(
+            reverse("join_room"), {"code": self.room.code}, follow=True
+        )
+
+        self.assertRedirects(response, reverse("join_room"))
+        self.assertEqual(Player.objects.filter(room=self.room).count(), 12)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(str(messages[0]), "Cette salle est pleine.")
