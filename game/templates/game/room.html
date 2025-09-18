@@ -47,6 +47,7 @@
     Options de la partie
   </button>
   <span class="room-options-trigger-hint">Ajustez les règles avant de lancer la partie.</span>
+  <div id="room-options-summary" class="room-options-summary" aria-live="polite"></div>
 </div>
 
 <div id="room-options-modal" class="room-options-modal" hidden aria-hidden="true">
@@ -143,6 +144,42 @@
       </section>
 
       <section class="room-options-section">
+        <h4 id="penalty-mode-title" class="room-options-section__title">Mode de pénalité</h4>
+        <div class="room-options-choices" role="radiogroup" aria-labelledby="penalty-mode-title">
+          <label class="room-options-choice">
+            <input
+              type="radio"
+              name="penalty_mode"
+              value="fixed"
+              data-option-type="choice"
+              data-option-key="penalty_mode"
+            />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">Retrait fixe</span>
+              <span class="room-options-choice__description">
+                Applique une pénalité de 0, 1, 2 ou 5 cartes selon les réglages ci-dessous.
+              </span>
+            </span>
+          </label>
+          <label class="room-options-choice">
+            <input
+              type="radio"
+              name="penalty_mode"
+              value="sudden_death"
+              data-option-type="choice"
+              data-option-key="penalty_mode"
+            />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">Mort subite</span>
+              <span class="room-options-choice__description">
+                Toute pénalité retire immédiatement toutes les cartes restantes du joueur fautif.
+              </span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="room-options-section">
         <h4 class="room-options-section__title">Pénalités</h4>
         <div class="room-options-counters">
           <div
@@ -155,7 +192,7 @@
           >
             <div class="room-options-counter__texts">
               <span class="room-options-counter__label">Tape invalide</span>
-              <span class="room-options-counter__description">Cartes déplacées dans la pile de pénalité.</span>
+              <span class="room-options-counter__description">Cartes ajoutées à la pile de pénalité (0, 1, 2 ou 5).</span>
             </div>
             <div class="room-options-counter__controls">
               <button
@@ -187,7 +224,7 @@
           >
             <div class="room-options-counter__texts">
               <span class="room-options-counter__label">Jeu hors tour</span>
-              <span class="room-options-counter__description">Retrait de cartes si vous jouez sans y être autorisé.</span>
+              <span class="room-options-counter__description">Retrait appliqué en cas de jeu hors tour (0, 1, 2 ou 5).</span>
             </div>
             <div class="room-options-counter__controls">
               <button

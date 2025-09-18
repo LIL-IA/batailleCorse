@@ -83,8 +83,13 @@ def room(request, code):
     except GameState.DoesNotExist:
         initial_state = {}
     current_turn_id = initial_state.get("turn") if isinstance(initial_state, dict) else None
-    raw_options = initial_state.get("options") if isinstance(initial_state, dict) else None
-    initial_options = GameEngine.sanitize_options(base=raw_options)
+    room_options = getattr(room, "rules_options", None) or {}
+    state_options = initial_state.get("options") if isinstance(initial_state, dict) else None
+    state_options = state_options if isinstance(state_options, dict) else None
+    initial_options = GameEngine.sanitize_options(
+        base=room_options,
+        overrides=state_options,
+    )
     return render(
         request,
         'game/room.html',

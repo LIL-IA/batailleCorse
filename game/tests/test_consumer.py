@@ -48,8 +48,13 @@ class RoomConsumerTests(TransactionTestCase):
             assert initial["type"] == "state"
 
             await communicator.send_json_to({
-                "type": "set_options",
-                "options": {"allow_runs": "true", "bad_slap_penalty": -3},
+                "type": "update_rules",
+                "options": {
+                    "allow_runs": "true",
+                    "bad_slap_penalty": -3,
+                    "penalty_mode": "mort_subite",
+                    "bad_play_penalty": "off",
+                },
             })
 
             update = await communicator.receive_json_from()
@@ -57,9 +62,21 @@ class RoomConsumerTests(TransactionTestCase):
             options = update["options"]
             assert options["allow_runs"] is True
             assert options["bad_slap_penalty"] == 0
+            assert options["penalty_mode"] == "sudden_death"
+            assert options["bad_play_penalty"] == 0
             engine = ENGINES[self.room.code]
             assert engine.options["allow_runs"] is True
             assert engine.options["bad_slap_penalty"] == 0
+            assert engine.options["penalty_mode"] == "sudden_death"
+            assert engine.options["bad_play_penalty"] == 0
+
+            stored_options = await sync_to_async(
+                lambda: Room.objects.only("rules_options").get(pk=self.room.pk).rules_options
+            )()
+            assert stored_options["allow_runs"] is True
+            assert stored_options["bad_slap_penalty"] == 0
+            assert stored_options["bad_play_penalty"] == 0
+            assert stored_options["penalty_mode"] == "sudden_death"
 
             await communicator.disconnect()
 
@@ -80,7 +97,7 @@ class RoomConsumerTests(TransactionTestCase):
             await guest.receive_json_from()
             await host.receive_json_from()
 
-            await guest.send_json_to({"type": "set_options", "options": {"allow_runs": False}})
+            await guest.send_json_to({"type": "update_rules", "options": {"allow_runs": False}})
             error = await guest.receive_json_from()
             assert error["error"] == "not-host"
 
@@ -89,7 +106,7 @@ class RoomConsumerTests(TransactionTestCase):
 
         async_to_sync(inner)()
 
-    def test_set_options_requires_dictionary(self):
+    def test_update_rules_requires_dictionary(self):
         async def inner():
             communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
             communicator.scope["user"] = self.user1
@@ -97,7 +114,7 @@ class RoomConsumerTests(TransactionTestCase):
             assert connected
             await communicator.receive_json_from()
 
-            await communicator.send_json_to({"type": "set_options", "options": "oops"})
+            await communicator.send_json_to({"type": "update_rules", "options": "oops"})
             error = await communicator.receive_json_from()
             assert error["error"] == "invalid-options"
 
@@ -105,7 +122,7 @@ class RoomConsumerTests(TransactionTestCase):
 
         async_to_sync(inner)()
 
-    def test_set_options_rejected_when_game_started(self):
+    def test_update_rules_rejected_when_game_started(self):
         async def inner():
             host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
             host.scope["user"] = self.user1
@@ -132,7 +149,7 @@ class RoomConsumerTests(TransactionTestCase):
             await host.receive_json_from()
             await guest.receive_json_from()
 
-            await host.send_json_to({"type": "set_options", "options": {"allow_runs": False}})
+            await host.send_json_to({"type": "update_rules", "options": {"allow_runs": False}})
             error = await host.receive_json_from()
             assert error["error"] == "game-started"
 

@@ -154,7 +154,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     await self._reset_engine(clear_ready=True)
                     await self._reset_ready_flags()
                     await self._broadcast_state()
-            elif t == "set_options":
+            elif t in {"update_rules", "set_options"}:
                 if not await self._is_host(user_id):
                     await self.send_json({"error": "not-host"})
                     return
@@ -165,14 +165,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                 if not isinstance(raw_options, dict):
                     await self.send_json({"error": "invalid-options"})
                     return
-                sanitized = GameEngine.sanitize_options(
-                    overrides=raw_options,
-                    base=ROOM_OPTIONS.get(self.room_code),
-                )
-                ROOM_OPTIONS[self.room_code] = sanitized
-                engine = ENGINES.get(self.room_code)
-                if engine:
-                    engine.set_options(sanitized)
+                await self._update_room_rules(raw_options)
                 await self._broadcast_state()
             else:
                 await self.send_json({"error": "unknown-event"})
@@ -292,6 +285,26 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             SLAP_CTX[self.room_code] = {"open": False, "candidates": [], "task": None, "lock": asyncio.Lock()}
         return SLAP_CTX[self.room_code]
 
+    async def _get_options(self):
+        cached = ROOM_OPTIONS.get(self.room_code)
+        if cached is not None:
+            return dict(cached)
+        raw = await self._load_room_options()
+        sanitized = GameEngine.sanitize_options(base=raw)
+        ROOM_OPTIONS[self.room_code] = dict(sanitized)
+        return dict(sanitized)
+
+    async def _update_room_rules(self, overrides):
+        current = await self._get_options()
+        sanitized = GameEngine.sanitize_options(overrides=overrides, base=current)
+        if sanitized != current:
+            await self._save_room_options(sanitized)
+            ROOM_OPTIONS[self.room_code] = dict(sanitized)
+            engine = ENGINES.get(self.room_code)
+            if engine:
+                engine.set_options(sanitized)
+        return sanitized
+
     async def _broadcast_state(self, extra=None):
         engine = ENGINES.get(self.room_code)
         raw_players = await self._players_info()
@@ -300,10 +313,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             for p in raw_players
         ]
         host_id = await self._get_host_id()
-        sanitized_options = GameEngine.sanitize_options(
-            base=ROOM_OPTIONS.get(self.room_code)
-        )
-        ROOM_OPTIONS[self.room_code] = sanitized_options
+        sanitized_options = await self._get_options()
 
         payload = {
             "type": "state",
@@ -338,10 +348,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def _ensure_engine(self):
         if self.room_code not in ENGINES:
             players = await self._players_order()
-            options = GameEngine.sanitize_options(
-                base=ROOM_OPTIONS.get(self.room_code)
-            )
-            ROOM_OPTIONS[self.room_code] = options
+            options = await self._get_options()
             if not players:  # pas encore de joueurs -> ne pas créer le moteur
                 ENGINES[self.room_code] = None
                 return
@@ -349,10 +356,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
     async def _reset_engine(self, clear_ready=False):
         players = await self._players_order()
-        options = GameEngine.sanitize_options(
-            base=ROOM_OPTIONS.get(self.room_code)
-        )
-        ROOM_OPTIONS[self.room_code] = options
+        options = await self._get_options()
         if players:
             ENGINES[self.room_code] = GameEngine(players, options=options)
         else:
@@ -401,6 +405,18 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             room=room,
             defaults={"state_json": engine.serialize()},
         )
+
+    @database_sync_to_async
+    def _load_room_options(self):
+        try:
+            room = Room.objects.only("rules_options").get(code=self.room_code)
+        except Room.DoesNotExist:
+            return {}
+        return room.rules_options or {}
+
+    @database_sync_to_async
+    def _save_room_options(self, options):
+        Room.objects.filter(code=self.room_code).update(rules_options=options)
 
     @database_sync_to_async
     def _get_host_id(self):

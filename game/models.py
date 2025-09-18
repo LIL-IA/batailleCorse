@@ -6,6 +6,7 @@ class Room(models.Model):
     host = models.ForeignKey(User, on_delete=models.CASCADE, related_name="hosted_rooms")
     is_started = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    rules_options = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return self.code

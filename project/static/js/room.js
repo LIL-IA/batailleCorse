@@ -43,6 +43,12 @@
   const optionsBackdrop = optionsModal
     ? optionsModal.querySelector('[data-room-options-close]')
     : null;
+  const optionsSummary = document.getElementById('room-options-summary');
+
+  const PENALTY_MODE_FIXED = 'fixed';
+  const PENALTY_MODE_SUDDEN_DEATH = 'sudden_death';
+  const PENALTY_STEPS = Object.freeze([0, 1, 2, 5]);
+  const PENALTY_KEYS = new Set(['bad_slap_penalty', 'bad_play_penalty']);
 
   const DEFAULT_RULE_OPTIONS = Object.freeze({
     allow_double: true,
@@ -50,7 +56,8 @@
     allow_runs: false,
     allow_ten: true,
     bad_slap_penalty: 2,
-    bad_play_penalty: 2
+    bad_play_penalty: 2,
+    penalty_mode: PENALTY_MODE_FIXED
   });
 
   const optionsDataScript = document.getElementById('initial-room-options');
@@ -68,6 +75,37 @@
       console.warn('Impossible de parser les options initiales', err);
     }
     return null;
+  };
+
+  const normalizePenaltyCount = (value, defaultValue) => {
+    if (!Number.isFinite(value)) {
+      return defaultValue;
+    }
+    if (value <= 0) {
+      return 0;
+    }
+    const allowed = PENALTY_STEPS.filter((step) => step > 0);
+    if (allowed.includes(value)) {
+      return value;
+    }
+    for (let idx = allowed.length - 1; idx >= 0; idx -= 1) {
+      const step = allowed[idx];
+      if (value >= step) {
+        return step;
+      }
+    }
+    return defaultValue;
+  };
+
+  const normalizePenaltyMode = (rawValue) => {
+    const normalized = String(rawValue || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[-\s]/g, '_');
+    if (['sudden_death', 'suddendeath', 'mort_subite'].includes(normalized)) {
+      return PENALTY_MODE_SUDDEN_DEATH;
+    }
+    return PENALTY_MODE_FIXED;
   };
 
   const coerceOptionValue = (key, value) => {
@@ -94,12 +132,26 @@
       } else if (typeof value === 'boolean') {
         numeric = value ? 1 : 0;
       } else if (typeof value === 'string') {
-        numeric = Number.parseInt(value.trim(), 10);
+        const lowered = value.trim().toLowerCase();
+        if (['off', 'none', 'no', 'false', 'disable', 'disabled'].includes(lowered)) {
+          return 0;
+        }
+        numeric = Number.parseInt(lowered, 10);
       }
       if (!Number.isFinite(numeric)) {
         return defaultValue;
       }
-      return Math.max(0, Math.trunc(numeric));
+      const sanitized = Math.max(0, Math.trunc(numeric));
+      if (PENALTY_KEYS.has(key)) {
+        return normalizePenaltyCount(sanitized, defaultValue);
+      }
+      return sanitized;
+    }
+    if (typeof defaultValue === 'string') {
+      if (key === 'penalty_mode') {
+        return normalizePenaltyMode(value);
+      }
+      return typeof value === 'string' ? value : defaultValue;
     }
     return defaultValue;
   };
@@ -164,11 +216,90 @@
         display.textContent = String(value);
       }
       counter.setAttribute('aria-valuenow', String(value));
-      counter.setAttribute(
-        'aria-valuetext',
-        `${value} carte${value > 1 ? 's' : ''}`
-      );
+      const cardLabel = value <= 0
+        ? 'Aucune carte retirée'
+        : `${value} carte${value > 1 ? 's' : ''}`;
+      counter.setAttribute('aria-valuetext', cardLabel);
     });
+    const choices = optionsForm.querySelectorAll('[data-option-type="choice"]');
+    choices.forEach((input) => {
+      const key = input.dataset.optionKey;
+      if (!key || !Object.prototype.hasOwnProperty.call(state, key)) {
+        return;
+      }
+      const current = String(state[key]);
+      input.checked = current === String(input.value);
+    });
+  };
+
+  const formatCardCount = (value) => {
+    if (!Number.isFinite(value) || value <= 0) {
+      return 'aucune carte';
+    }
+    return `${value} carte${value > 1 ? 's' : ''}`;
+  };
+
+  const renderOptionsSummary = (state) => {
+    if (!optionsSummary) {
+      return;
+    }
+    optionsSummary.innerHTML = '';
+    if (!state) {
+      return;
+    }
+    const title = document.createElement('h4');
+    title.className = 'room-options-summary__title';
+    title.textContent = 'Règles en vigueur';
+    optionsSummary.appendChild(title);
+
+    const list = document.createElement('ul');
+    list.className = 'room-options-summary__list';
+    optionsSummary.appendChild(list);
+
+    const variantLabels = [];
+    if (state.allow_double) variantLabels.push('Double');
+    if (state.allow_sandwich) variantLabels.push('Sandwich');
+    if (state.allow_runs) variantLabels.push('Suite');
+    const variantsItem = document.createElement('li');
+    variantsItem.textContent = `Variantes de tape : ${variantLabels.length ? variantLabels.join(', ') : 'aucune'}.`;
+    list.appendChild(variantsItem);
+
+    const tenItem = document.createElement('li');
+    tenItem.textContent = state.allow_ten
+      ? 'Compléments à 10 : activés.'
+      : 'Compléments à 10 : désactivés.';
+    list.appendChild(tenItem);
+
+    const modeItem = document.createElement('li');
+    const suddenDeath = state.penalty_mode === PENALTY_MODE_SUDDEN_DEATH;
+    modeItem.textContent = suddenDeath
+      ? 'Mode de pénalité : mort subite (toutes les cartes restantes sont retirées).'
+      : 'Mode de pénalité : retrait d\'un nombre fixe de cartes.';
+    list.appendChild(modeItem);
+
+    const detailsItem = document.createElement('li');
+    if (suddenDeath) {
+      detailsItem.textContent = 'Chaque pénalité retire immédiatement tout le paquet du joueur concerné.';
+    } else {
+      const parts = [];
+      parts.push(
+        state.bad_slap_penalty <= 0
+          ? 'Tape invalide : aucune carte retirée'
+          : `Tape invalide : ${formatCardCount(state.bad_slap_penalty)}`
+      );
+      parts.push(
+        state.bad_play_penalty <= 0
+          ? 'Jeu hors tour : aucune carte retirée'
+          : `Jeu hors tour : ${formatCardCount(state.bad_play_penalty)}`
+      );
+      detailsItem.textContent = `${parts.join(' · ')}.`;
+    }
+    list.appendChild(detailsItem);
+  };
+
+  const refreshOptionsUI = (state) => {
+    applyOptionsToForm(state);
+    renderOptionsSummary(state);
   };
 
   const updateOptionsAvailability = (started) => {
@@ -189,6 +320,11 @@
       const counters = optionsForm.querySelectorAll('[data-option-type="counter"]');
       counters.forEach((counter) => {
         counter.setAttribute('aria-disabled', interactive ? 'false' : 'true');
+      });
+      const choices = optionsForm.querySelectorAll('[data-option-type="choice"]');
+      choices.forEach((input) => {
+        input.disabled = !interactive;
+        input.setAttribute('aria-disabled', interactive ? 'false' : 'true');
       });
     }
     if (hostOnlyNote) {
@@ -259,7 +395,7 @@
     optionsSyncTimerId = window.setTimeout(() => {
       optionsSyncTimerId = null;
       if (typeof window.wsSend === 'function') {
-        window.wsSend({ type: 'set_options', options: payload });
+        window.wsSend({ type: 'update_rules', options: payload });
       }
     }, 150);
   };
@@ -269,9 +405,11 @@
       return;
     }
     const sanitized = sanitizeOptions({ [key]: rawValue }, roomOptionsState);
-    const changed = sanitized[key] !== roomOptionsState[key];
+    const changed = Object.keys(DEFAULT_RULE_OPTIONS).some(
+      (optionKey) => sanitized[optionKey] !== roomOptionsState[optionKey]
+    );
     roomOptionsState = sanitized;
-    applyOptionsToForm(roomOptionsState);
+    refreshOptionsUI(roomOptionsState);
     if (changed && !optionsUpdateFromServer) {
       scheduleOptionsSync();
     }
@@ -283,26 +421,28 @@
       (key) => roomOptionsState[key] !== sanitized[key]
     );
     roomOptionsState = sanitized;
-    if (!optionsForm) {
-      return;
-    }
     optionsUpdateFromServer = true;
-    applyOptionsToForm(roomOptionsState);
+    refreshOptionsUI(roomOptionsState);
     optionsUpdateFromServer = false;
-    if (!changed) {
-      return;
-    }
+    return changed;
   };
 
   if (optionsForm) {
     optionsForm.addEventListener('submit', (event) => event.preventDefault());
     optionsForm.addEventListener('change', (event) => {
       const target = event.target;
-      if (!target || target.dataset.optionType !== 'toggle') {
+      if (!target || !target.dataset.optionType) {
         return;
       }
       const key = target.dataset.optionKey;
-      updateOptionValue(key, target.checked);
+      if (!key) {
+        return;
+      }
+      if (target.dataset.optionType === 'toggle') {
+        updateOptionValue(key, target.checked);
+      } else if (target.dataset.optionType === 'choice') {
+        updateOptionValue(key, target.value);
+      }
     });
     optionsForm.addEventListener('click', (event) => {
       const target = event.target;
@@ -318,9 +458,25 @@
       if (!key) {
         return;
       }
-      const step = target.dataset.optionStep === 'up' ? 1 : -1;
-      const currentValue = roomOptionsState[key] || 0;
-      updateOptionValue(key, currentValue + step);
+      const direction = target.dataset.optionStep === 'up' ? 1 : -1;
+      const currentValueRaw = roomOptionsState[key];
+      const currentValue = Number.isFinite(currentValueRaw)
+        ? currentValueRaw
+        : Number.parseInt(currentValueRaw, 10) || 0;
+      let nextValue = currentValue + direction;
+      if (PENALTY_KEYS.has(key)) {
+        const currentIndex = PENALTY_STEPS.indexOf(currentValue);
+        const fallbackIndex = PENALTY_STEPS.indexOf(DEFAULT_RULE_OPTIONS[key]);
+        const baseIndex = currentIndex === -1
+          ? (fallbackIndex === -1 ? 0 : fallbackIndex)
+          : currentIndex;
+        const targetIndex = Math.min(
+          PENALTY_STEPS.length - 1,
+          Math.max(0, baseIndex + direction)
+        );
+        nextValue = PENALTY_STEPS[targetIndex];
+      }
+      updateOptionValue(key, nextValue);
     });
   }
 
@@ -345,7 +501,7 @@
     });
   }
 
-  applyOptionsToForm(roomOptionsState);
+  refreshOptionsUI(roomOptionsState);
   updateOptionsAvailability(currentGameStarted);
 
   const tableSelector = playersList.dataset.tableSelector || '#table';
