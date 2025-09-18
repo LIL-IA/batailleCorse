@@ -401,7 +401,6 @@ textarea:focus {
   display: flex;
   justify-content: center;
   width: 100%;
-  transform: rotate(calc(-1 * var(--deck-angle, 0deg)));
 }
 
 #player-decks .player-deck .deck-info {
