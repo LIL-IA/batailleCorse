@@ -132,11 +132,39 @@
               <span class="room-options-switch__texts">
                 <span class="room-options-switch__label">Dix</span>
                 <span class="room-options-switch__description">
-                  Permet de taper lorsqu’un total de dix est atteint avec les cartes visibles.
+                  Autorise la tape lorsqu’un 10 est posé sur le dessus du tas.
                 </span>
               </span>
               <span class="room-options-switch__control">
-                <input type="checkbox" data-option-type="toggle" data-option-key="allow_ten" />
+                <input type="checkbox" data-option-type="toggle" data-option-key="allow_ten_card" />
+                <span class="room-options-switch__slider" aria-hidden="true"></span>
+              </span>
+            </label>
+          </li>
+          <li>
+            <label class="room-options-switch">
+              <span class="room-options-switch__texts">
+                <span class="room-options-switch__label">Somme de 10</span>
+                <span class="room-options-switch__description">
+                  Autorise la tape si les deux dernières cartes visibles totalisent exactement dix.
+                </span>
+              </span>
+              <span class="room-options-switch__control">
+                <input type="checkbox" data-option-type="toggle" data-option-key="allow_ten_sum" />
+                <span class="room-options-switch__slider" aria-hidden="true"></span>
+              </span>
+            </label>
+          </li>
+          <li>
+            <label class="room-options-switch">
+              <span class="room-options-switch__texts">
+                <span class="room-options-switch__label">Sandwich de 10</span>
+                <span class="room-options-switch__description">
+                  Autorise la tape lorsque la première et la troisième carte visibles totalisent dix.
+                </span>
+              </span>
+              <span class="room-options-switch__control">
+                <input type="checkbox" data-option-type="toggle" data-option-key="allow_ten_sandwich" />
                 <span class="room-options-switch__slider" aria-hidden="true"></span>
               </span>
             </label>

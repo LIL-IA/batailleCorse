@@ -19,7 +19,9 @@ class GameEngine:
         "allow_sandwich": True,
         "allow_double": True,
         "allow_runs": False,
-        "allow_ten": True,
+        "allow_ten_card": True,
+        "allow_ten_sum": True,
+        "allow_ten_sandwich": True,
         "bad_slap_penalty": 2,
         "bad_play_penalty": 2,
         "penalty_mode": PENALTY_MODE_FIXED,
@@ -84,9 +86,18 @@ class GameEngine:
         def apply(source):
             if not source:
                 return
+            provided = set()
             for key in result:
                 if key in source:
                     result[key] = cls._coerce_option_value(key, source[key])
+                    provided.add(key)
+
+            if "allow_ten" in source:
+                alias_value = cls._coerce_option_value("allow_ten_card", source["allow_ten"])
+                ten_keys = ("allow_ten_card", "allow_ten_sum", "allow_ten_sandwich")
+                for ten_key in ten_keys:
+                    if ten_key not in provided:
+                        result[ten_key] = alias_value
 
         apply(base)
         apply(overrides)
@@ -241,7 +252,7 @@ class GameEngine:
 
         a = self.center[-1][0]
 
-        if self.options["allow_ten"] and a == "T":
+        if self.options["allow_ten_card"] and a == "T":
             return True
 
         if len(self.center) == 1:
@@ -259,14 +270,13 @@ class GameEngine:
             vals = [RANK_VALUE[self.center[-i][0]] for i in (1,2,3)]
             if vals[0] == vals[1]+1 == vals[2]+2:
                 return True
-        if self.options["allow_ten"]:
-            v1, v2 = RANK_VALUE[a], RANK_VALUE[b]
-            if (v1 + v2) == 10:
+        v1, v2 = RANK_VALUE[a], RANK_VALUE[b]
+        if self.options["allow_ten_sum"] and (v1 + v2) == 10:
+            return True
+        if has_three and self.options["allow_ten_sandwich"]:
+            c = self.center[-3][0]
+            if (v1 + RANK_VALUE[c]) == 10:
                 return True
-            if has_three:
-                c = self.center[-3][0]
-                if (v1 + RANK_VALUE[c]) == 10:
-                    return True
         return False
 
     def play_card(self, player_id):
