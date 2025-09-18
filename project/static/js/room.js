@@ -508,6 +508,7 @@
   const centerPileSelector = playersList.dataset.centerPileSelector || '#center-pile';
   const penaltyPileSelector = playersList.dataset.penaltyPileSelector || '#penalty-pile';
   const playerDeckSelector = playersList.dataset.playerDeckSelector || '.player-deck';
+  let centerPileInteractiveEl = null;
 
   const parseId = (value) => {
     const parsed = Number.parseInt(value, 10);
@@ -565,6 +566,7 @@
         btn.setAttribute('aria-disabled', 'false');
       }
     });
+    updateCenterPileActionMarker();
   };
 
   const disableActionButtonsTemporarily = (durationMs = 1000) => {
@@ -579,6 +581,58 @@
       setActionButtonsDisabled(false);
     }, durationMs);
   };
+
+  const isElementEffectivelyVisible = (element) => {
+    if (!element) {
+      return false;
+    }
+    if (element.hidden) {
+      return false;
+    }
+    if (typeof element.getClientRects === 'function' && element.getClientRects().length > 0) {
+      return true;
+    }
+    const style = window.getComputedStyle(element);
+    return !(
+      style.display === 'none' ||
+      style.visibility === 'hidden' ||
+      style.visibility === 'collapse'
+    );
+  };
+
+  const isSlapActionCurrentlyEnabled = () => {
+    if (!currentGameStarted || temporaryActionsDisabled) {
+      return false;
+    }
+    if (!slapBtn || slapBtn.disabled) {
+      return false;
+    }
+    if (!isElementEffectivelyVisible(slapBtn)) {
+      return false;
+    }
+    return true;
+  };
+
+  let centerPileActionAvailableFromState = false;
+
+  function updateCenterPileActionMarker(element) {
+    const target =
+      element ||
+      centerPileInteractiveEl ||
+      document.querySelector(centerPileSelector);
+    if (!target) {
+      return;
+    }
+    const isAvailable = centerPileActionAvailableFromState && isSlapActionCurrentlyEnabled();
+    target.classList.toggle('center-pile-clickable', isAvailable);
+    if (isAvailable) {
+      target.setAttribute('tabindex', '0');
+      target.setAttribute('aria-disabled', 'false');
+    } else {
+      target.removeAttribute('tabindex');
+      target.setAttribute('aria-disabled', 'true');
+    }
+  }
 
   const SLAP_FEEDBACK_CLASSES = ['slap-success', 'slap-fail'];
   const SLAP_OVERLAY_DURATION_MS = 1600;
@@ -1167,6 +1221,57 @@
 
   window.wsSend = wsSend;
 
+  centerPileInteractiveEl = document.querySelector(centerPileSelector);
+  let lastCenterPilePointerDownTs = 0;
+
+  const canTriggerSlapFromCenterPile = () => {
+    if (!centerPileInteractiveEl) {
+      return false;
+    }
+    if (!centerPileInteractiveEl.classList.contains('center-pile-clickable')) {
+      return false;
+    }
+    return isSlapActionCurrentlyEnabled();
+  };
+
+  updateCenterPileActionMarker(centerPileInteractiveEl);
+
+  const handleCenterPileActivation = (event) => {
+    if (event.type === 'pointerdown') {
+      if (event.isPrimary === false) {
+        return;
+      }
+      if (typeof event.button === 'number' && event.button !== 0) {
+        return;
+      }
+      lastCenterPilePointerDownTs = Date.now();
+    } else if (event.type === 'click') {
+      if (
+        lastCenterPilePointerDownTs !== 0 &&
+        Date.now() - lastCenterPilePointerDownTs < 350
+      ) {
+        lastCenterPilePointerDownTs = 0;
+        return;
+      }
+    }
+
+    if (!canTriggerSlapFromCenterPile()) {
+      return;
+    }
+
+    wsSend({ type: 'slap' });
+    event.preventDefault();
+
+    if (event.type === 'click') {
+      lastCenterPilePointerDownTs = 0;
+    }
+  };
+
+  if (centerPileInteractiveEl) {
+    centerPileInteractiveEl.addEventListener('pointerdown', handleCenterPileActivation);
+    centerPileInteractiveEl.addEventListener('click', handleCenterPileActivation);
+  }
+
   document.addEventListener('keydown', (event) => {
     if (optionsModalOpen) {
       if (event.key === 'Escape') {
@@ -1227,6 +1332,8 @@
     const centerPileEl = document.querySelector(centerPileSelector);
     const penaltyPileEl = document.querySelector(penaltyPileSelector);
     if (!tableEl || !centerPileEl) {
+      centerPileActionAvailableFromState = false;
+      updateCenterPileActionMarker();
       return;
     }
 
@@ -1466,6 +1573,12 @@
     if (centerCount < 0) {
       centerCount = 0;
     }
+
+    const hasCenterPileCards = !justCollected && centerCount > 0;
+    const stateAllowsSlap =
+      Boolean(state) && !hasWinner && !pendingCollect && hasCenterPileCards;
+    centerPileActionAvailableFromState = stateAllowsSlap;
+    updateCenterPileActionMarker(centerPileEl);
 
     const topCard =
       state && typeof state.top_center === 'string' ? state.top_center : null;
