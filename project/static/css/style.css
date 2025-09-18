@@ -397,6 +397,37 @@ textarea:focus {
   transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.03);
 }
 
+#player-decks .player-deck.player-deck-self-clickable {
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, outline 0.2s ease;
+}
+
+#player-decks .player-deck.player-deck-self-clickable:focus {
+  outline: none;
+}
+
+#player-decks .player-deck.player-deck-self-clickable:hover,
+#player-decks .player-deck.player-deck-self-clickable:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(251, 191, 36, 0.6),
+    0 30px 68px -28px rgba(245, 158, 11, 0.55),
+    0 22px 38px -26px rgba(15, 23, 42, 0.72);
+  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.07);
+}
+
+#player-decks .player-deck.player-deck-self-clickable:focus-visible {
+  outline: 3px solid rgba(251, 191, 36, 0.9);
+  outline-offset: 6px;
+}
+
+#player-decks .player-deck.player-deck-self-clickable:active {
+  box-shadow:
+    0 0 0 2px rgba(251, 191, 36, 0.55),
+    0 24px 54px -30px rgba(245, 158, 11, 0.5),
+    0 22px 38px -26px rgba(15, 23, 42, 0.68);
+  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.02);
+}
+
 #player-decks .player-deck .deck-card {
   display: flex;
   justify-content: center;
