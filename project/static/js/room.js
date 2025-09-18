@@ -872,7 +872,7 @@
       deck.classList.remove('player-deck-top', 'player-deck-left', 'player-deck-right');
       deck.style.zIndex = '9';
     } else if (totalDecks >= 2) {
-      const radiusPercent = totalDecks === 2 ? 32 : 38;
+      const radiusPercent = totalDecks === 2 ? 36 : 44;
       deckElements.forEach((deck, idx) => {
         const angle = (idx / totalDecks) * Math.PI * 2 - Math.PI / 2;
         const x = 50 + radiusPercent * Math.cos(angle);
