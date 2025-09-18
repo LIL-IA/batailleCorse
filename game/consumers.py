@@ -6,7 +6,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from .models import Room, GameState, Player
-from .engine import GameEngine
+from .engine import GameEngine, PENALTY_MODE_SUDDEN_DEATH, PENALTY_SUDDEN_DEATH_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,7 @@ CONNECTION_COUNTS = defaultdict(int)
 ROOM_CONNECTION_COUNTS = defaultdict(int)
 # Delay in milliseconds to collect all slap candidates before resolving
 GRACE_MS = 1000
+SUDDEN_DEATH_KEYS = set(PENALTY_SUDDEN_DEATH_MAP.values())
 
 class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
@@ -287,16 +288,20 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
     async def _get_options(self):
         cached = ROOM_OPTIONS.get(self.room_code)
-        if cached is not None:
+        if cached is not None and self._options_cache_current(cached):
             return dict(cached)
         raw = await self._load_room_options()
-        sanitized = GameEngine.sanitize_options(base=raw)
+        normalized, legacy_converted = self._normalize_legacy_penalty_flags(raw)
+        sanitized = GameEngine.sanitize_options(base=normalized)
         ROOM_OPTIONS[self.room_code] = dict(sanitized)
+        if self._should_persist_options(raw, sanitized, legacy_converted):
+            await self._save_room_options(sanitized)
         return dict(sanitized)
 
     async def _update_room_rules(self, overrides):
         current = await self._get_options()
-        sanitized = GameEngine.sanitize_options(overrides=overrides, base=current)
+        normalized_overrides, _ = self._normalize_legacy_penalty_flags(overrides)
+        sanitized = GameEngine.sanitize_options(overrides=normalized_overrides, base=current)
         if sanitized != current:
             await self._save_room_options(sanitized)
             ROOM_OPTIONS[self.room_code] = dict(sanitized)
@@ -304,6 +309,40 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             if engine:
                 engine.set_options(sanitized)
         return sanitized
+
+    @staticmethod
+    def _options_cache_current(cached):
+        if not isinstance(cached, dict):
+            return False
+        if "penalty_mode" in cached:
+            return False
+        return SUDDEN_DEATH_KEYS.issubset(cached.keys())
+
+    def _normalize_legacy_penalty_flags(self, source):
+        if not isinstance(source, dict):
+            return source, False
+        updated = dict(source)
+        if "penalty_mode" not in updated:
+            return updated, False
+        legacy_mode = GameEngine._normalize_penalty_mode(updated.pop("penalty_mode"))
+        is_sudden_death = legacy_mode == PENALTY_MODE_SUDDEN_DEATH
+        for sudden_key in SUDDEN_DEATH_KEYS:
+            updated.setdefault(sudden_key, is_sudden_death)
+        return updated, True
+
+    @staticmethod
+    def _should_persist_options(raw, sanitized, legacy_converted):
+        if not isinstance(raw, dict) or not raw:
+            return False
+        if legacy_converted:
+            return True
+        for key, value in raw.items():
+            if key not in sanitized:
+                continue
+            sanitized_value = sanitized[key]
+            if sanitized_value != value or type(sanitized_value) != type(value):
+                return True
+        return False
 
     async def _broadcast_state(self, extra=None):
         engine = ENGINES.get(self.room_code)
