@@ -775,35 +775,6 @@ textarea:focus {
   color: #6b7280;
 }
 
-.room-options-summary {
-  width: min(100%, 420px);
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  background: #f8fafc;
-  color: #374151;
-  font-size: 0.9rem;
-}
-
-.room-options-summary__title {
-  margin: 0 0 0.35rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #111827;
-}
-
-.room-options-summary__list {
-  margin: 0;
-  padding-left: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.room-options-summary__list li {
-  line-height: 1.45;
-}
-
 body.room-options-lock {
   overflow: hidden;
 }

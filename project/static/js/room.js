@@ -43,7 +43,6 @@
   const optionsBackdrop = optionsModal
     ? optionsModal.querySelector('[data-room-options-close]')
     : null;
-  const optionsSummary = document.getElementById('room-options-summary');
 
   const PENALTY_MODE_FIXED = 'fixed';
   const PENALTY_MODE_SUDDEN_DEATH = 'sudden_death';
@@ -232,74 +231,8 @@
     });
   };
 
-  const formatCardCount = (value) => {
-    if (!Number.isFinite(value) || value <= 0) {
-      return 'aucune carte';
-    }
-    return `${value} carte${value > 1 ? 's' : ''}`;
-  };
-
-  const renderOptionsSummary = (state) => {
-    if (!optionsSummary) {
-      return;
-    }
-    optionsSummary.innerHTML = '';
-    if (!state) {
-      return;
-    }
-    const title = document.createElement('h4');
-    title.className = 'room-options-summary__title';
-    title.textContent = 'Règles en vigueur';
-    optionsSummary.appendChild(title);
-
-    const list = document.createElement('ul');
-    list.className = 'room-options-summary__list';
-    optionsSummary.appendChild(list);
-
-    const variantLabels = [];
-    if (state.allow_double) variantLabels.push('Double');
-    if (state.allow_sandwich) variantLabels.push('Sandwich');
-    if (state.allow_runs) variantLabels.push('Suite');
-    const variantsItem = document.createElement('li');
-    variantsItem.textContent = `Variantes de tape : ${variantLabels.length ? variantLabels.join(', ') : 'aucune'}.`;
-    list.appendChild(variantsItem);
-
-    const tenItem = document.createElement('li');
-    tenItem.textContent = state.allow_ten
-      ? 'Compléments à 10 : activés.'
-      : 'Compléments à 10 : désactivés.';
-    list.appendChild(tenItem);
-
-    const modeItem = document.createElement('li');
-    const suddenDeath = state.penalty_mode === PENALTY_MODE_SUDDEN_DEATH;
-    modeItem.textContent = suddenDeath
-      ? 'Mode de pénalité : mort subite (toutes les cartes restantes sont retirées).'
-      : 'Mode de pénalité : retrait d\'un nombre fixe de cartes.';
-    list.appendChild(modeItem);
-
-    const detailsItem = document.createElement('li');
-    if (suddenDeath) {
-      detailsItem.textContent = 'Chaque pénalité retire immédiatement tout le paquet du joueur concerné.';
-    } else {
-      const parts = [];
-      parts.push(
-        state.bad_slap_penalty <= 0
-          ? 'Tape invalide : aucune carte retirée'
-          : `Tape invalide : ${formatCardCount(state.bad_slap_penalty)}`
-      );
-      parts.push(
-        state.bad_play_penalty <= 0
-          ? 'Jeu hors tour : aucune carte retirée'
-          : `Jeu hors tour : ${formatCardCount(state.bad_play_penalty)}`
-      );
-      detailsItem.textContent = `${parts.join(' · ')}.`;
-    }
-    list.appendChild(detailsItem);
-  };
-
   const refreshOptionsUI = (state) => {
     applyOptionsToForm(state);
-    renderOptionsSummary(state);
   };
 
   const updateOptionsAvailability = (started) => {
