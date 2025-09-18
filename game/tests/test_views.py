@@ -4,7 +4,8 @@ from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from game.models import Player, Room
+from game.models import Player, Room, GameState
+from game.engine import GameEngine
 
 
 @override_settings(
@@ -77,3 +78,38 @@ class JoinRoomViewTests(TestCase):
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
         self.assertEqual(str(messages[0]), "Cette salle est pleine.")
+
+
+@override_settings(
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage"
+)
+class RoomViewTests(TestCase):
+    def setUp(self):
+        self.host = User.objects.create_user("roomhost", password="pass123")
+        self.client.force_login(self.host)
+
+    def test_initial_options_uses_room_rules_when_not_started(self):
+        room = Room.objects.create(
+            code="OPT001",
+            host=self.host,
+            rules_options={
+                "allow_sandwich": False,
+                "bad_slap_penalty": 5,
+            },
+        )
+        Player.objects.create(room=room, user=self.host, seat=0)
+        GameState.objects.create(
+            room=room,
+            state_json={
+                "options": {
+                    "allow_sandwich": True,
+                    "bad_slap_penalty": 1,
+                }
+            },
+        )
+
+        response = self.client.get(reverse("room", args=[room.code]))
+
+        self.assertEqual(response.status_code, 200)
+        expected_options = GameEngine.sanitize_options(base=room.rules_options)
+        self.assertEqual(response.context["initial_options"], expected_options)
