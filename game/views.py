@@ -56,10 +56,13 @@ def join_room(request):
     if request.method == "POST":
         code = request.POST.get("code", "").upper().strip()
         room = get_object_or_404(Room, code=code)
+        player_count = room.players.count()
+        if player_count >= 12:
+            messages.error(request, "Cette salle est pleine.")
+            return redirect("join_room")
         # join if not already present
         if not room.players.filter(user=request.user).exists():
-            next_seat = room.players.count()
-            Player.objects.create(room=room, user=request.user, seat=next_seat)
+            Player.objects.create(room=room, user=request.user, seat=player_count)
             channel_layer = get_channel_layer()
             if channel_layer is not None:
                 async_to_sync(channel_layer.group_send)(
