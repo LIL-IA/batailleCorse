@@ -764,10 +764,7 @@ textarea:focus {
 .room-options-trigger--readonly,
 .room-options-trigger--readonly:hover,
 .room-options-trigger--readonly:focus {
-  background: #a8b5d6;
-  cursor: default;
-  box-shadow: none;
-  filter: none;
+  cursor: help;
 }
 
 .room-options-trigger-hint {
