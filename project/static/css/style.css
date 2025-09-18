@@ -140,19 +140,10 @@ button:disabled,
 
 .play-action-container {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 0.55rem;
-}
-
-.table-action-buttons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: clamp(0.75rem, 2.5vw, 1.5rem);
-  width: min(100%, 820px);
-  margin: clamp(0.75rem, 2.5vw, 1.5rem) auto clamp(1.75rem, 5vw, 3rem);
+  margin-bottom: 0.75rem;
 }
 
 .action-btn.collect-highlight {
