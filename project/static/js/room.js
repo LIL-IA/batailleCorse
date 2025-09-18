@@ -1490,12 +1490,16 @@
         deck.classList.add('player-deck');
         deck.innerHTML = '';
 
+        const deckContent = document.createElement('div');
+        deckContent.className = 'deck-content';
+        deck.appendChild(deckContent);
+
         const deckCard = document.createElement('div');
         deckCard.className = 'deck-card';
         const cardBack = document.createElement('div');
         cardBack.className = 'card-back';
         deckCard.appendChild(cardBack);
-        deck.appendChild(deckCard);
+        deckContent.appendChild(deckCard);
 
         const info = document.createElement('div');
         info.className = 'deck-info';
@@ -1516,13 +1520,13 @@
         }
         info.appendChild(countEl);
 
-        deck.appendChild(info);
+        deckContent.appendChild(info);
 
         deck.style.removeProperty('transform');
         deck.style.removeProperty('left');
         deck.style.removeProperty('top');
         deck.style.removeProperty('--deck-angle');
-        deck.style.removeProperty('--deck-text-angle');
+        deck.style.removeProperty('--deck-content-angle');
         deck.style.removeProperty('z-index');
         deck.classList.remove(
           'player-deck-top',
@@ -1552,6 +1556,7 @@
       deck.style.left = '50%';
       deck.style.top = '78%';
       deck.style.setProperty('--deck-angle', '0deg');
+      deck.style.setProperty('--deck-content-angle', '0deg');
       deck.classList.add('player-deck-solo', 'player-deck-bottom');
       deck.classList.remove('player-deck-top', 'player-deck-left', 'player-deck-right');
       deck.style.zIndex = '9';
@@ -1565,6 +1570,7 @@
         deck.style.left = `${x}%`;
         deck.style.top = `${y}%`;
         deck.style.setProperty('--deck-angle', `${angleDeg}deg`);
+        deck.style.setProperty('--deck-content-angle', `${-angleDeg}deg`);
         const isTop = y <= 50;
         const isBottom = !isTop;
         const isLeft = x < 50 - 0.5;
