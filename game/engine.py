@@ -23,6 +23,8 @@ class GameEngine:
         "bad_slap_penalty": 2,
         "bad_play_penalty": 2,
         "penalty_mode": PENALTY_MODE_FIXED,
+        "deck_mode": "auto",
+        "deck_count": 1,
     }
 
     @classmethod
@@ -55,7 +57,10 @@ class GameEngine:
                     return default
             else:
                 return default
-            return max(0, numeric)
+            numeric = max(0, numeric)
+            if key == "deck_count":
+                return cls._normalize_deck_count(numeric)
+            return numeric
         if isinstance(default, str):
             if value is None:
                 return default
@@ -67,6 +72,8 @@ class GameEngine:
                 if lowered in {PENALTY_MODE_SUDDEN_DEATH, "suddendeath", "sudden_death", "mort_subite"}:
                     return PENALTY_MODE_SUDDEN_DEATH
                 return PENALTY_MODE_FIXED
+            if key == "deck_mode":
+                return cls._normalize_deck_mode(value)
             return value if isinstance(value, str) else default
         return default
 
@@ -92,6 +99,8 @@ class GameEngine:
             result.get("bad_play_penalty"),
             cls.DEFAULT_OPTIONS["bad_play_penalty"],
         )
+        result["deck_mode"] = cls._normalize_deck_mode(result.get("deck_mode"))
+        result["deck_count"] = cls._normalize_deck_count(result.get("deck_count"))
         return result
 
     @classmethod
@@ -101,6 +110,35 @@ class GameEngine:
             if lowered in {PENALTY_MODE_SUDDEN_DEATH, "suddendeath", "mort_subite"}:
                 return PENALTY_MODE_SUDDEN_DEATH
         return PENALTY_MODE_FIXED
+
+    @classmethod
+    def _normalize_deck_mode(cls, value):
+        if isinstance(value, str):
+            lowered = value.strip().lower().replace("-", "_").replace(" ", "_")
+        else:
+            if isinstance(value, bool):
+                return "manual" if value else "auto"
+            lowered = str(value).strip().lower().replace("-", "_").replace(" ", "_") if value is not None else None
+        if not lowered:
+            return cls.DEFAULT_OPTIONS["deck_mode"]
+        if lowered in {"manual", "manuelle", "manuel"}:
+            return "manual"
+        if lowered in {"auto", "automatic", "automatique", "auto_mode"}:
+            return "auto"
+        return cls.DEFAULT_OPTIONS["deck_mode"]
+
+    @classmethod
+    def _normalize_deck_count(cls, value):
+        default = cls.DEFAULT_OPTIONS["deck_count"]
+        try:
+            numeric = int(value)
+        except (TypeError, ValueError):
+            numeric = default
+        if numeric < 1:
+            numeric = 1
+        if numeric > 3:
+            numeric = 3
+        return numeric
 
     @classmethod
     def _normalize_penalty_value(cls, value, default):
@@ -176,8 +214,21 @@ class GameEngine:
             "options": dict(self.options),
         }
 
+    def _resolve_deck_count(self):
+        mode = self._normalize_deck_mode(self.options.get("deck_mode"))
+        if mode == "manual":
+            return self._normalize_deck_count(self.options.get("deck_count"))
+        if self.n <= 0:
+            return self.DEFAULT_OPTIONS["deck_count"]
+        decks = 1 + max(0, (self.n - 1) // 4)
+        return min(3, max(1, decks))
+
     def _deal(self):
-        deck = new_deck()
+        deck_count = self._resolve_deck_count()
+        deck = []
+        for _ in range(deck_count):
+            deck.extend(new_deck())
+        random.shuffle(deck)
         for i, card in enumerate(deck):
             self.hands[self.players[i % self.n]].append(card)
 

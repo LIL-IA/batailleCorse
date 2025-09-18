@@ -11,8 +11,23 @@ class GameEngineTests(SimpleTestCase):
         engine = GameEngine([1, 2])
         self.assertEqual(len(engine.hands[1]), 26)
         self.assertEqual(len(engine.hands[2]), 26)
-        self.assertEqual(sum(len(h) for h in engine.hands.values()), 52)
+        expected_cards = engine._resolve_deck_count() * 52
+        self.assertEqual(sum(len(h) for h in engine.hands.values()), expected_cards)
         self.assertEqual(len(engine.center), 0)
+
+    def test_deal_distribution_auto_mode_scales_with_players(self):
+        players = list(range(1, 10))
+        engine = GameEngine(players)
+        self.assertEqual(engine._resolve_deck_count(), 3)
+        total_cards = sum(len(h) for h in engine.hands.values())
+        self.assertEqual(total_cards, 3 * 52)
+
+    def test_manual_mode_uses_configured_deck_count(self):
+        engine = GameEngine([1, 2, 3], options={'deck_mode': 'manual', 'deck_count': 3})
+        self.assertEqual(engine.options['deck_mode'], 'manual')
+        self.assertEqual(engine.options['deck_count'], 3)
+        total_cards = sum(len(h) for h in engine.hands.values())
+        self.assertEqual(total_cards, 3 * 52)
 
     def test_initial_turn_idx_uses_random_selection(self):
         with patch('game.engine.random.randrange', return_value=1):
@@ -195,6 +210,14 @@ class GameEngineTests(SimpleTestCase):
     def test_sanitize_options_supports_penalty_mode_aliases(self):
         sanitized = GameEngine.sanitize_options({'penalty_mode': 'mort subite'})
         self.assertEqual(sanitized['penalty_mode'], 'sudden_death')
+
+    def test_sanitize_options_normalizes_deck_settings(self):
+        sanitized = GameEngine.sanitize_options({
+            'deck_mode': 'Manuel',
+            'deck_count': 5,
+        })
+        self.assertEqual(sanitized['deck_mode'], 'manual')
+        self.assertEqual(sanitized['deck_count'], 3)
 
     def test_sanitize_options_coerces_boolean_values(self):
         sanitized = GameEngine.sanitize_options({
