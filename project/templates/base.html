@@ -18,5 +18,133 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  <button id="how-to-play-trigger" class="how-to-play-button" type="button" aria-haspopup="dialog" aria-controls="how-to-play-overlay" aria-expanded="false">Comment jouer&nbsp;?</button>
+  <div id="how-to-play-overlay" class="how-to-play-overlay" aria-hidden="true">
+    <div class="how-to-play-dialog" role="dialog" aria-modal="true" aria-labelledby="how-to-play-title" tabindex="-1">
+      <button type="button" id="how-to-play-close" class="how-to-play-close" aria-label="Fermer le panneau">&times;</button>
+      <h2 id="how-to-play-title">Comment jouer à la Bataille Corse</h2>
+      <section class="how-to-play-section">
+        <h3>Règles de base (version ordinateur)</h3>
+        <ul>
+          <li><strong>Distribution&nbsp;:</strong> depuis un ordinateur, créez ou rejoignez une salle, puis cliquez sur «&nbsp;Se déclarer prêt&nbsp;» sous votre pseudo. Une fois tout le monde prêt, l'hôte peut lancer la partie avec «&nbsp;Démarrer une partie&nbsp;» et le site mélange automatiquement le paquet de 52 cartes avant de le répartir équitablement.</li>
+          <li><strong>Tour à tour&nbsp;:</strong> quand votre pseudo est entouré (tour actif), jouez la carte du dessus en cliquant sur «&nbsp;Jouer une carte&nbsp;» ou en appuyant sur <kbd>Entrée</kbd>. Les cartes se posent face visible au centre, sans possibilité de les choisir.</li>
+          <li><strong>Cartes figures&nbsp;:</strong> Valet, Dame, Roi et As imposent respectivement 1, 2, 3 ou 4 chances au joueur suivant. L'interface affiche le compte à rebours des chances&nbsp;; si aucune autre figure n'est jouée à temps, le poseur de la figure remporte le tas.</li>
+          <li><strong>Collecte du tas central&nbsp;:</strong> après un duel de figures gagné ou une tape valide, le bouton «&nbsp;Jouer une carte&nbsp;» (ou la touche <kbd>Entrée</kbd>) vous permet de récupérer automatiquement le tas central et les cartes de pénalité visibles.</li>
+          <li><strong>Pénalités&nbsp;:</strong> tenter de jouer hors de votre tour (clic sur le bouton ou touche <kbd>Entrée</kbd>) retire 2 cartes de votre pioche (<code>bad_play_penalty</code>) qui rejoignent le tas de pénalité affiché à droite. Les tapes invalides appliquent aussi leur propre pénalité (voir ci-dessous).</li>
+          <li><strong>Élimination&nbsp;:</strong> quand l'interface indique que vous n'avez plus de cartes (ni de pile de pénalité à récupérer), vous êtes éliminé. La partie continue en ligne jusqu'à ce qu'il ne reste qu'un joueur.</li>
+        </ul>
+      </section>
+      <section class="how-to-play-section">
+        <h3>Règles pour taper sur ordinateur</h3>
+        <p>Pour tenter de taper, cliquez sur le bouton «&nbsp;TAPER&nbsp;!&nbsp;» ou appuyez sur la barre d'espace. La tape est autorisée dès qu'une des combinaisons suivantes apparaît sur le tas central&nbsp;:</p>
+        <ul>
+          <li><strong>Double&nbsp;:</strong> deux cartes de même valeur consécutives.</li>
+          <li><strong>Sandwich&nbsp;:</strong> deux cartes identiques séparées d'une seule carte.</li>
+          <li><strong>Dix solitaire&nbsp;:</strong> un 10 joué au sommet du tas.</li>
+          <li><strong>Total de dix&nbsp;:</strong> le total des valeurs atteint 10 avec la carte du dessus et la précédente ou avec celle jouée juste avant encore (par exemple 6&nbsp;+&nbsp;4 ou 3&nbsp;+&nbsp;7).</li>
+        </ul>
+        <p>Une tape invalide entraîne la perte de 2 cartes (<code>bad_slap_penalty</code>) qui sont déplacées automatiquement dans la pile de pénalité.</p>
+      </section>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const trigger = document.getElementById('how-to-play-trigger');
+      const overlay = document.getElementById('how-to-play-overlay');
+      const dialog = overlay ? overlay.querySelector('.how-to-play-dialog') : null;
+      const closeButton = document.getElementById('how-to-play-close');
+      let previousFocus = null;
+      let focusableElements = [];
+
+      if (!trigger || !overlay || !dialog || !closeButton) {
+        return;
+      }
+
+      const focusableSelector = [
+        'a[href]',
+        'button:not([disabled])',
+        'textarea:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])'
+      ].join(',');
+
+      const updateFocusableElements = () => {
+        focusableElements = Array.from(overlay.querySelectorAll(focusableSelector));
+      };
+
+      const showOverlay = () => {
+        if (overlay.classList.contains('is-visible')) {
+          return;
+        }
+        previousFocus = document.activeElement;
+        overlay.classList.add('is-visible');
+        overlay.setAttribute('aria-hidden', 'false');
+        trigger.setAttribute('aria-expanded', 'true');
+        document.body.style.setProperty('overflow', 'hidden');
+        updateFocusableElements();
+        requestAnimationFrame(() => {
+          dialog.focus({ preventScroll: true });
+        });
+        document.addEventListener('keydown', handleKeyDown);
+      };
+
+      const hideOverlay = () => {
+        if (!overlay.classList.contains('is-visible')) {
+          return;
+        }
+        overlay.classList.remove('is-visible');
+        overlay.setAttribute('aria-hidden', 'true');
+        trigger.setAttribute('aria-expanded', 'false');
+        document.body.style.removeProperty('overflow');
+        document.removeEventListener('keydown', handleKeyDown);
+        focusableElements = [];
+        if (previousFocus && typeof previousFocus.focus === 'function') {
+          previousFocus.focus();
+        } else {
+          trigger.focus();
+        }
+      };
+
+      const handleOverlayClick = (event) => {
+        if (event.target === overlay) {
+          hideOverlay();
+        }
+      };
+
+      const handleKeyDown = (event) => {
+        if (event.key === 'Escape' || event.key === 'Esc') {
+          event.preventDefault();
+          hideOverlay();
+          return;
+        }
+
+        if (event.key === 'Tab' && focusableElements.length > 0 && overlay.classList.contains('is-visible')) {
+          const firstFocusable = focusableElements[0];
+          const lastFocusable = focusableElements[focusableElements.length - 1];
+          const isShiftPressed = event.shiftKey;
+          const activeElement = document.activeElement;
+
+          if (!isShiftPressed && activeElement === lastFocusable) {
+            event.preventDefault();
+            firstFocusable.focus();
+          } else if (isShiftPressed && activeElement === firstFocusable) {
+            event.preventDefault();
+            lastFocusable.focus();
+          }
+        }
+      };
+
+      trigger.addEventListener('click', () => {
+        showOverlay();
+      });
+
+      closeButton.addEventListener('click', () => {
+        hideOverlay();
+      });
+
+      overlay.addEventListener('click', handleOverlayClick);
+    })();
+  </script>
 </body>
 </html>

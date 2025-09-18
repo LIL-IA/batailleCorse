@@ -522,6 +522,161 @@ textarea:focus {
   text-transform: uppercase;
 }
 
+.how-to-play-button {
+  position: fixed;
+  bottom: clamp(1rem, 3vw, 2rem);
+  right: clamp(1rem, 3vw, 2rem);
+  z-index: 150;
+  padding: 0.85rem 1.8rem;
+  font-size: 1rem;
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  box-shadow: 0 24px 44px -20px rgba(14, 165, 233, 0.6);
+}
+
+.how-to-play-button:hover,
+.how-to-play-button:focus-visible {
+  box-shadow:
+    0 0 0 4px rgba(14, 165, 233, 0.24),
+    0 28px 50px -22px rgba(14, 165, 233, 0.65);
+}
+
+.how-to-play-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.25rem, 5vw, 2.75rem);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+  z-index: 200;
+}
+
+.how-to-play-overlay.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.25s ease, visibility 0s linear 0s;
+}
+
+.how-to-play-dialog {
+  position: relative;
+  width: min(100%, 640px);
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 22px;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  box-shadow: 0 32px 70px -34px rgba(15, 23, 42, 0.75);
+  outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
+}
+
+.how-to-play-dialog::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.how-to-play-dialog::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.how-to-play-dialog::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.6);
+  border-radius: 999px;
+}
+
+.how-to-play-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  color: #1f2937;
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.how-to-play-close:hover,
+.how-to-play-close:focus-visible {
+  background: rgba(37, 99, 235, 0.16);
+  color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
+}
+
+.how-to-play-dialog h2 {
+  margin: 0 0 0.75rem 0;
+  font-size: clamp(1.65rem, 4vw, 2.1rem);
+}
+
+.how-to-play-dialog h3 {
+  margin-bottom: 0.35rem;
+  font-size: clamp(1.2rem, 3.2vw, 1.45rem);
+  color: #1d4ed8;
+}
+
+.how-to-play-section + .how-to-play-section {
+  margin-top: 1.75rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.how-to-play-section p {
+  margin-bottom: 0.85rem;
+}
+
+.how-to-play-dialog ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.how-to-play-dialog li {
+  position: relative;
+  padding: 0.85rem 1rem 0.85rem 1.9rem;
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.22);
+}
+
+.how-to-play-dialog li::before {
+  content: "";
+  position: absolute;
+  top: 1.05rem;
+  left: 0.95rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+}
+
+.how-to-play-dialog strong {
+  color: #0f172a;
+}
+
+.how-to-play-dialog code {
+  font-family: "Fira Code", "SFMono-Regular", "Consolas", monospace;
+  background: rgba(226, 232, 240, 0.7);
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+  font-size: 0.95em;
+}
+
+.how-to-play-dialog p:last-child {
+  margin-bottom: 0;
+}
+
 .slap-overlay-winner {
   margin: 0;
   font-size: clamp(1rem, 2.6vw, 1.2rem);
@@ -794,5 +949,29 @@ textarea:focus {
   button,
   .button {
     width: 100%;
+  }
+
+  .how-to-play-button {
+    width: auto;
+    min-width: 0;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    bottom: 1rem;
+    right: 1rem;
+  }
+
+  .how-to-play-overlay {
+    padding: 1.25rem;
+  }
+
+  .how-to-play-dialog {
+    width: min(100%, 92vw);
+    padding: 1.5rem;
+    border-radius: 18px;
+  }
+
+  .how-to-play-close {
+    top: 0.75rem;
+    right: 0.75rem;
   }
 }
