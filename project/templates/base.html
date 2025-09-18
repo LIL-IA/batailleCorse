@@ -30,7 +30,7 @@
           <li><strong>Tour à tour&nbsp;:</strong> quand votre pseudo est entouré (tour actif), jouez la carte du dessus en cliquant sur «&nbsp;Jouer une carte&nbsp;» ou en appuyant sur <kbd>Entrée</kbd>. Les cartes se posent face visible au centre, sans possibilité de les choisir.</li>
           <li><strong>Cartes figures&nbsp;:</strong> Valet, Dame, Roi et As imposent respectivement 1, 2, 3 ou 4 chances au joueur suivant. L'interface affiche le compte à rebours des chances&nbsp;; si aucune autre figure n'est jouée à temps, le poseur de la figure remporte le tas.</li>
           <li><strong>Collecte du tas central&nbsp;:</strong> après un duel de figures gagné ou une tape valide, le bouton «&nbsp;Jouer une carte&nbsp;» (ou la touche <kbd>Entrée</kbd>) vous permet de récupérer automatiquement le tas central et les cartes de pénalité visibles.</li>
-          <li><strong>Pénalités&nbsp;:</strong> tenter de jouer hors de votre tour (clic sur le bouton ou touche <kbd>Entrée</kbd>) retire 2 cartes de votre pioche (<code>bad_play_penalty</code>) qui rejoignent le tas de pénalité affiché à droite. Les tapes invalides appliquent aussi leur propre pénalité (voir ci-dessous).</li>
+          <li><strong>Pénalités&nbsp;:</strong> par défaut, jouer hors de votre tour retire 2 cartes de votre pioche (<code>bad_play_penalty</code>) et une tape invalide en retire 2 (<code>bad_slap_penalty</code>), lesquelles rejoignent le tas de pénalité affiché à droite. Depuis le bouton «&nbsp;Options de la partie&nbsp;», ouvrez la section «&nbsp;Pénalités&nbsp;» pour régler chaque sanction entre 0 et 5 cartes ou activer l'interrupteur «&nbsp;Mort subite&nbsp;» correspondant (désactivé par défaut) afin que l'infraction envoie toutes vos cartes restantes dans la pile.</li>
           <li><strong>Élimination&nbsp;:</strong> quand l'interface indique que vous n'avez plus de cartes (ni de pile de pénalité à récupérer), vous êtes éliminé. La partie continue en ligne jusqu'à ce qu'il ne reste qu'un joueur.</li>
         </ul>
       </section>
@@ -44,7 +44,7 @@
           <li><strong>Somme de 10&nbsp;:</strong> les deux dernières cartes visibles totalisent dix (par exemple 6&nbsp;+&nbsp;4).</li>
           <li><strong>Sandwich de 10&nbsp;:</strong> la carte du dessus et celle située deux positions en dessous totalisent dix (par exemple 2&nbsp;+&nbsp;8).</li>
         </ul>
-        <p>Une tape invalide entraîne la perte de 2 cartes (<code>bad_slap_penalty</code>) qui sont déplacées automatiquement dans la pile de pénalité.</p>
+        <p>Une tape invalide entraîne par défaut la perte de 2 cartes (<code>bad_slap_penalty</code>) qui sont déplacées automatiquement dans la pile de pénalité. Vous pouvez ajuster cette sanction de 0 à 5 cartes, ou activer la mort subite pour qu'elle vide votre pioche, depuis «&nbsp;Options de la partie&nbsp;» &gt; «&nbsp;Pénalités&nbsp;» en utilisant le commutateur associé (désactivé tant que vous ne l'activez pas).</p>
       </section>
     </div>
   </div>
