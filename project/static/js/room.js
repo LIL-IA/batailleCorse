@@ -55,13 +55,21 @@
     allow_double: true,
     allow_sandwich: true,
     allow_runs: false,
-    allow_ten: true,
+    allow_ten_card: true,
+    allow_ten_sum: true,
+    allow_ten_sandwich: true,
     bad_slap_penalty: 2,
     bad_play_penalty: 2,
     penalty_mode: PENALTY_MODE_FIXED,
     deck_mode: DECK_MODE_AUTO,
     deck_count: 1
   });
+
+  const TEN_OPTION_KEYS = Object.freeze([
+    'allow_ten_card',
+    'allow_ten_sum',
+    'allow_ten_sandwich'
+  ]);
 
   const optionsDataScript = document.getElementById('initial-room-options');
 
@@ -224,14 +232,24 @@
       if (!source || typeof source !== 'object') {
         return;
       }
+      const provided = new Set();
       Object.keys(result).forEach((key) => {
         if (Object.prototype.hasOwnProperty.call(source, key)) {
           const coerced = coerceOptionValue(key, source[key]);
           if (coerced !== undefined) {
             result[key] = coerced;
+            provided.add(key);
           }
         }
       });
+      if (Object.prototype.hasOwnProperty.call(source, 'allow_ten')) {
+        const aliasValue = coerceOptionValue('allow_ten_card', source.allow_ten);
+        TEN_OPTION_KEYS.forEach((tenKey) => {
+          if (!provided.has(tenKey) && aliasValue !== undefined) {
+            result[tenKey] = aliasValue;
+          }
+        });
+      }
     };
     apply(base);
     apply(incoming);

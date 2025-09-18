@@ -45,17 +45,62 @@ class GameEngineTests(SimpleTestCase):
         engine.center = ['5H', '7D']
         self.assertFalse(engine.is_slap_valid())
 
-    def test_ten_based_slap_rules(self):
-        engine = GameEngine([1, 2])
+    def test_ten_card_rule_toggle(self):
+        engine = GameEngine([
+            1,
+            2,
+        ], options={
+            'allow_ten_card': False,
+            'allow_ten_sum': False,
+            'allow_ten_sandwich': False,
+        })
 
         engine.center = ['TH']
+        self.assertFalse(engine.is_slap_valid())
+
+        engine.update_options({'allow_ten_card': True})
         self.assertTrue(engine.is_slap_valid())
 
         engine.center = ['2H', '8D']
+        self.assertFalse(engine.is_slap_valid())
+
+    def test_ten_sum_rule_toggle(self):
+        engine = GameEngine([
+            1,
+            2,
+        ], options={
+            'allow_ten_card': False,
+            'allow_ten_sum': False,
+            'allow_ten_sandwich': False,
+        })
+
+        engine.center = ['2H', '8D']
+        self.assertFalse(engine.is_slap_valid())
+
+        engine.update_options({'allow_ten_sum': True})
         self.assertTrue(engine.is_slap_valid())
 
+        engine.center = ['TH']
+        self.assertFalse(engine.is_slap_valid())
+
+    def test_ten_sandwich_rule_toggle(self):
+        engine = GameEngine([
+            1,
+            2,
+        ], options={
+            'allow_ten_card': False,
+            'allow_ten_sum': False,
+            'allow_ten_sandwich': False,
+        })
+
         engine.center = ['2H', '5D', '8S']
+        self.assertFalse(engine.is_slap_valid())
+
+        engine.update_options({'allow_ten_sandwich': True})
         self.assertTrue(engine.is_slap_valid())
+
+        engine.center = ['TH']
+        self.assertFalse(engine.is_slap_valid())
 
     def test_face_card_rules(self):
         engine = GameEngine([1, 2])
@@ -227,6 +272,25 @@ class GameEngineTests(SimpleTestCase):
         self.assertFalse(sanitized['allow_double'])
         self.assertTrue(sanitized['allow_runs'])
 
+    def test_sanitize_options_supports_allow_ten_alias(self):
+        sanitized = GameEngine.sanitize_options({'allow_ten': False})
+        self.assertFalse(sanitized['allow_ten_card'])
+        self.assertFalse(sanitized['allow_ten_sum'])
+        self.assertFalse(sanitized['allow_ten_sandwich'])
+
+        sanitized_true = GameEngine.sanitize_options({'allow_ten': 'on'})
+        self.assertTrue(sanitized_true['allow_ten_card'])
+        self.assertTrue(sanitized_true['allow_ten_sum'])
+        self.assertTrue(sanitized_true['allow_ten_sandwich'])
+
+        sanitized_override = GameEngine.sanitize_options({
+            'allow_ten': False,
+            'allow_ten_card': True,
+        })
+        self.assertTrue(sanitized_override['allow_ten_card'])
+        self.assertFalse(sanitized_override['allow_ten_sum'])
+        self.assertFalse(sanitized_override['allow_ten_sandwich'])
+
     def test_sanitize_options_merges_with_base(self):
         base = {
             'allow_double': False,
@@ -272,6 +336,7 @@ class GameEngineTests(SimpleTestCase):
         engine = GameEngine([1, 2])
         updated = engine.set_options({'bad_slap_penalty': -4, 'allow_ten': '0'})
         self.assertEqual(updated['bad_slap_penalty'], 0)
-        self.assertFalse(updated['allow_ten'])
         self.assertEqual(engine.options['bad_slap_penalty'], 0)
-        self.assertFalse(engine.options['allow_ten'])
+        for key in ('allow_ten_card', 'allow_ten_sum', 'allow_ten_sandwich'):
+            self.assertFalse(updated[key])
+            self.assertFalse(engine.options[key])
