@@ -867,6 +867,11 @@ body.room-options-lock {
   gap: 0.9rem;
 }
 
+.room-options-choices[hidden],
+.room-options-choices[data-deck-count-container][hidden] {
+  display: none !important;
+}
+
 .room-options-choice {
   display: grid;
   grid-template-columns: auto 1fr;
