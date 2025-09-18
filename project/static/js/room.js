@@ -509,6 +509,7 @@
   const penaltyPileSelector = playersList.dataset.penaltyPileSelector || '#penalty-pile';
   const playerDeckSelector = playersList.dataset.playerDeckSelector || '.player-deck';
   let centerPileInteractiveEl = null;
+  let playerDecksContainer = null;
 
   const parseId = (value) => {
     const parsed = Number.parseInt(value, 10);
@@ -1223,6 +1224,7 @@
 
   centerPileInteractiveEl = document.querySelector(centerPileSelector);
   let lastCenterPilePointerDownTs = 0;
+  let lastPlayerDeckPointerDownTs = 0;
 
   const canTriggerSlapFromCenterPile = () => {
     if (!centerPileInteractiveEl) {
@@ -1271,6 +1273,89 @@
     centerPileInteractiveEl.addEventListener('pointerdown', handleCenterPileActivation);
     centerPileInteractiveEl.addEventListener('click', handleCenterPileActivation);
   }
+
+  const canTriggerPlayFromDeck = () => {
+    if (currentUserId === null) {
+      return false;
+    }
+    if (temporaryActionsDisabled) {
+      return false;
+    }
+    const playDisabled = playCardBtn
+      ? Boolean(playCardBtn.disabled)
+      : Boolean(playCardShouldBeDisabled);
+    if (playDisabled) {
+      return false;
+    }
+    return true;
+  };
+
+  const handlePlayerDeckActivation = (event) => {
+    if (!(event.currentTarget instanceof Element)) {
+      return;
+    }
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    const container = event.currentTarget;
+    const deck = event.target.closest(playerDeckSelector);
+    if (!deck || !container.contains(deck)) {
+      return;
+    }
+
+    const currentUserKey = currentUserId !== null ? String(currentUserId) : null;
+    if (!currentUserKey || deck.dataset.userId !== currentUserKey) {
+      return;
+    }
+
+    if (event.type === 'pointerdown') {
+      if (event.isPrimary === false) {
+        return;
+      }
+      if (typeof event.button === 'number' && event.button !== 0) {
+        return;
+      }
+      lastPlayerDeckPointerDownTs = Date.now();
+    } else if (event.type === 'click') {
+      if (
+        lastPlayerDeckPointerDownTs !== 0 &&
+        Date.now() - lastPlayerDeckPointerDownTs < 350
+      ) {
+        lastPlayerDeckPointerDownTs = 0;
+        return;
+      }
+    }
+
+    if (!canTriggerPlayFromDeck()) {
+      return;
+    }
+
+    wsSend({ type: 'play' });
+    event.preventDefault();
+
+    if (event.type === 'click') {
+      lastPlayerDeckPointerDownTs = 0;
+    }
+  };
+
+  const bindPlayerDecksContainer = (container) => {
+    if (!container || !(container instanceof Element)) {
+      return;
+    }
+    if (playerDecksContainer === container) {
+      return;
+    }
+    if (playerDecksContainer) {
+      playerDecksContainer.removeEventListener('pointerdown', handlePlayerDeckActivation);
+      playerDecksContainer.removeEventListener('click', handlePlayerDeckActivation);
+    }
+    playerDecksContainer = container;
+    playerDecksContainer.addEventListener('pointerdown', handlePlayerDeckActivation);
+    playerDecksContainer.addEventListener('click', handlePlayerDeckActivation);
+  };
+
+  bindPlayerDecksContainer(document.getElementById('player-decks'));
 
   document.addEventListener('keydown', (event) => {
     if (optionsModalOpen) {
@@ -1364,6 +1449,8 @@
       decksContainer.id = 'player-decks';
       tableEl.appendChild(decksContainer);
     }
+
+    bindPlayerDecksContainer(decksContainer);
 
     const counts = (state && state.counts) || {};
     let currentUserCount = null;
@@ -1532,6 +1619,24 @@
 
     playCardShouldBeDisabled = shouldDisablePlayButton;
     applyPlayCardDisabledState();
+
+    const effectivePlayDisabled = playCardBtn
+      ? Boolean(playCardBtn.disabled)
+      : Boolean(temporaryActionsDisabled || playCardShouldBeDisabled);
+    deckElements.forEach((deck) => {
+      deck.classList.remove('player-deck-self-clickable');
+      deck.removeAttribute('tabindex');
+      deck.removeAttribute('aria-disabled');
+      if (currentUserKey && deck.dataset.userId === currentUserKey) {
+        if (!effectivePlayDisabled) {
+          deck.classList.add('player-deck-self-clickable');
+          deck.setAttribute('tabindex', '0');
+          deck.setAttribute('aria-disabled', 'false');
+        } else {
+          deck.setAttribute('aria-disabled', 'true');
+        }
+      }
+    });
 
     centerPileEl.classList.toggle('pending-collect', pendingCollect);
     centerPileEl.innerHTML = '';
