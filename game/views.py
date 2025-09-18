@@ -86,6 +86,8 @@ def room(request, code):
     room_options = getattr(room, "rules_options", None) or {}
     state_options = initial_state.get("options") if isinstance(initial_state, dict) else None
     state_options = state_options if isinstance(state_options, dict) else None
+    if not room.is_started:
+        state_options = None
     initial_options = GameEngine.sanitize_options(
         base=room_options,
         overrides=state_options,
