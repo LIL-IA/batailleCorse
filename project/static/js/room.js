@@ -308,52 +308,13 @@
     });
   };
 
-  const computePlayerCountFromDom = () => {
-    if (!playersList) {
-      return null;
-    }
-    const items = playersList.querySelectorAll('li[data-user-id]');
-    if (items.length) {
-      return items.length;
-    }
-    if (playersList.children && playersList.children.length) {
-      return playersList.children.length;
-    }
-    return null;
-  };
-
-  const computeAutoDeckCount = (playerCount) => {
-    if (!Number.isFinite(playerCount) || playerCount <= 0) {
-      return DEFAULT_RULE_OPTIONS.deck_count;
-    }
-    const normalizedCount = Math.max(0, Math.trunc(playerCount));
-    const decks = 1 + Math.floor(Math.max(0, normalizedCount - 1) / 4);
-    return Math.min(3, Math.max(1, decks));
-  };
-
-  const renderOptionsSummary = (state, playerCountOverride) => {
+  const renderOptionsSummary = () => {
     if (!optionsSummaryElement) {
       return;
     }
     const baseText =
       defaultOptionsSummaryText || 'Ajustez les règles avant de lancer la partie.';
-    const mode = normalizeDeckMode(state && state.deck_mode);
-    let summary = '';
-    if (mode === DECK_MODE_MANUAL) {
-      const manualCount = normalizeDeckCount(state && state.deck_count);
-      summary = `Paquets\u00a0: manuel (${manualCount} paquet${manualCount > 1 ? 's' : ''})`;
-    } else {
-      const playersCount = Number.isFinite(playerCountOverride)
-        ? playerCountOverride
-        : computePlayerCountFromDom();
-      const effectiveDecks = computeAutoDeckCount(playersCount);
-      if (Number.isFinite(playersCount) && playersCount > 0) {
-        summary = `Paquets\u00a0: automatique (${effectiveDecks} paquet${effectiveDecks > 1 ? 's' : ''} pour ${playersCount} joueur${playersCount > 1 ? 's' : ''})`;
-      } else {
-        summary = `Paquets\u00a0: automatique (${effectiveDecks} paquet${effectiveDecks > 1 ? 's' : ''})`;
-      }
-    }
-    optionsSummaryElement.textContent = summary ? `${baseText} — ${summary}` : baseText;
+    optionsSummaryElement.textContent = baseText;
   };
 
   const syncDeckControls = (state, interactiveOverride) => {
@@ -381,7 +342,7 @@
   const refreshOptionsUI = (state) => {
     applyOptionsToForm(state);
     syncDeckControls(state);
-    renderOptionsSummary(state);
+    renderOptionsSummary();
   };
 
   const updateOptionsAvailability = (started) => {
@@ -1172,7 +1133,7 @@
 
     playersList.innerHTML = '';
     playersList.appendChild(fragment);
-    renderOptionsSummary(roomOptionsState, seen.size);
+    renderOptionsSummary();
   }
   socket.onmessage = (event) => {
     const msg = JSON.parse(event.data);
