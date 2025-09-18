@@ -4,9 +4,14 @@ from collections import deque
 RANKS = "23456789TJQKA"
 RANK_VALUE = {r: i for i, r in enumerate(RANKS, start=2)}
 FACE_PENALTIES = {"J": 1, "Q": 2, "K": 3, "A": 4}
-PENALTY_STEPS = (0, 1, 2, 5)
+PENALTY_STEPS = tuple(range(6))
 PENALTY_MODE_FIXED = "fixed"
 PENALTY_MODE_SUDDEN_DEATH = "sudden_death"
+
+PENALTY_SUDDEN_DEATH_MAP = {
+    "bad_slap_penalty": "bad_slap_sudden_death",
+    "bad_play_penalty": "bad_play_sudden_death",
+}
 
 def new_deck():
     suits = "CDHS"
@@ -24,7 +29,8 @@ class GameEngine:
         "allow_ten_sandwich": True,
         "bad_slap_penalty": 2,
         "bad_play_penalty": 2,
-        "penalty_mode": PENALTY_MODE_FIXED,
+        "bad_slap_sudden_death": False,
+        "bad_play_sudden_death": False,
         "deck_mode": "auto",
         "deck_count": 1,
     }
@@ -66,14 +72,6 @@ class GameEngine:
         if isinstance(default, str):
             if value is None:
                 return default
-            if isinstance(value, str):
-                lowered = value.strip().lower().replace("-", "_").replace(" ", "_")
-            else:
-                lowered = str(value).strip().lower().replace("-", "_").replace(" ", "_")
-            if key == "penalty_mode":
-                if lowered in {PENALTY_MODE_SUDDEN_DEATH, "suddendeath", "sudden_death", "mort_subite"}:
-                    return PENALTY_MODE_SUDDEN_DEATH
-                return PENALTY_MODE_FIXED
             if key == "deck_mode":
                 return cls._normalize_deck_mode(value)
             return value if isinstance(value, str) else default
@@ -82,8 +80,11 @@ class GameEngine:
     @classmethod
     def sanitize_options(cls, overrides=None, base=None):
         result = cls.default_options()
+        legacy_penalty_mode = None
+        override_sudden_death = set()
 
-        def apply(source):
+        def apply(source, track_overrides):
+            nonlocal legacy_penalty_mode
             if not source:
                 return
             provided = set()
@@ -91,6 +92,8 @@ class GameEngine:
                 if key in source:
                     result[key] = cls._coerce_option_value(key, source[key])
                     provided.add(key)
+                    if track_overrides and key in PENALTY_SUDDEN_DEATH_MAP.values():
+                        override_sudden_death.add(key)
 
             if "allow_ten" in source:
                 alias_value = cls._coerce_option_value("allow_ten_card", source["allow_ten"])
@@ -99,9 +102,18 @@ class GameEngine:
                     if ten_key not in provided:
                         result[ten_key] = alias_value
 
-        apply(base)
-        apply(overrides)
-        result["penalty_mode"] = cls._normalize_penalty_mode(result.get("penalty_mode"))
+            if "penalty_mode" in source:
+                legacy_penalty_mode = cls._normalize_penalty_mode(source["penalty_mode"])
+
+        apply(base, False)
+        apply(overrides, True)
+
+        if legacy_penalty_mode is not None:
+            is_sudden_death = legacy_penalty_mode == PENALTY_MODE_SUDDEN_DEATH
+            for sudden_key in PENALTY_SUDDEN_DEATH_MAP.values():
+                if sudden_key not in override_sudden_death:
+                    result[sudden_key] = is_sudden_death
+
         result["bad_slap_penalty"] = cls._normalize_penalty_value(
             result.get("bad_slap_penalty"),
             cls.DEFAULT_OPTIONS["bad_slap_penalty"],
@@ -153,30 +165,32 @@ class GameEngine:
 
     @classmethod
     def _normalize_penalty_value(cls, value, default):
+        min_step = min(PENALTY_STEPS)
+        max_step = max(PENALTY_STEPS)
         if isinstance(value, str):
             lowered = value.strip().lower()
             if lowered in {"off", "none", "no", "false", "disable", "disabled"}:
-                return 0
+                return min_step
             try:
                 numeric = int(lowered)
             except ValueError:
-                return default
+                numeric = None
         elif isinstance(value, (int, float)):
             numeric = int(value)
         else:
             try:
                 numeric = int(value)
             except (TypeError, ValueError):
-                return default
-        if numeric <= 0:
-            return 0
-        allowed = [step for step in PENALTY_STEPS if step > 0]
-        if numeric in allowed:
-            return numeric
-        for step in sorted(allowed, reverse=True):
-            if numeric >= step:
-                return step
-        return allowed[0]
+                numeric = None
+        try:
+            fallback = int(default)
+        except (TypeError, ValueError):
+            fallback = min_step
+        fallback = max(min_step, min(max_step, fallback))
+        if numeric is None:
+            numeric = fallback
+        numeric = max(min_step, min(max_step, numeric))
+        return numeric
 
     def __init__(self, players, options=None):
         self.players = players[:]
@@ -326,8 +340,9 @@ class GameEngine:
 
     def _apply_penalty(self, player_id, key):
         taken = []
-        mode = self.options.get("penalty_mode", PENALTY_MODE_FIXED)
-        if mode == PENALTY_MODE_SUDDEN_DEATH:
+        sudden_key = PENALTY_SUDDEN_DEATH_MAP.get(key)
+        sudden_death_enabled = bool(sudden_key and self.options.get(sudden_key))
+        if sudden_death_enabled:
             while self.hands[player_id]:
                 taken.append(self.hands[player_id].popleft())
         else:

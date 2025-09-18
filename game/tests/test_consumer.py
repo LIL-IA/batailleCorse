@@ -64,15 +64,19 @@ class RoomConsumerTests(TransactionTestCase):
             options = update["options"]
             assert options["allow_runs"] is True
             assert options["bad_slap_penalty"] == 0
-            assert options["penalty_mode"] == "sudden_death"
             assert options["bad_play_penalty"] == 0
+            assert options["bad_slap_sudden_death"] is True
+            assert options["bad_play_sudden_death"] is True
+            assert "penalty_mode" not in options
             assert options["deck_mode"] == "manual"
             assert options["deck_count"] == 3
             engine = ENGINES[self.room.code]
             assert engine.options["allow_runs"] is True
             assert engine.options["bad_slap_penalty"] == 0
-            assert engine.options["penalty_mode"] == "sudden_death"
             assert engine.options["bad_play_penalty"] == 0
+            assert engine.options["bad_slap_sudden_death"] is True
+            assert engine.options["bad_play_sudden_death"] is True
+            assert "penalty_mode" not in engine.options
             assert engine.options["deck_mode"] == "manual"
             assert engine.options["deck_count"] == 3
 
@@ -82,7 +86,9 @@ class RoomConsumerTests(TransactionTestCase):
             assert stored_options["allow_runs"] is True
             assert stored_options["bad_slap_penalty"] == 0
             assert stored_options["bad_play_penalty"] == 0
-            assert stored_options["penalty_mode"] == "sudden_death"
+            assert stored_options["bad_slap_sudden_death"] is True
+            assert stored_options["bad_play_sudden_death"] is True
+            assert "penalty_mode" not in stored_options
             assert stored_options["deck_mode"] == "manual"
             assert stored_options["deck_count"] == 3
 
