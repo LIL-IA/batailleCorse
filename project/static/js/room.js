@@ -44,12 +44,17 @@
     ? optionsModal.querySelector('[data-room-options-close]')
     : null;
 
-  const PENALTY_MODE_FIXED = 'fixed';
-  const PENALTY_MODE_SUDDEN_DEATH = 'sudden_death';
   const DECK_MODE_AUTO = 'auto';
   const DECK_MODE_MANUAL = 'manual';
-  const PENALTY_STEPS = Object.freeze([0, 1, 2, 5]);
+  const PENALTY_STEPS = Object.freeze([0, 1, 2, 3, 4, 5]);
   const PENALTY_KEYS = new Set(['bad_slap_penalty', 'bad_play_penalty']);
+  const PENALTY_SUDDEN_DEATH_MAP = Object.freeze({
+    bad_slap_penalty: 'bad_slap_sudden_death',
+    bad_play_penalty: 'bad_play_sudden_death'
+  });
+  const PENALTY_SUDDEN_DEATH_KEYS = new Set(
+    Object.values(PENALTY_SUDDEN_DEATH_MAP)
+  );
 
   const DEFAULT_RULE_OPTIONS = Object.freeze({
     allow_double: true,
@@ -58,7 +63,8 @@
     allow_ten: true,
     bad_slap_penalty: 2,
     bad_play_penalty: 2,
-    penalty_mode: PENALTY_MODE_FIXED,
+    bad_slap_sudden_death: false,
+    bad_play_sudden_death: false,
     deck_mode: DECK_MODE_AUTO,
     deck_count: 1
   });
@@ -81,34 +87,59 @@
   };
 
   const normalizePenaltyCount = (value, defaultValue) => {
+    const fallback = Number.isFinite(defaultValue)
+      ? Math.max(
+          PENALTY_STEPS[0],
+          Math.min(
+            PENALTY_STEPS[PENALTY_STEPS.length - 1],
+            Math.trunc(defaultValue)
+          )
+        )
+      : DEFAULT_RULE_OPTIONS.bad_slap_penalty;
     if (!Number.isFinite(value)) {
-      return defaultValue;
+      return fallback;
     }
-    if (value <= 0) {
-      return 0;
+    const numeric = Math.max(
+      PENALTY_STEPS[0],
+      Math.min(
+        PENALTY_STEPS[PENALTY_STEPS.length - 1],
+        Math.trunc(value)
+      )
+    );
+    if (PENALTY_STEPS.includes(numeric)) {
+      return numeric;
     }
-    const allowed = PENALTY_STEPS.filter((step) => step > 0);
-    if (allowed.includes(value)) {
-      return value;
-    }
-    for (let idx = allowed.length - 1; idx >= 0; idx -= 1) {
-      const step = allowed[idx];
-      if (value >= step) {
-        return step;
+    let closest = PENALTY_STEPS[0];
+    let minDiff = Math.abs(numeric - closest);
+    for (let idx = 1; idx < PENALTY_STEPS.length; idx += 1) {
+      const step = PENALTY_STEPS[idx];
+      const diff = Math.abs(numeric - step);
+      if (diff < minDiff) {
+        closest = step;
+        minDiff = diff;
       }
     }
-    return defaultValue;
+    return closest;
   };
 
-  const normalizePenaltyMode = (rawValue) => {
-    const normalized = String(rawValue || '')
+  const normalizeLegacyPenaltyMode = (rawValue) => {
+    if (rawValue === null || rawValue === undefined) {
+      return null;
+    }
+    const normalized = String(rawValue)
       .trim()
       .toLowerCase()
       .replace(/[-\s]/g, '_');
-    if (['sudden_death', 'suddendeath', 'mort_subite'].includes(normalized)) {
-      return PENALTY_MODE_SUDDEN_DEATH;
+    if (!normalized) {
+      return null;
     }
-    return PENALTY_MODE_FIXED;
+    if (['sudden_death', 'suddendeath', 'mort_subite'].includes(normalized)) {
+      return 'sudden_death';
+    }
+    if (['fixed', 'fixe', 'standard', 'retrait_fixe'].includes(normalized)) {
+      return 'fixed';
+    }
+    return 'fixed';
   };
 
   const normalizeDeckMode = (rawValue) => {
@@ -207,9 +238,6 @@
       return sanitized;
     }
     if (typeof defaultValue === 'string') {
-      if (key === 'penalty_mode') {
-        return normalizePenaltyMode(value);
-      }
       if (key === 'deck_mode') {
         return normalizeDeckMode(value);
       }
@@ -220,22 +248,41 @@
 
   const sanitizeOptions = (incoming, base) => {
     const result = { ...DEFAULT_RULE_OPTIONS };
-    const apply = (source) => {
+    const togglesFromIncoming = new Set();
+    let legacyPenaltyMode = null;
+    const apply = (source, trackIncoming) => {
       if (!source || typeof source !== 'object') {
         return;
+      }
+      if (Object.prototype.hasOwnProperty.call(source, 'penalty_mode')) {
+        const normalizedLegacy = normalizeLegacyPenaltyMode(source.penalty_mode);
+        if (normalizedLegacy) {
+          legacyPenaltyMode = normalizedLegacy;
+        }
       }
       Object.keys(result).forEach((key) => {
         if (Object.prototype.hasOwnProperty.call(source, key)) {
           const coerced = coerceOptionValue(key, source[key]);
           if (coerced !== undefined) {
             result[key] = coerced;
+            if (trackIncoming && PENALTY_SUDDEN_DEATH_KEYS.has(key)) {
+              togglesFromIncoming.add(key);
+            }
           }
         }
       });
     };
-    apply(base);
-    apply(incoming);
-    result.penalty_mode = normalizePenaltyMode(result.penalty_mode);
+    apply(base, false);
+    apply(incoming, true);
+    if (legacyPenaltyMode) {
+      const isSuddenDeath = legacyPenaltyMode === 'sudden_death';
+      Object.values(PENALTY_SUDDEN_DEATH_MAP).forEach((toggleKey) => {
+        if (!toggleKey || togglesFromIncoming.has(toggleKey)) {
+          return;
+        }
+        result[toggleKey] = isSuddenDeath;
+      });
+    }
     result.deck_mode = normalizeDeckMode(result.deck_mode);
     result.deck_count = normalizeDeckCount(result.deck_count);
     return result;
@@ -292,10 +339,6 @@
         display.textContent = String(value);
       }
       counter.setAttribute('aria-valuenow', String(value));
-      const cardLabel = value <= 0
-        ? 'Aucune carte retirée'
-        : `${value} carte${value > 1 ? 's' : ''}`;
-      counter.setAttribute('aria-valuetext', cardLabel);
     });
     const choices = optionsForm.querySelectorAll('[data-option-type="choice"]');
     choices.forEach((input) => {
@@ -356,6 +399,64 @@
     optionsSummaryElement.textContent = summary ? `${baseText} — ${summary}` : baseText;
   };
 
+  const syncPenaltyCounterStates = (state, interactiveOverride) => {
+    if (!optionsForm) {
+      return;
+    }
+    const minPenaltyStep =
+      PENALTY_STEPS.length > 0 ? PENALTY_STEPS[0] : 0;
+    const maxPenaltyStep =
+      PENALTY_STEPS.length > 0
+        ? PENALTY_STEPS[PENALTY_STEPS.length - 1]
+        : minPenaltyStep;
+    const interactive =
+      interactiveOverride !== undefined
+        ? interactiveOverride
+        : isHost && !currentGameStarted;
+    const safeState =
+      state && typeof state === 'object' ? state : DEFAULT_RULE_OPTIONS;
+    const counters = optionsForm.querySelectorAll('[data-option-type="counter"]');
+    counters.forEach((counter) => {
+      const key = counter.dataset.optionKey;
+      if (!key || !Object.prototype.hasOwnProperty.call(safeState, key)) {
+        return;
+      }
+      const suddenKey =
+        counter.dataset.suddenDeathKey || PENALTY_SUDDEN_DEATH_MAP[key];
+      const suddenEnabled =
+        suddenKey && Object.prototype.hasOwnProperty.call(safeState, suddenKey)
+          ? Boolean(safeState[suddenKey])
+          : false;
+      const shouldDisable = !interactive || suddenEnabled;
+      const ariaDisabledValue = shouldDisable ? 'true' : 'false';
+      counter.setAttribute('aria-valuemin', String(minPenaltyStep));
+      counter.setAttribute('aria-valuemax', String(maxPenaltyStep));
+      counter.setAttribute('aria-disabled', ariaDisabledValue);
+      counter.setAttribute('aria-readonly', shouldDisable ? 'true' : 'false');
+      counter.classList.toggle('room-options-counter--sudden-death', suddenEnabled);
+      if (suddenKey) {
+        counter.setAttribute('data-sudden-death', suddenEnabled ? 'true' : 'false');
+      } else {
+        counter.removeAttribute('data-sudden-death');
+      }
+      const buttons = counter.querySelectorAll('[data-option-step]');
+      buttons.forEach((btn) => {
+        btn.disabled = shouldDisable;
+        btn.setAttribute('aria-disabled', ariaDisabledValue);
+      });
+      const rawValue = safeState[key];
+      const value = Number.isFinite(rawValue)
+        ? rawValue
+        : Number.parseInt(rawValue, 10) || 0;
+      const valueLabel = suddenEnabled
+        ? 'Mort subite activée'
+        : value <= 0
+          ? 'Aucune carte retirée'
+          : `${value} carte${value > 1 ? 's' : ''}`;
+      counter.setAttribute('aria-valuetext', valueLabel);
+    });
+  };
+
   const syncDeckControls = (state, interactiveOverride) => {
     if (!deckCountContainer || deckCountInputs.length === 0) {
       return;
@@ -381,6 +482,7 @@
   const refreshOptionsUI = (state) => {
     applyOptionsToForm(state);
     syncDeckControls(state);
+    syncPenaltyCounterStates(state);
     renderOptionsSummary(state);
   };
 
@@ -394,21 +496,13 @@
         input.disabled = !interactive;
         input.setAttribute('aria-disabled', interactive ? 'false' : 'true');
       });
-      const counterButtons = optionsForm.querySelectorAll('[data-option-step]');
-      counterButtons.forEach((btn) => {
-        btn.disabled = !interactive;
-        btn.setAttribute('aria-disabled', interactive ? 'false' : 'true');
-      });
-      const counters = optionsForm.querySelectorAll('[data-option-type="counter"]');
-      counters.forEach((counter) => {
-        counter.setAttribute('aria-disabled', interactive ? 'false' : 'true');
-      });
       const choices = optionsForm.querySelectorAll('[data-option-type="choice"]');
       choices.forEach((input) => {
         input.disabled = !interactive;
         input.setAttribute('aria-disabled', interactive ? 'false' : 'true');
       });
       syncDeckControls(roomOptionsState, interactive);
+      syncPenaltyCounterStates(roomOptionsState, interactive);
     }
     if (hostOnlyNote) {
       hostOnlyNote.classList.toggle('is-hidden', isHost);
@@ -539,6 +633,15 @@
       }
       const key = container.dataset.optionKey;
       if (!key) {
+        return;
+      }
+      const suddenKey =
+        container.dataset.suddenDeathKey || PENALTY_SUDDEN_DEATH_MAP[key];
+      if (
+        suddenKey &&
+        Object.prototype.hasOwnProperty.call(roomOptionsState, suddenKey) &&
+        roomOptionsState[suddenKey]
+      ) {
         return;
       }
       const direction = target.dataset.optionStep === 'up' ? 1 : -1;
