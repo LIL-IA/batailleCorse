@@ -54,6 +54,8 @@ class RoomConsumerTests(TransactionTestCase):
                     "bad_slap_penalty": -3,
                     "penalty_mode": "mort_subite",
                     "bad_play_penalty": "off",
+                    "deck_mode": "manual",
+                    "deck_count": 4,
                 },
             })
 
@@ -64,11 +66,15 @@ class RoomConsumerTests(TransactionTestCase):
             assert options["bad_slap_penalty"] == 0
             assert options["penalty_mode"] == "sudden_death"
             assert options["bad_play_penalty"] == 0
+            assert options["deck_mode"] == "manual"
+            assert options["deck_count"] == 3
             engine = ENGINES[self.room.code]
             assert engine.options["allow_runs"] is True
             assert engine.options["bad_slap_penalty"] == 0
             assert engine.options["penalty_mode"] == "sudden_death"
             assert engine.options["bad_play_penalty"] == 0
+            assert engine.options["deck_mode"] == "manual"
+            assert engine.options["deck_count"] == 3
 
             stored_options = await sync_to_async(
                 lambda: Room.objects.only("rules_options").get(pk=self.room.pk).rules_options
@@ -77,6 +83,8 @@ class RoomConsumerTests(TransactionTestCase):
             assert stored_options["bad_slap_penalty"] == 0
             assert stored_options["bad_play_penalty"] == 0
             assert stored_options["penalty_mode"] == "sudden_death"
+            assert stored_options["deck_mode"] == "manual"
+            assert stored_options["deck_count"] == 3
 
             await communicator.disconnect()
 

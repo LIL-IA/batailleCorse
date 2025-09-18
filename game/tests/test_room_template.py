@@ -29,3 +29,17 @@ class RoomTemplateTests(TestCase):
         self.client.force_login(self.host)
         response = self.client.get(reverse("room", args=[self.room.code]))
         self.assertContains(response, 'id="penalty-pile"')
+
+    def test_room_options_include_deck_settings(self):
+        self.client.force_login(self.host)
+        response = self.client.get(reverse("room", args=[self.room.code]))
+        self.assertContains(response, 'data-options-summary')
+        self.assertContains(response, "Paquets")
+        self.assertContains(response, 'data-option-key="deck_mode"', count=2)
+        self.assertContains(response, 'value="auto"')
+        self.assertContains(response, 'value="manual"')
+        self.assertContains(response, 'data-deck-count-container')
+        self.assertContains(response, 'data-option-key="deck_count"', count=3)
+        self.assertContains(response, 'value="1"')
+        self.assertContains(response, 'value="2"')
+        self.assertContains(response, 'value="3"')

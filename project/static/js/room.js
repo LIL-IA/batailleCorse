@@ -46,6 +46,8 @@
 
   const PENALTY_MODE_FIXED = 'fixed';
   const PENALTY_MODE_SUDDEN_DEATH = 'sudden_death';
+  const DECK_MODE_AUTO = 'auto';
+  const DECK_MODE_MANUAL = 'manual';
   const PENALTY_STEPS = Object.freeze([0, 1, 2, 5]);
   const PENALTY_KEYS = new Set(['bad_slap_penalty', 'bad_play_penalty']);
 
@@ -56,7 +58,9 @@
     allow_ten: true,
     bad_slap_penalty: 2,
     bad_play_penalty: 2,
-    penalty_mode: PENALTY_MODE_FIXED
+    penalty_mode: PENALTY_MODE_FIXED,
+    deck_mode: DECK_MODE_AUTO,
+    deck_count: 1
   });
 
   const optionsDataScript = document.getElementById('initial-room-options');
@@ -107,6 +111,59 @@
     return PENALTY_MODE_FIXED;
   };
 
+  const normalizeDeckMode = (rawValue) => {
+    if (typeof rawValue === 'string') {
+      const lowered = rawValue.trim().toLowerCase().replace(/[-\s]/g, '_');
+      if (['manuel', 'manuelle', 'manual'].includes(lowered)) {
+        return DECK_MODE_MANUAL;
+      }
+      if (['auto', 'automatic', 'automatique', 'auto_mode'].includes(lowered)) {
+        return DECK_MODE_AUTO;
+      }
+    } else if (typeof rawValue === 'boolean') {
+      return rawValue ? DECK_MODE_MANUAL : DECK_MODE_AUTO;
+    } else if (rawValue !== null && rawValue !== undefined) {
+      const lowered = String(rawValue).trim().toLowerCase().replace(/[-\s]/g, '_');
+      if (['manuel', 'manuelle', 'manual'].includes(lowered)) {
+        return DECK_MODE_MANUAL;
+      }
+      if (['auto', 'automatic', 'automatique', 'auto_mode'].includes(lowered)) {
+        return DECK_MODE_AUTO;
+      }
+    }
+    return DEFAULT_RULE_OPTIONS.deck_mode;
+  };
+
+  const normalizeDeckCount = (value, defaultValue = DEFAULT_RULE_OPTIONS.deck_count) => {
+    const fallback = Number.isFinite(defaultValue)
+      ? Math.min(3, Math.max(1, Math.trunc(defaultValue)))
+      : DEFAULT_RULE_OPTIONS.deck_count;
+    let numeric;
+    if (typeof value === 'number') {
+      numeric = value;
+    } else if (typeof value === 'boolean') {
+      numeric = value ? 1 : 0;
+    } else if (typeof value === 'string') {
+      numeric = Number.parseInt(value, 10);
+    } else if (value !== null && value !== undefined) {
+      numeric = Number.parseInt(String(value), 10);
+    }
+    if (!Number.isFinite(numeric)) {
+      numeric = fallback;
+    }
+    numeric = Math.trunc(numeric);
+    if (!Number.isFinite(numeric)) {
+      numeric = fallback;
+    }
+    if (numeric < 1) {
+      return 1;
+    }
+    if (numeric > 3) {
+      return 3;
+    }
+    return numeric;
+  };
+
   const coerceOptionValue = (key, value) => {
     if (!Object.prototype.hasOwnProperty.call(DEFAULT_RULE_OPTIONS, key)) {
       return undefined;
@@ -141,6 +198,9 @@
         return defaultValue;
       }
       const sanitized = Math.max(0, Math.trunc(numeric));
+      if (key === 'deck_count') {
+        return normalizeDeckCount(sanitized, defaultValue);
+      }
       if (PENALTY_KEYS.has(key)) {
         return normalizePenaltyCount(sanitized, defaultValue);
       }
@@ -149,6 +209,9 @@
     if (typeof defaultValue === 'string') {
       if (key === 'penalty_mode') {
         return normalizePenaltyMode(value);
+      }
+      if (key === 'deck_mode') {
+        return normalizeDeckMode(value);
       }
       return typeof value === 'string' ? value : defaultValue;
     }
@@ -172,6 +235,9 @@
     };
     apply(base);
     apply(incoming);
+    result.penalty_mode = normalizePenaltyMode(result.penalty_mode);
+    result.deck_mode = normalizeDeckMode(result.deck_mode);
+    result.deck_count = normalizeDeckCount(result.deck_count);
     return result;
   };
 
@@ -187,6 +253,17 @@
   const lockedNote = optionsForm
     ? optionsForm.querySelector('[data-note="locked"]')
     : null;
+  const deckCountContainer = optionsForm
+    ? optionsForm.querySelector('[data-deck-count-container]')
+    : null;
+  const deckCountInputs = deckCountContainer
+    ? Array.from(deckCountContainer.querySelectorAll('input[data-option-key="deck_count"]'))
+    : [];
+  const optionsSummaryElement = document.querySelector('[data-options-summary]');
+  const defaultOptionsSummaryText =
+    optionsSummaryElement && optionsSummaryElement.textContent
+      ? optionsSummaryElement.textContent.trim()
+      : '';
 
   const applyOptionsToForm = (state) => {
     if (!optionsForm || !state) {
@@ -231,8 +308,73 @@
     });
   };
 
+  const computePlayerCountFromDom = () => {
+    if (!playersList) {
+      return null;
+    }
+    const items = playersList.querySelectorAll('li[data-user-id]');
+    if (items.length) {
+      return items.length;
+    }
+    if (playersList.children && playersList.children.length) {
+      return playersList.children.length;
+    }
+    return null;
+  };
+
+  const computeAutoDeckCount = (playerCount) => {
+    if (!Number.isFinite(playerCount) || playerCount <= 0) {
+      return DEFAULT_RULE_OPTIONS.deck_count;
+    }
+    const normalizedCount = Math.max(0, Math.trunc(playerCount));
+    const decks = 1 + Math.floor(Math.max(0, normalizedCount - 1) / 4);
+    return Math.min(3, Math.max(1, decks));
+  };
+
+  const renderOptionsSummary = (state, playerCountOverride) => {
+    if (!optionsSummaryElement) {
+      return;
+    }
+    const baseText =
+      defaultOptionsSummaryText || 'Ajustez les règles avant de lancer la partie.';
+    const mode = normalizeDeckMode(state && state.deck_mode);
+    let summary = '';
+    if (mode === DECK_MODE_MANUAL) {
+      const manualCount = normalizeDeckCount(state && state.deck_count);
+      summary = `Paquets\u00a0: manuel (${manualCount} paquet${manualCount > 1 ? 's' : ''})`;
+    } else {
+      const playersCount = Number.isFinite(playerCountOverride)
+        ? playerCountOverride
+        : computePlayerCountFromDom();
+      const effectiveDecks = computeAutoDeckCount(playersCount);
+      if (Number.isFinite(playersCount) && playersCount > 0) {
+        summary = `Paquets\u00a0: automatique (${effectiveDecks} paquet${effectiveDecks > 1 ? 's' : ''} pour ${playersCount} joueur${playersCount > 1 ? 's' : ''})`;
+      } else {
+        summary = `Paquets\u00a0: automatique (${effectiveDecks} paquet${effectiveDecks > 1 ? 's' : ''})`;
+      }
+    }
+    optionsSummaryElement.textContent = summary ? `${baseText} — ${summary}` : baseText;
+  };
+
+  const syncDeckControls = (state, interactiveOverride) => {
+    if (!deckCountContainer || deckCountInputs.length === 0) {
+      return;
+    }
+    const interactive =
+      interactiveOverride !== undefined ? interactiveOverride : isHost && !currentGameStarted;
+    const manualMode = normalizeDeckMode(state && state.deck_mode) === DECK_MODE_MANUAL;
+    const shouldDisable = !interactive || !manualMode;
+    deckCountContainer.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
+    deckCountInputs.forEach((input) => {
+      input.disabled = shouldDisable;
+      input.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
+    });
+  };
+
   const refreshOptionsUI = (state) => {
     applyOptionsToForm(state);
+    syncDeckControls(state);
+    renderOptionsSummary(state);
   };
 
   const updateOptionsAvailability = (started) => {
@@ -259,6 +401,7 @@
         input.disabled = !interactive;
         input.setAttribute('aria-disabled', interactive ? 'false' : 'true');
       });
+      syncDeckControls(roomOptionsState, interactive);
     }
     if (hostOnlyNote) {
       hostOnlyNote.classList.toggle('is-hidden', isHost);
@@ -1022,6 +1165,7 @@
 
     playersList.innerHTML = '';
     playersList.appendChild(fragment);
+    renderOptionsSummary(roomOptionsState, seen.size);
   }
   socket.onmessage = (event) => {
     const msg = JSON.parse(event.data);
