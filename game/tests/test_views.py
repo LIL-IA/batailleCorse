@@ -15,8 +15,8 @@ class CreateRoomViewTests(TestCase):
         self.user = User.objects.create_user("host", password="pass123")
         self.client.force_login(self.user)
 
-    def test_redirects_to_existing_room_when_unstarted_room_exists(self):
-        room = Room.objects.create(code="ABC123", host=self.user, is_started=False)
+    def test_redirects_to_existing_room_when_started_room_exists(self):
+        room = Room.objects.create(code="ABC123", host=self.user, is_started=True)
         Player.objects.create(room=room, user=self.user, seat=0)
 
         response = self.client.post(reverse("create_room"), follow=True)
@@ -28,8 +28,8 @@ class CreateRoomViewTests(TestCase):
         self.assertEqual(len(messages), 1)
         self.assertIn(room.code, str(messages[0]))
 
-    def test_creates_new_room_when_no_unstarted_room(self):
-        existing = Room.objects.create(code="OLD001", host=self.user, is_started=True)
+    def test_creates_new_room_when_no_started_room(self):
+        existing = Room.objects.create(code="OLD001", host=self.user, is_started=False)
         Player.objects.create(room=existing, user=self.user, seat=0)
 
         with patch("game.views._gen_unique_code", return_value="NEW001"):
@@ -40,3 +40,14 @@ class CreateRoomViewTests(TestCase):
         new_room = Room.objects.get(code="NEW001")
         self.assertEqual(new_room.host, self.user)
         self.assertTrue(new_room.players.filter(user=self.user).exists())
+
+    def test_creates_new_room_when_only_unstarted_room_exists(self):
+        waiting_room = Room.objects.create(code="WAIT01", host=self.user, is_started=False)
+        Player.objects.create(room=waiting_room, user=self.user, seat=0)
+
+        with patch("game.views._gen_unique_code", return_value="NEW001"):
+            response = self.client.post(reverse("create_room"))
+
+        self.assertRedirects(response, reverse("room", args=["NEW001"]))
+        self.assertTrue(Room.objects.filter(code="WAIT01").exists())
+        self.assertEqual(Room.objects.count(), 2)

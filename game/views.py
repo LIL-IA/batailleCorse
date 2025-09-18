@@ -24,7 +24,7 @@ def _gen_unique_code():
 def create_room(request):
     if request.method == "POST":
         existing_room = (
-            request.user.hosted_rooms.filter(is_started=False)
+            request.user.hosted_rooms.filter(is_started=True)
             .order_by("-created_at")
             .first()
         )
