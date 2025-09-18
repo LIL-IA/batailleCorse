@@ -408,7 +408,7 @@ textarea:focus {
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
-  transform: rotate(calc(-1 * var(--deck-angle, 0deg)));
+  transform: rotate(var(--deck-text-angle, var(--deck-angle, 0deg)));
 }
 
 #player-decks .player-deck.player-deck-top .deck-info {
