@@ -342,24 +342,6 @@
 >
   Démarrer une partie
 </button>
-  <div
-    id="play-action-container"
-    class="play-action-container"
-    style="display:none"
-  >
-    <button id="play-card-btn" class="action-btn" onclick="wsSend({type:'play'})">
-      Jouer une carte
-    </button>
-  </div>
-<button
-  id="slap-btn"
-  class="action-btn"
-  style="display:none"
-  onclick="wsSend({type:'slap'})"
->
-  TAPER !
-</button>
-
 <div id="table">
   <div id="center-pile" aria-live="polite">
     <p>En attente du début de la partie…</p>
@@ -378,7 +360,31 @@
   </div>
 </div>
 
-<div id="error-message" style="color:red"></div>
+<div class="table-bottom-actions">
+  <div
+    id="error-message"
+    class="table-bottom-actions__error"
+    role="status"
+    aria-live="polite"
+  ></div>
+  <div
+    id="play-action-container"
+    class="play-action-container"
+    style="display:none"
+  >
+    <button id="play-card-btn" class="action-btn" onclick="wsSend({type:'play'})">
+      Jouer une carte
+    </button>
+  </div>
+  <button
+    id="slap-btn"
+    class="action-btn"
+    style="display:none"
+    onclick="wsSend({type:'slap'})"
+  >
+    TAPER !
+  </button>
+</div>
 
 <div class="page-bottom-actions">
   <button
