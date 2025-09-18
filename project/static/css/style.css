@@ -348,13 +348,16 @@ textarea:focus {
 }
 
 #player-decks .player-deck {
+  --deck-padding-y: clamp(0.85rem, 2vw, 1.2rem);
+  --deck-padding-x: clamp(1rem, 2.6vw, 1.6rem);
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg));
+  transform: translate(-50%, -50%);
   transform-origin: center;
-  width: clamp(128px, 24vw, 176px);
-  padding: clamp(0.75rem, 2vw, 1.1rem);
+  width: clamp(220px, 30vw, 300px);
+  height: calc(clamp(104px, 22vw, 132px) + var(--deck-padding-y) * 2);
+  padding: var(--deck-padding-y) var(--deck-padding-x);
   border-radius: 18px;
   background: rgba(15, 23, 42, 0.86);
   color: #f8fafc;
@@ -366,25 +369,25 @@ textarea:focus {
 
 #player-decks .player-deck .deck-content {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.4rem;
-  text-align: center;
+  gap: clamp(0.65rem, 2vw, 1.2rem);
+  justify-content: flex-start;
+  text-align: left;
   width: 100%;
-  transform: rotate(var(--deck-content-angle, calc(var(--deck-angle, 0deg) * -1)));
-  transform-origin: center;
+  height: 100%;
 }
 
 #player-decks .player-deck.current-turn {
   box-shadow:
     0 0 0 3px rgba(37, 99, 235, 0.55),
     0 28px 60px -26px rgba(59, 130, 246, 0.65);
-  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.04);
+  transform: translate(-50%, -50%) scale(1.04);
 }
 
 #player-decks .player-deck.current-turn:hover,
 #player-decks .player-deck.current-turn:focus-within {
-  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.06);
+  transform: translate(-50%, -50%) scale(1.06);
 }
 
 #player-decks .player-deck.current-turn .deck-count {
@@ -394,13 +397,13 @@ textarea:focus {
 #player-decks .player-deck.player-deck-solo {
   left: 50%;
   top: 78%;
-  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg));
+  transform: translate(-50%, -50%);
 }
 
 #player-decks .player-deck:hover,
 #player-decks .player-deck:focus-within {
   box-shadow: 0 26px 52px -28px rgba(59, 130, 246, 0.55);
-  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.03);
+  transform: translate(-50%, -50%) scale(1.03);
 }
 
 #player-decks .player-deck.player-deck-self-clickable {
@@ -418,7 +421,7 @@ textarea:focus {
     0 0 0 3px rgba(251, 191, 36, 0.6),
     0 30px 68px -28px rgba(245, 158, 11, 0.55),
     0 22px 38px -26px rgba(15, 23, 42, 0.72);
-  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.07);
+  transform: translate(-50%, -50%) scale(1.07);
 }
 
 #player-decks .player-deck.player-deck-self-clickable:focus-visible {
@@ -431,20 +434,26 @@ textarea:focus {
     0 0 0 2px rgba(251, 191, 36, 0.55),
     0 24px 54px -30px rgba(245, 158, 11, 0.5),
     0 22px 38px -26px rgba(15, 23, 42, 0.68);
-  transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg)) scale(1.02);
+  transform: translate(-50%, -50%) scale(1.02);
 }
 
 #player-decks .player-deck .deck-card {
   display: flex;
+  align-items: center;
   justify-content: center;
-  width: 100%;
+  flex: 0 0 auto;
+  height: 100%;
 }
 
 #player-decks .player-deck .deck-info {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: center;
   gap: 0.35rem;
+  flex: 1 1 auto;
+  text-align: left;
+  min-width: 0;
 }
 
 #player-decks .player-deck h3 {
@@ -1238,19 +1247,19 @@ body.room-options-lock {
 @keyframes slapDeckError {
   0%,
   100% {
-    transform: translate(-50%, -50%) rotate(var(--deck-angle, 0deg));
+    transform: translate(-50%, -50%);
   }
   20% {
-    transform: translate(calc(-50% - 6px), calc(-50% + 2px)) rotate(var(--deck-angle, 0deg));
+    transform: translate(calc(-50% - 6px), calc(-50% + 2px));
   }
   40% {
-    transform: translate(calc(-50% + 6px), calc(-50% - 2px)) rotate(var(--deck-angle, 0deg));
+    transform: translate(calc(-50% + 6px), calc(-50% - 2px));
   }
   60% {
-    transform: translate(calc(-50% - 5px), calc(-50% + 1px)) rotate(var(--deck-angle, 0deg));
+    transform: translate(calc(-50% - 5px), calc(-50% + 1px));
   }
   80% {
-    transform: translate(calc(-50% + 4px), calc(-50% - 1px)) rotate(var(--deck-angle, 0deg));
+    transform: translate(calc(-50% + 4px), calc(-50% - 1px));
   }
 }
 
@@ -1317,8 +1326,13 @@ body.room-options-lock {
   }
 
   #player-decks .player-deck {
-    width: clamp(120px, 30vw, 160px);
-    padding: clamp(0.6rem, 2.5vw, 1rem);
+    --deck-padding-y: clamp(0.7rem, 2.8vw, 1rem);
+    --deck-padding-x: clamp(0.9rem, 4vw, 1.4rem);
+    width: clamp(180px, 54vw, 236px);
+  }
+
+  #player-decks .player-deck .deck-content {
+    gap: clamp(0.5rem, 3vw, 0.9rem);
   }
 
   .card-back {
@@ -1334,8 +1348,13 @@ body.room-options-lock {
   }
 
   #player-decks .player-deck {
-    width: min(46vw, 150px);
-    gap: 0.3rem;
+    --deck-padding-y: clamp(0.65rem, 4vw, 0.85rem);
+    --deck-padding-x: clamp(0.8rem, 5vw, 1.2rem);
+    width: min(82vw, 210px);
+  }
+
+  #player-decks .player-deck .deck-content {
+    gap: clamp(0.45rem, 4vw, 0.75rem);
   }
 
   #player-decks .player-deck h3 {

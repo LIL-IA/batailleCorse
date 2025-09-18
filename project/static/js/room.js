@@ -1632,8 +1632,6 @@
       const deck = deckElements[0];
       deck.style.left = '50%';
       deck.style.top = '78%';
-      deck.style.setProperty('--deck-angle', '0deg');
-      deck.style.setProperty('--deck-content-angle', '0deg');
       deck.classList.add('player-deck-solo', 'player-deck-bottom');
       deck.classList.remove('player-deck-top', 'player-deck-left', 'player-deck-right');
       deck.style.zIndex = '9';
@@ -1643,11 +1641,8 @@
         const angle = (idx / totalDecks) * Math.PI * 2 - Math.PI / 2;
         const x = 50 + radiusPercent * Math.cos(angle);
         const y = 50 + radiusPercent * Math.sin(angle);
-        const angleDeg = (angle * 180) / Math.PI;
         deck.style.left = `${x}%`;
         deck.style.top = `${y}%`;
-        deck.style.setProperty('--deck-angle', `${angleDeg}deg`);
-        deck.style.setProperty('--deck-content-angle', `${-angleDeg}deg`);
         const isTop = y <= 50;
         const isBottom = !isTop;
         const isLeft = x < 50 - 0.5;
