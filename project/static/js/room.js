@@ -881,7 +881,6 @@
   const slapOverlayManager = (() => {
     let overlayEl = null;
     let hideTimerId = null;
-    let countdownIntervalId = null;
     let currentAnimationHandler = null;
 
     const ensureOverlay = () => {
@@ -900,6 +899,17 @@
       return overlayEl;
     };
 
+    const setPendingIndicator = (isActive) => {
+      const tableEl = document.querySelector(tableSelector);
+      if (tableEl) {
+        tableEl.classList.toggle('slap-pending', Boolean(isActive));
+      }
+      const centerPileEl = document.getElementById('center-pile');
+      if (centerPileEl) {
+        centerPileEl.classList.toggle('slap-pending', Boolean(isActive));
+      }
+    };
+
     const stopAnimationHandler = () => {
       if (overlayEl && currentAnimationHandler) {
         overlayEl.removeEventListener('animationend', currentAnimationHandler);
@@ -914,23 +924,20 @@
       }
     };
 
-    const clearCountdown = () => {
-      if (countdownIntervalId !== null) {
-        window.clearInterval(countdownIntervalId);
-        countdownIntervalId = null;
+    const hideOverlayElement = () => {
+      if (!overlayEl) {
+        return;
       }
+      overlayEl.classList.remove('slap-overlay-visible', 'slap-overlay-animate');
+      overlayEl.setAttribute('aria-hidden', 'true');
+      overlayEl.innerHTML = '';
     };
 
     const hide = () => {
       clearHideTimer();
-      clearCountdown();
       stopAnimationHandler();
-      if (!overlayEl) {
-        return;
-      }
-      overlayEl.classList.remove('slap-overlay-visible', 'slap-overlay-animate', 'slap-overlay-pending');
-      overlayEl.setAttribute('aria-hidden', 'true');
-      overlayEl.innerHTML = '';
+      hideOverlayElement();
+      setPendingIndicator(false);
     };
 
     const prepareOverlay = () => {
@@ -940,9 +947,9 @@
       }
       stopAnimationHandler();
       clearHideTimer();
-      clearCountdown();
+      setPendingIndicator(false);
       overlay.innerHTML = '';
-      overlay.classList.remove('slap-overlay-animate', 'slap-overlay-pending');
+      overlay.classList.remove('slap-overlay-animate');
       overlay.classList.add('slap-overlay-visible');
       overlay.setAttribute('aria-hidden', 'false');
       return overlay;
@@ -1052,58 +1059,26 @@
     };
 
     const showPending = (graceMs) => {
-      const overlay = prepareOverlay();
-      if (!overlay) {
-        return;
-      }
-
-      overlay.classList.add('slap-overlay-pending');
-
-      const content = document.createElement('div');
-      content.className = 'slap-overlay-content';
-
-      const title = document.createElement('h3');
-      title.textContent = 'Tape valide enregistrée !';
-      content.appendChild(title);
-
-      const description = document.createElement('p');
-      description.className = 'slap-overlay-winner';
-      description.textContent = 'Résolution en cours…';
-      content.appendChild(description);
-
-      const countdown = document.createElement('p');
-      countdown.className = 'slap-overlay-pending-countdown';
-      content.appendChild(countdown);
-
-      overlay.appendChild(content);
+      setPendingIndicator(true);
+      stopAnimationHandler();
+      clearHideTimer();
+      hideOverlayElement();
 
       const numericGrace = parseGraceMs(graceMs);
-      if (numericGrace === null) {
-        countdown.textContent = 'Résolution imminente…';
-        return;
+      if (numericGrace !== null) {
+        scheduleHide(numericGrace + 200);
       }
+    };
 
-      const endTime = Date.now() + numericGrace;
-
-      const updateCountdown = () => {
-        const remaining = Math.max(0, endTime - Date.now());
-        const seconds = remaining / 1000;
-        const formatted = seconds >= 1 ? seconds.toFixed(1) : seconds.toFixed(2);
-        countdown.textContent = `Résolution dans ${formatted} s`;
-        if (remaining <= 0) {
-          hide();
-        }
-      };
-
-      updateCountdown();
-      countdownIntervalId = window.setInterval(updateCountdown, 50);
-      scheduleHide(numericGrace + 200);
+    const clearPendingIndicator = () => {
+      setPendingIndicator(false);
     };
 
     return {
       showResolution,
       showPending,
-      hide
+      hide,
+      clearPendingIndicator
     };
   })();
 
@@ -1288,13 +1263,15 @@
       return;
     }
 
-    if (lastAction.type === 'slap_resolved') {
-      slapOverlayManager.showResolution(lastAction, playersById);
+    if (lastAction.type === 'slap_pending') {
+      slapOverlayManager.showPending(graceMs);
       return;
     }
 
-    if (lastAction.type === 'slap_pending') {
-      slapOverlayManager.showPending(graceMs);
+    slapOverlayManager.clearPendingIndicator();
+
+    if (lastAction.type === 'slap_resolved') {
+      slapOverlayManager.showResolution(lastAction, playersById);
       return;
     }
 

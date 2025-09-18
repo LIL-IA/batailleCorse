@@ -354,6 +354,7 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   overflow: visible;
+  transition: box-shadow 0.35s ease, filter 0.35s ease;
 }
 
 #table::before,
@@ -1238,6 +1239,7 @@ body.room-options-lock {
   color: #e2e8f0;
   text-align: center;
   padding: 0.75rem;
+  transition: box-shadow 0.35s ease, background 0.35s ease;
 }
 
 .center-pile-clickable {
@@ -1294,6 +1296,16 @@ body.room-options-lock {
   background: rgba(245, 158, 11, 0.18);
   color: #fef3c7;
   box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.45), 0 0 0 4px rgba(253, 230, 138, 0.18);
+}
+
+#center-pile.slap-pending::after {
+  content: '';
+  position: absolute;
+  inset: -0.45rem;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.4);
+  animation: slapPendingBorderPulse 1.6s ease-in-out infinite;
 }
 
 .center-pile {
@@ -1367,6 +1379,21 @@ body.room-options-lock {
   }
 }
 
+@keyframes slapPendingBorderPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.32);
+    opacity: 0.85;
+  }
+  60% {
+    box-shadow: 0 0 0 14px rgba(250, 204, 21, 0.14);
+    opacity: 1;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0);
+    opacity: 0.85;
+  }
+}
+
 @keyframes slapSuccessPulse {
   0% {
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55);
@@ -1394,6 +1421,21 @@ body.room-options-lock {
   }
 }
 
+#table.slap-pending,
+.table.slap-pending {
+  box-shadow:
+    0 28px 70px -38px rgba(15, 23, 42, 0.85),
+    0 0 0 4px rgba(250, 204, 21, 0.32),
+    0 0 40px -12px rgba(250, 204, 21, 0.55);
+}
+
+#table.slap-pending::before,
+.table.slap-pending::before {
+  border-color: rgba(250, 204, 21, 0.68);
+  box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.32);
+  animation: slapPendingBorderPulse 1.6s ease-in-out infinite;
+}
+
 #table.slap-success,
 .table.slap-success {
   animation: slapSuccessPulse 0.9s ease-out;
@@ -1409,6 +1451,11 @@ body.room-options-lock {
   .table.slap-success,
   #table.slap-fail,
   .table.slap-fail,
+  #table.slap-pending,
+  .table.slap-pending,
+  #table.slap-pending::before,
+  .table.slap-pending::before,
+  #center-pile.slap-pending::after,
   .slap-overlay-animate,
   #player-decks .player-deck.slap-deck-error {
     animation: none;
