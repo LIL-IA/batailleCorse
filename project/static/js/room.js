@@ -364,6 +364,13 @@
     const interactive =
       interactiveOverride !== undefined ? interactiveOverride : isHost && !currentGameStarted;
     const manualMode = normalizeDeckMode(state && state.deck_mode) === DECK_MODE_MANUAL;
+    if (manualMode) {
+      deckCountContainer.removeAttribute('hidden');
+      deckCountContainer.setAttribute('aria-hidden', 'false');
+    } else {
+      deckCountContainer.setAttribute('hidden', '');
+      deckCountContainer.setAttribute('aria-hidden', 'true');
+    }
     const shouldDisable = !interactive || !manualMode;
     deckCountContainer.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
     deckCountInputs.forEach((input) => {
