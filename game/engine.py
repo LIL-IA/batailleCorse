@@ -2,8 +2,8 @@ import random
 from collections import deque
 
 RANKS = "23456789TJQKA"
-RANK_VALUE = {r:i for i,r in enumerate(RANKS, start=2)}
-FACE_PENALTIES = {"J":1, "Q":2, "K":3, "A":4}
+RANK_VALUE = {r: i for i, r in enumerate(RANKS, start=2)}
+FACE_PENALTIES = {"J": 1, "Q": 2, "K": 3, "A": 4}
 
 def new_deck():
     suits = "CDHS"
@@ -12,6 +12,60 @@ def new_deck():
     return deck
 
 class GameEngine:
+    DEFAULT_OPTIONS = {
+        "allow_sandwich": True,
+        "allow_double": True,
+        "allow_runs": False,
+        "allow_ten": True,
+        "bad_slap_penalty": 2,
+        "bad_play_penalty": 2,
+    }
+
+    @classmethod
+    def default_options(cls):
+        return dict(cls.DEFAULT_OPTIONS)
+
+    @classmethod
+    def _coerce_option_value(cls, key, value):
+        default = cls.DEFAULT_OPTIONS.get(key)
+        if isinstance(default, bool):
+            if isinstance(value, str):
+                lowered = value.strip().lower()
+                if lowered in {"true", "1", "yes", "on"}:
+                    return True
+                if lowered in {"false", "0", "no", "off"}:
+                    return False
+            return bool(value)
+        if isinstance(default, int):
+            if isinstance(value, bool):
+                numeric = int(value)
+            elif isinstance(value, (int, float)):
+                numeric = int(value)
+            elif isinstance(value, str):
+                try:
+                    numeric = int(value.strip())
+                except ValueError:
+                    return default
+            else:
+                return default
+            return max(0, numeric)
+        return default
+
+    @classmethod
+    def sanitize_options(cls, overrides=None, base=None):
+        result = cls.default_options()
+
+        def apply(source):
+            if not source:
+                return
+            for key in result:
+                if key in source:
+                    result[key] = cls._coerce_option_value(key, source[key])
+
+        apply(base)
+        apply(overrides)
+        return result
+
     def __init__(self, players, options=None):
         self.players = players[:]
         self.n = len(players)
@@ -25,17 +79,16 @@ class GameEngine:
         self.collect_winner = None
         self.winner = None
         self.last_face_player = None
-        self.options = {
-            "allow_sandwich": True,
-            "allow_double": True,
-            "allow_runs": False,
-            "allow_ten": True,
-            "bad_slap_penalty": 2,
-            "bad_play_penalty": 2,
-        }
-        if options:
-            self.options.update(options)
+        self.options = self.sanitize_options(base=options)
         self._deal()
+
+    def set_options(self, options):
+        self.options = self.sanitize_options(base=options)
+        return self.options
+
+    def update_options(self, overrides):
+        self.options = self.sanitize_options(overrides=overrides, base=self.options)
+        return self.options
 
     def serialize(self, mask_for=None):
         counts = {str(pid): len(self.hands[pid]) for pid in self.players}  # <-- clés en str
@@ -57,6 +110,7 @@ class GameEngine:
             "collect_winner": self.collect_winner,
             "winner": self.winner,
             "active_players": active_players,
+            "options": dict(self.options),
         }
 
     def _deal(self):

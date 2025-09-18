@@ -9,7 +9,10 @@
     'start-failed': 'Erreur lors du démarrage.',
     'game-not-started': "La partie n'a pas encore commencé.",
     'game-over': 'La partie est terminée.',
-    'no-cards': "Vous n'avez plus de cartes."
+    'no-cards': "Vous n'avez plus de cartes.",
+    'not-host': "Seul l’hôte peut modifier ces options.",
+    'game-started': 'Impossible de modifier les options pendant une partie.',
+    'invalid-options': 'Options invalides reçues.'
   };
 
   const SUIT_SYMBOLS = { S: '♠', H: '♥', D: '♦', C: '♣' };
@@ -29,6 +32,321 @@
     console.error("Élément #players introuvable.");
     return;
   }
+
+  const isHost = playersList.dataset.isHost === 'true';
+  let currentGameStarted = playersList.dataset.roomStarted === 'true';
+
+  const optionsTrigger = document.getElementById('room-options-trigger');
+  const optionsModal = document.getElementById('room-options-modal');
+  const optionsForm = document.getElementById('room-options-form');
+  const optionsCloseBtn = document.getElementById('room-options-close');
+  const optionsBackdrop = optionsModal
+    ? optionsModal.querySelector('[data-room-options-close]')
+    : null;
+
+  const DEFAULT_RULE_OPTIONS = Object.freeze({
+    allow_double: true,
+    allow_sandwich: true,
+    allow_runs: false,
+    allow_ten: true,
+    bad_slap_penalty: 2,
+    bad_play_penalty: 2
+  });
+
+  const optionsDataScript = document.getElementById('initial-room-options');
+
+  const parseInitialOptions = () => {
+    if (!optionsDataScript) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(optionsDataScript.textContent || '');
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    } catch (err) {
+      console.warn('Impossible de parser les options initiales', err);
+    }
+    return null;
+  };
+
+  const coerceOptionValue = (key, value) => {
+    if (!Object.prototype.hasOwnProperty.call(DEFAULT_RULE_OPTIONS, key)) {
+      return undefined;
+    }
+    const defaultValue = DEFAULT_RULE_OPTIONS[key];
+    if (typeof defaultValue === 'boolean') {
+      if (typeof value === 'string') {
+        const lowered = value.trim().toLowerCase();
+        if (['true', '1', 'yes', 'on'].includes(lowered)) {
+          return true;
+        }
+        if (['false', '0', 'no', 'off'].includes(lowered)) {
+          return false;
+        }
+      }
+      return Boolean(value);
+    }
+    if (typeof defaultValue === 'number') {
+      let numeric;
+      if (typeof value === 'number') {
+        numeric = value;
+      } else if (typeof value === 'boolean') {
+        numeric = value ? 1 : 0;
+      } else if (typeof value === 'string') {
+        numeric = Number.parseInt(value.trim(), 10);
+      }
+      if (!Number.isFinite(numeric)) {
+        return defaultValue;
+      }
+      return Math.max(0, Math.trunc(numeric));
+    }
+    return defaultValue;
+  };
+
+  const sanitizeOptions = (incoming, base) => {
+    const result = { ...DEFAULT_RULE_OPTIONS };
+    const apply = (source) => {
+      if (!source || typeof source !== 'object') {
+        return;
+      }
+      Object.keys(result).forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+          const coerced = coerceOptionValue(key, source[key]);
+          if (coerced !== undefined) {
+            result[key] = coerced;
+          }
+        }
+      });
+    };
+    apply(base);
+    apply(incoming);
+    return result;
+  };
+
+  let roomOptionsState = sanitizeOptions(parseInitialOptions());
+  let optionsModalOpen = false;
+  let optionsSyncTimerId = null;
+  let optionsUpdateFromServer = false;
+  let lastFocusedBeforeModal = null;
+
+  const hostOnlyNote = optionsForm
+    ? optionsForm.querySelector('[data-note="host-only"]')
+    : null;
+  const lockedNote = optionsForm
+    ? optionsForm.querySelector('[data-note="locked"]')
+    : null;
+
+  const applyOptionsToForm = (state) => {
+    if (!optionsForm || !state) {
+      return;
+    }
+    const toggles = optionsForm.querySelectorAll('[data-option-type="toggle"]');
+    toggles.forEach((input) => {
+      const key = input.dataset.optionKey;
+      if (!key || !Object.prototype.hasOwnProperty.call(state, key)) {
+        return;
+      }
+      input.checked = Boolean(state[key]);
+    });
+    const counters = optionsForm.querySelectorAll('[data-option-type="counter"]');
+    counters.forEach((counter) => {
+      const key = counter.dataset.optionKey;
+      if (!key || !Object.prototype.hasOwnProperty.call(state, key)) {
+        return;
+      }
+      const rawValue = state[key];
+      const value = Number.isFinite(rawValue)
+        ? rawValue
+        : Number.parseInt(rawValue, 10) || 0;
+      const display = counter.querySelector('[data-counter-value]');
+      if (display) {
+        display.textContent = String(value);
+      }
+      counter.setAttribute('aria-valuenow', String(value));
+      counter.setAttribute(
+        'aria-valuetext',
+        `${value} carte${value > 1 ? 's' : ''}`
+      );
+    });
+  };
+
+  const updateOptionsAvailability = (started) => {
+    currentGameStarted = Boolean(started);
+    const interactive = isHost && !currentGameStarted;
+    if (optionsForm) {
+      optionsForm.classList.toggle('room-options-form--readonly', !interactive);
+      const toggles = optionsForm.querySelectorAll('[data-option-type="toggle"]');
+      toggles.forEach((input) => {
+        input.disabled = !interactive;
+        input.setAttribute('aria-disabled', interactive ? 'false' : 'true');
+      });
+      const counterButtons = optionsForm.querySelectorAll('[data-option-step]');
+      counterButtons.forEach((btn) => {
+        btn.disabled = !interactive;
+        btn.setAttribute('aria-disabled', interactive ? 'false' : 'true');
+      });
+      const counters = optionsForm.querySelectorAll('[data-option-type="counter"]');
+      counters.forEach((counter) => {
+        counter.setAttribute('aria-disabled', interactive ? 'false' : 'true');
+      });
+    }
+    if (hostOnlyNote) {
+      hostOnlyNote.classList.toggle('is-hidden', isHost);
+    }
+    if (lockedNote) {
+      lockedNote.classList.toggle('is-hidden', !currentGameStarted);
+    }
+    if (optionsModal) {
+      optionsModal.classList.toggle('room-options-modal--readonly', !interactive);
+    }
+    if (optionsTrigger) {
+      optionsTrigger.classList.toggle('room-options-trigger--readonly', !isHost);
+      if (!isHost) {
+        optionsTrigger.setAttribute(
+          'title',
+          'Lecture seule : seul l’hôte peut modifier ces paramètres.'
+        );
+      } else {
+        optionsTrigger.removeAttribute('title');
+      }
+    }
+  };
+
+  const openOptionsModal = () => {
+    if (!optionsModal || optionsModalOpen) {
+      return;
+    }
+    optionsModalOpen = true;
+    optionsModal.hidden = false;
+    optionsModal.setAttribute('aria-hidden', 'false');
+    optionsModal.classList.add('room-options-modal--open');
+    document.body.classList.add('room-options-lock');
+    lastFocusedBeforeModal = document.activeElement;
+    const focusTarget = optionsForm
+      ? optionsForm.querySelector('[data-option-type="toggle"]')
+      : null;
+    const finalTarget =
+      focusTarget || optionsModal.querySelector('.room-options-modal__close');
+    if (finalTarget && typeof finalTarget.focus === 'function') {
+      finalTarget.focus();
+    }
+  };
+
+  const closeOptionsModal = () => {
+    if (!optionsModal || !optionsModalOpen) {
+      return;
+    }
+    optionsModalOpen = false;
+    optionsModal.classList.remove('room-options-modal--open');
+    optionsModal.setAttribute('aria-hidden', 'true');
+    optionsModal.hidden = true;
+    document.body.classList.remove('room-options-lock');
+    if (lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === 'function') {
+      lastFocusedBeforeModal.focus();
+    }
+    lastFocusedBeforeModal = null;
+  };
+
+  const scheduleOptionsSync = () => {
+    if (!isHost || currentGameStarted || optionsUpdateFromServer) {
+      return;
+    }
+    if (optionsSyncTimerId !== null) {
+      window.clearTimeout(optionsSyncTimerId);
+    }
+    const payload = { ...roomOptionsState };
+    optionsSyncTimerId = window.setTimeout(() => {
+      optionsSyncTimerId = null;
+      if (typeof window.wsSend === 'function') {
+        window.wsSend({ type: 'set_options', options: payload });
+      }
+    }, 150);
+  };
+
+  const updateOptionValue = (key, rawValue) => {
+    if (!Object.prototype.hasOwnProperty.call(DEFAULT_RULE_OPTIONS, key)) {
+      return;
+    }
+    const sanitized = sanitizeOptions({ [key]: rawValue }, roomOptionsState);
+    const changed = sanitized[key] !== roomOptionsState[key];
+    roomOptionsState = sanitized;
+    applyOptionsToForm(roomOptionsState);
+    if (changed && !optionsUpdateFromServer) {
+      scheduleOptionsSync();
+    }
+  };
+
+  const handleOptionsFromServer = (rawOptions) => {
+    const sanitized = sanitizeOptions(rawOptions);
+    const changed = Object.keys(DEFAULT_RULE_OPTIONS).some(
+      (key) => roomOptionsState[key] !== sanitized[key]
+    );
+    roomOptionsState = sanitized;
+    if (!optionsForm) {
+      return;
+    }
+    optionsUpdateFromServer = true;
+    applyOptionsToForm(roomOptionsState);
+    optionsUpdateFromServer = false;
+    if (!changed) {
+      return;
+    }
+  };
+
+  if (optionsForm) {
+    optionsForm.addEventListener('submit', (event) => event.preventDefault());
+    optionsForm.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target || target.dataset.optionType !== 'toggle') {
+        return;
+      }
+      const key = target.dataset.optionKey;
+      updateOptionValue(key, target.checked);
+    });
+    optionsForm.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!target || !target.dataset.optionStep) {
+        return;
+      }
+      event.preventDefault();
+      const container = target.closest('[data-option-type="counter"]');
+      if (!container) {
+        return;
+      }
+      const key = container.dataset.optionKey;
+      if (!key) {
+        return;
+      }
+      const step = target.dataset.optionStep === 'up' ? 1 : -1;
+      const currentValue = roomOptionsState[key] || 0;
+      updateOptionValue(key, currentValue + step);
+    });
+  }
+
+  if (optionsTrigger && optionsModal) {
+    optionsTrigger.addEventListener('click', (event) => {
+      event.preventDefault();
+      openOptionsModal();
+    });
+  }
+
+  if (optionsCloseBtn) {
+    optionsCloseBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      closeOptionsModal();
+    });
+  }
+
+  if (optionsBackdrop) {
+    optionsBackdrop.addEventListener('click', (event) => {
+      event.preventDefault();
+      closeOptionsModal();
+    });
+  }
+
+  applyOptionsToForm(roomOptionsState);
+  updateOptionsAvailability(currentGameStarted);
 
   const tableSelector = playersList.dataset.tableSelector || '#table';
   const centerPileSelector = playersList.dataset.centerPileSelector || '#center-pile';
@@ -605,6 +923,8 @@
     if (msg.type === 'state' || msg.type === 'player_joined') {
       setActionButtonsDisabled(false);
       const started = Boolean(msg.started);
+      updateOptionsAvailability(started);
+      playersList.dataset.roomStarted = started ? 'true' : 'false';
       const hasWinner = msg.winner !== undefined && msg.winner !== null;
       const readyIds = new Set(
         (Array.isArray(msg.ready) ? msg.ready : [])
@@ -639,6 +959,12 @@
       if (playActionContainer) playActionContainer.style.display = started ? '' : 'none';
       if (slapBtn) slapBtn.style.display = started ? '' : 'none';
       const state = msg.state || null;
+      const optionsPayload =
+        (state && typeof state === 'object' ? state.options : null) ||
+        (msg.options && typeof msg.options === 'object' ? msg.options : null);
+      if (optionsPayload) {
+        handleOptionsFromServer(optionsPayload);
+      }
       const currentTurnId = state ? parseId(state.turn) : null;
       setCurrentTurnDataset(currentTurnId);
 
@@ -686,6 +1012,13 @@
   window.wsSend = wsSend;
 
   document.addEventListener('keydown', (event) => {
+    if (optionsModalOpen) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeOptionsModal();
+      }
+      return;
+    }
     if (event.code === 'Space') {
       event.preventDefault();
       wsSend({ type: 'slap' });

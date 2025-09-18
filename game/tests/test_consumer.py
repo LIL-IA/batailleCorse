@@ -4,7 +4,7 @@ from channels.testing import WebsocketCommunicator
 from asgiref.sync import async_to_sync, sync_to_async
 
 from game.models import Room, Player
-from game.consumers import ENGINES, SLAP_CTX
+from game.consumers import ENGINES, SLAP_CTX, ROOM_OPTIONS
 from game.engine import GameEngine
 from project.asgi import application
 
@@ -14,6 +14,7 @@ class RoomConsumerTests(TransactionTestCase):
     def setUp(self):
         ENGINES.clear()
         SLAP_CTX.clear()
+        ROOM_OPTIONS.clear()
         self.user1 = User.objects.create_user("user1", password="pass")
         self.user2 = User.objects.create_user("user2", password="pass")
         self.room = Room.objects.create(code="abcd", host=self.user1)
@@ -33,6 +34,110 @@ class RoomConsumerTests(TransactionTestCase):
             assert response["type"] == "state"
             assert response["lastAction"]["type"] == "play"
             await communicator.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_host_can_update_room_options(self):
+        async def inner():
+            communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            communicator.scope["user"] = self.user1
+            connected, _ = await communicator.connect()
+            assert connected
+
+            initial = await communicator.receive_json_from()
+            assert initial["type"] == "state"
+
+            await communicator.send_json_to({
+                "type": "set_options",
+                "options": {"allow_runs": "true", "bad_slap_penalty": -3},
+            })
+
+            update = await communicator.receive_json_from()
+            assert update["type"] == "state"
+            options = update["options"]
+            assert options["allow_runs"] is True
+            assert options["bad_slap_penalty"] == 0
+            engine = ENGINES[self.room.code]
+            assert engine.options["allow_runs"] is True
+            assert engine.options["bad_slap_penalty"] == 0
+
+            await communicator.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_non_host_cannot_update_room_options(self):
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            await host.receive_json_from()
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+            await guest.receive_json_from()
+            await host.receive_json_from()
+
+            await guest.send_json_to({"type": "set_options", "options": {"allow_runs": False}})
+            error = await guest.receive_json_from()
+            assert error["error"] == "not-host"
+
+            await guest.disconnect()
+            await host.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_set_options_requires_dictionary(self):
+        async def inner():
+            communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            communicator.scope["user"] = self.user1
+            connected, _ = await communicator.connect()
+            assert connected
+            await communicator.receive_json_from()
+
+            await communicator.send_json_to({"type": "set_options", "options": "oops"})
+            error = await communicator.receive_json_from()
+            assert error["error"] == "invalid-options"
+
+            await communicator.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_set_options_rejected_when_game_started(self):
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            await host.receive_json_from()
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+            await guest.receive_json_from()
+            await host.receive_json_from()
+
+            await host.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await guest.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await host.send_json_to({"type": "start"})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await host.send_json_to({"type": "set_options", "options": {"allow_runs": False}})
+            error = await host.receive_json_from()
+            assert error["error"] == "game-started"
+
+            await guest.disconnect()
+            await host.disconnect()
 
         async_to_sync(inner)()
 

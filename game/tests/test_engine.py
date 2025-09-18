@@ -175,3 +175,41 @@ class GameEngineTests(SimpleTestCase):
         serialized = engine.serialize()
         self.assertIn('penalty_count', serialized)
         self.assertEqual(serialized['penalty_count'], 2)
+
+    def test_sanitize_options_clamps_negative_penalties(self):
+        sanitized = GameEngine.sanitize_options({
+            'bad_slap_penalty': -3,
+            'bad_play_penalty': '-2',
+        })
+        self.assertEqual(sanitized['bad_slap_penalty'], 0)
+        self.assertEqual(sanitized['bad_play_penalty'], 0)
+
+    def test_sanitize_options_coerces_boolean_values(self):
+        sanitized = GameEngine.sanitize_options({
+            'allow_double': 'false',
+            'allow_runs': 'TRUE',
+        })
+        self.assertFalse(sanitized['allow_double'])
+        self.assertTrue(sanitized['allow_runs'])
+
+    def test_sanitize_options_merges_with_base(self):
+        base = {
+            'allow_double': False,
+            'bad_slap_penalty': 5,
+        }
+        overrides = {
+            'allow_runs': '1',
+            'bad_slap_penalty': 3,
+        }
+        sanitized = GameEngine.sanitize_options(overrides=overrides, base=base)
+        self.assertFalse(sanitized['allow_double'])
+        self.assertTrue(sanitized['allow_runs'])
+        self.assertEqual(sanitized['bad_slap_penalty'], 3)
+
+    def test_set_options_applies_sanitized_values(self):
+        engine = GameEngine([1, 2])
+        updated = engine.set_options({'bad_slap_penalty': -4, 'allow_ten': '0'})
+        self.assertEqual(updated['bad_slap_penalty'], 0)
+        self.assertFalse(updated['allow_ten'])
+        self.assertEqual(engine.options['bad_slap_penalty'], 0)
+        self.assertFalse(engine.options['allow_ten'])

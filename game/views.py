@@ -8,6 +8,7 @@ from django.contrib.auth.models import User
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from .models import Room, Player, GameState
+from .engine import GameEngine
 
 def _gen_code(n=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=n))
@@ -82,6 +83,8 @@ def room(request, code):
     except GameState.DoesNotExist:
         initial_state = {}
     current_turn_id = initial_state.get("turn") if isinstance(initial_state, dict) else None
+    raw_options = initial_state.get("options") if isinstance(initial_state, dict) else None
+    initial_options = GameEngine.sanitize_options(base=raw_options)
     return render(
         request,
         'game/room.html',
@@ -90,5 +93,6 @@ def room(request, code):
             "players": players,
             "is_host": is_host,
             "current_turn_id": current_turn_id,
+            "initial_options": initial_options,
         },
     )
