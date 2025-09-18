@@ -374,9 +374,20 @@
     if (!optionsSummaryElement) {
       return;
     }
-    const baseText =
-      defaultOptionsSummaryText || 'Ajustez les règles avant de lancer la partie.';
-    optionsSummaryElement.textContent = baseText;
+    const shouldDisplay = !currentGameStarted;
+    if (shouldDisplay) {
+      const baseText =
+        defaultOptionsSummaryText || 'Ajustez les règles avant de lancer la partie.';
+      optionsSummaryElement.textContent = baseText;
+      optionsSummaryElement.hidden = false;
+      optionsSummaryElement.removeAttribute('hidden');
+      optionsSummaryElement.setAttribute('aria-hidden', 'false');
+      return;
+    }
+    optionsSummaryElement.textContent = '';
+    optionsSummaryElement.hidden = true;
+    optionsSummaryElement.setAttribute('hidden', '');
+    optionsSummaryElement.setAttribute('aria-hidden', 'true');
   };
 
   const syncPenaltyCounterStates = (state, interactiveOverride) => {
@@ -504,6 +515,7 @@
         optionsTrigger.removeAttribute('title');
       }
     }
+    renderOptionsSummary();
   };
 
   const openOptionsModal = () => {
