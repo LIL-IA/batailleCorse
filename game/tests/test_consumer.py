@@ -51,9 +51,10 @@ class RoomConsumerTests(TransactionTestCase):
                 "type": "update_rules",
                 "options": {
                     "allow_runs": "true",
-                    "bad_slap_penalty": -3,
-                    "penalty_mode": "mort_subite",
+                    "bad_slap_penalty": 3,
                     "bad_play_penalty": "off",
+                    "bad_slap_sudden_death": True,
+                    "bad_play_sudden_death": True,
                     "deck_mode": "manual",
                     "deck_count": 4,
                 },
@@ -63,20 +64,18 @@ class RoomConsumerTests(TransactionTestCase):
             assert update["type"] == "state"
             options = update["options"]
             assert options["allow_runs"] is True
-            assert options["bad_slap_penalty"] == 0
+            assert options["bad_slap_penalty"] == 3
             assert options["bad_play_penalty"] == 0
             assert options["bad_slap_sudden_death"] is True
             assert options["bad_play_sudden_death"] is True
-            assert "penalty_mode" not in options
             assert options["deck_mode"] == "manual"
             assert options["deck_count"] == 3
             engine = ENGINES[self.room.code]
             assert engine.options["allow_runs"] is True
-            assert engine.options["bad_slap_penalty"] == 0
+            assert engine.options["bad_slap_penalty"] == 3
             assert engine.options["bad_play_penalty"] == 0
             assert engine.options["bad_slap_sudden_death"] is True
             assert engine.options["bad_play_sudden_death"] is True
-            assert "penalty_mode" not in engine.options
             assert engine.options["deck_mode"] == "manual"
             assert engine.options["deck_count"] == 3
 
@@ -84,13 +83,41 @@ class RoomConsumerTests(TransactionTestCase):
                 lambda: Room.objects.only("rules_options").get(pk=self.room.pk).rules_options
             )()
             assert stored_options["allow_runs"] is True
-            assert stored_options["bad_slap_penalty"] == 0
+            assert stored_options["bad_slap_penalty"] == 3
             assert stored_options["bad_play_penalty"] == 0
             assert stored_options["bad_slap_sudden_death"] is True
             assert stored_options["bad_play_sudden_death"] is True
-            assert "penalty_mode" not in stored_options
             assert stored_options["deck_mode"] == "manual"
             assert stored_options["deck_count"] == 3
+
+            await communicator.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_legacy_penalty_mode_cache_refreshes(self):
+        ROOM_OPTIONS[self.room.code] = {"penalty_mode": "sudden_death"}
+        self.room.rules_options = {"penalty_mode": "sudden_death"}
+        self.room.save(update_fields=["rules_options"])
+
+        async def inner():
+            communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            communicator.scope["user"] = self.user1
+            connected, _ = await communicator.connect()
+            assert connected
+
+            initial = await communicator.receive_json_from()
+            assert initial["type"] == "state"
+            options = initial["options"]
+            assert options["bad_slap_sudden_death"] is True
+            assert options["bad_play_sudden_death"] is True
+            cached = ROOM_OPTIONS[self.room.code]
+            assert cached["bad_slap_sudden_death"] is True
+            assert cached["bad_play_sudden_death"] is True
+            stored = await sync_to_async(
+                lambda: Room.objects.only("rules_options").get(pk=self.room.pk).rules_options
+            )()
+            assert stored["bad_slap_sudden_death"] is True
+            assert stored["bad_play_sudden_death"] is True
 
             await communicator.disconnect()
 

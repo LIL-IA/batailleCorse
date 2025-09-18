@@ -247,16 +247,27 @@ class GameEngineTests(SimpleTestCase):
     def test_sanitize_options_limits_penalty_values(self):
         sanitized = GameEngine.sanitize_options({
             'bad_slap_penalty': 8,
-            'bad_play_penalty': 4,
+            'bad_play_penalty': 3,
         })
         self.assertEqual(sanitized['bad_slap_penalty'], 5)
-        self.assertEqual(sanitized['bad_play_penalty'], 4)
+        self.assertEqual(sanitized['bad_play_penalty'], 3)
 
-    def test_sanitize_options_translates_legacy_penalty_mode(self):
-        sanitized = GameEngine.sanitize_options({'penalty_mode': 'mort subite'})
+    def test_sanitize_options_accepts_all_penalty_steps(self):
+        for value in range(6):
+            sanitized = GameEngine.sanitize_options({
+                'bad_slap_penalty': value,
+                'bad_play_penalty': value,
+            })
+            self.assertEqual(sanitized['bad_slap_penalty'], value)
+            self.assertEqual(sanitized['bad_play_penalty'], value)
+
+    def test_sanitize_options_respects_sudden_death_flags(self):
+        sanitized = GameEngine.sanitize_options({
+            'bad_slap_sudden_death': True,
+            'bad_play_sudden_death': False,
+        })
         self.assertTrue(sanitized['bad_slap_sudden_death'])
-        self.assertTrue(sanitized['bad_play_sudden_death'])
-        self.assertNotIn('penalty_mode', sanitized)
+        self.assertFalse(sanitized['bad_play_sudden_death'])
 
     def test_sanitize_options_normalizes_deck_settings(self):
         sanitized = GameEngine.sanitize_options({
@@ -315,28 +326,61 @@ class GameEngineTests(SimpleTestCase):
         self.assertEqual(result['penalized'], 0)
         self.assertEqual(engine.penalties, [])
 
-    def test_sudden_death_mode_removes_all_cards(self):
-        engine = GameEngine([1, 2], options={'penalty_mode': 'sudden_death'})
+    def test_bad_slap_sudden_death_removes_all_cards(self):
+        engine = GameEngine([1, 2], options={
+            'bad_slap_penalty': 1,
+            'bad_slap_sudden_death': True,
+        })
         engine.hands[1] = deque(['2H', '3D', '4S'])
         result = engine.slap(1)
         self.assertTrue(result['ok'])
+        self.assertFalse(result['valid'])
         self.assertEqual(result['penalized'], 3)
         self.assertEqual(list(engine.hands[1]), [])
         self.assertEqual(engine.penalties, ['2H', '3D', '4S'])
         self.assertTrue(engine.options['bad_slap_sudden_death'])
-        self.assertNotIn('penalty_mode', engine.options)
 
-    def test_out_of_turn_penalty_uses_sudden_death_mode(self):
-        engine = GameEngine([1, 2], options={'penalty_mode': 'mort-subite'})
+    def test_bad_slap_penalty_respects_count_without_sudden_death(self):
+        engine = GameEngine([1, 2], options={
+            'bad_slap_penalty': 3,
+            'bad_slap_sudden_death': False,
+        })
+        engine.hands[1] = deque(['2H', '3D', '4S', '5C'])
+        result = engine.slap(1)
+        self.assertTrue(result['ok'])
+        self.assertFalse(result['valid'])
+        self.assertEqual(result['penalized'], 3)
+        self.assertEqual(list(engine.hands[1]), ['5C'])
+        self.assertEqual(engine.penalties, ['2H', '3D', '4S'])
+
+    def test_bad_play_sudden_death_removes_all_cards(self):
+        engine = GameEngine([1, 2], options={
+            'bad_play_penalty': 1,
+            'bad_play_sudden_death': True,
+        })
         engine.hands[1] = deque(['2H', '3D'])
         engine.hands[2] = deque(['4S'])
         engine.turn_idx = 1
         result = engine.play_card(1)
+        self.assertEqual(result['error'], 'not-your-turn')
         self.assertEqual(result['penalized'], 2)
         self.assertEqual(list(engine.hands[1]), [])
         self.assertEqual(engine.penalties, ['2H', '3D'])
         self.assertTrue(engine.options['bad_play_sudden_death'])
-        self.assertNotIn('penalty_mode', engine.options)
+
+    def test_bad_play_penalty_respects_count_without_sudden_death(self):
+        engine = GameEngine([1, 2], options={
+            'bad_play_penalty': 2,
+            'bad_play_sudden_death': False,
+        })
+        engine.hands[1] = deque(['2H', '3D', '4S'])
+        engine.hands[2] = deque(['5C'])
+        engine.turn_idx = 1
+        result = engine.play_card(1)
+        self.assertEqual(result['error'], 'not-your-turn')
+        self.assertEqual(result['penalized'], 2)
+        self.assertEqual(list(engine.hands[1]), ['4S'])
+        self.assertEqual(engine.penalties, ['2H', '3D'])
 
     def test_set_options_applies_sanitized_values(self):
         engine = GameEngine([1, 2])
