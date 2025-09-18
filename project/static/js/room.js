@@ -1820,7 +1820,58 @@
       deck.classList.remove('player-deck-top', 'player-deck-left', 'player-deck-right');
       deck.style.zIndex = '9';
     } else if (totalDecks >= 2) {
-      const radiusPercent = totalDecks === 2 ? 36 : 44;
+      const containerRect = decksContainer.getBoundingClientRect();
+      const sampleDeckRect =
+        deckElements.length > 0 &&
+        typeof deckElements[0].getBoundingClientRect === 'function'
+          ? deckElements[0].getBoundingClientRect()
+          : null;
+      const centerPile = document.getElementById('center-pile');
+      const penaltyPile = document.getElementById('penalty-pile');
+      const centerRect = centerPile ? centerPile.getBoundingClientRect() : null;
+      const penaltyRect = penaltyPile
+        ? penaltyPile.getBoundingClientRect()
+        : null;
+
+      const computeSpacingPercent = (targetRect, axis) => {
+        if (!targetRect || !sampleDeckRect) {
+          return 0;
+        }
+        const containerSize =
+          axis === 'x' ? containerRect.width : containerRect.height;
+        if (!containerSize) {
+          return 0;
+        }
+        const deckSize =
+          axis === 'x' ? sampleDeckRect.width : sampleDeckRect.height;
+        const targetSize =
+          axis === 'x' ? targetRect.width : targetRect.height;
+        if (!deckSize) {
+          return 0;
+        }
+        const safetyMargin = axis === 'x' ? 36 : 30;
+        const spacing = (deckSize + targetSize) / 2 + safetyMargin;
+        return (spacing / containerSize) * 100;
+      };
+
+      const spacingCandidates = [
+        computeSpacingPercent(centerRect, 'x'),
+        computeSpacingPercent(centerRect, 'y'),
+        computeSpacingPercent(penaltyRect, 'x'),
+        computeSpacingPercent(penaltyRect, 'y')
+      ].filter((value) => Number.isFinite(value) && value > 0);
+
+      const computedSpacing = spacingCandidates.length
+        ? Math.max(...spacingCandidates)
+        : 0;
+      const minRadiusByCount =
+        totalDecks === 2 ? 42 : totalDecks === 3 ? 47 : 48;
+      const dynamicBoost = Math.min(8, Math.max(0, totalDecks - 2) * 2);
+      const radiusPercent = Math.min(
+        48,
+        Math.max(minRadiusByCount, computedSpacing + dynamicBoost)
+      );
+
       deckElements.forEach((deck, idx) => {
         const angle = (idx / totalDecks) * Math.PI * 2 - Math.PI / 2;
         const x = 50 + radiusPercent * Math.cos(angle);
