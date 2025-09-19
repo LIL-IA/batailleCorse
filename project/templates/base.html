@@ -168,8 +168,8 @@
         const { dataset } = easterEggToggle;
         const states = [0, 1, 2]
           .map((index) => ({
-            src: dataset[`image${index}`],
-            label: dataset[`label${index}`]
+            src: dataset[`image-${index}`],
+            label: dataset[`label-${index}`]
           }))
           .filter((state) => state.src && state.label);
 
