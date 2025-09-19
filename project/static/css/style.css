@@ -150,14 +150,16 @@ button:disabled,
   width: min(100%, 820px);
   margin: clamp(1.25rem, 4vw, 2.25rem) auto clamp(1.5rem, 5vw, 2.5rem);
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 0.75rem;
+  gap: clamp(0.75rem, 2.5vw, 1.15rem);
   text-align: center;
 }
 
 .table-bottom-actions__error {
   width: 100%;
+  flex: 1 0 100%;
   color: #b91c1c;
   font-weight: 600;
 }
@@ -169,6 +171,7 @@ button:disabled,
 .table-bottom-actions .play-action-container {
   margin-bottom: 0;
   align-items: center;
+  gap: 0.75rem;
 }
 
 .action-btn.collect-highlight {
