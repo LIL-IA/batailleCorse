@@ -2007,7 +2007,7 @@
 
     const hasCenterPileCards = !justCollected && centerCount > 0;
     const stateAllowsSlap =
-      Boolean(state) && !hasWinner && !pendingCollect && hasCenterPileCards;
+      Boolean(state) && !hasWinner && hasCenterPileCards;
     centerPileActionAvailableFromState = stateAllowsSlap;
     updateCenterPileActionMarker(centerPileEl);
 
