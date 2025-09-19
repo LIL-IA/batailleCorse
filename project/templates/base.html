@@ -16,6 +16,8 @@
     data-image-0="{% static 'img/easter-eggs/sound-off.svg' %}"
     data-image-1="{% static 'img/easter-eggs/sciel-expedition33.png' %}"
     data-image-2="{% static 'img/easter-eggs/gims-ciel.png' %}"
+    data-audio-1="{% static 'audio/clair-obscur.mp3' %}"
+    data-audio-2="{% static 'audio/ciel-maitre-gims.mp3' %}"
     data-label-0="Son coupé"
     data-label-1="Icône Sciel (Clair Obscur Expedition 33)"
     data-label-2="Icône Ciel (Maître Gims)"
@@ -161,6 +163,8 @@
       }
 
       const easterEggToggle = document.getElementById('easter-egg-toggle');
+      const audioPlayer = new Audio();
+      audioPlayer.loop = true;
 
       if (easterEggToggle) {
         const imageElement = easterEggToggle.querySelector('img');
@@ -169,12 +173,14 @@
         const states = [0, 1, 2]
           .map((index) => ({
             src: dataset[`image-${index}`],
-            label: dataset[`label-${index}`]
+            label: dataset[`label-${index}`],
+            audio: dataset[`audio-${index}`] || null
           }))
           .filter((state) => state.src && state.label);
 
         if (states.length > 0) {
           let currentIndex = parseInt(dataset.state || '0', 10);
+          let currentAudioSrc = null;
 
           if (Number.isNaN(currentIndex) || currentIndex < 0 || currentIndex >= states.length) {
             currentIndex = 0;
@@ -197,6 +203,22 @@
 
             easterEggToggle.setAttribute('aria-label', state.label);
             easterEggToggle.dataset.state = String(currentIndex);
+            
+            if (state.audio) {
+              if (state.audio !== currentAudioSrc) {
+                audioPlayer.pause();
+                audioPlayer.src = state.audio;
+                audioPlayer.load();
+                currentAudioSrc = state.audio;
+              }
+
+              audioPlayer.play().catch(() => {});
+            } else {
+              audioPlayer.pause();
+              audioPlayer.removeAttribute('src');
+              audioPlayer.load();
+              currentAudioSrc = null;
+            }
           };
 
           applyState();
