@@ -8,6 +8,21 @@
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
+  <button
+    id="easter-egg-toggle"
+    class="easter-egg-toggle"
+    type="button"
+    data-state="0"
+    data-image-0="{% static 'img/easter-eggs/sound-off.svg' %}"
+    data-image-1="{% static 'img/easter-eggs/sciel-expedition33.png' %}"
+    data-image-2="{% static 'img/easter-eggs/gims-ciel.png' %}"
+    data-label-0="Son coupé"
+    data-label-1="Icône Sciel (Clair Obscur Expedition 33)"
+    data-label-2="Icône Ciel (Maître Gims)"
+  >
+    <img src="{% static 'img/easter-eggs/sound-off.svg' %}" alt="" aria-hidden="true" />
+    <span class="visually-hidden" data-easter-egg-label>Son coupé</span>
+  </button>
   <main>
     {% if messages %}
       <div class="messages">
@@ -54,97 +69,144 @@
       const overlay = document.getElementById('how-to-play-overlay');
       const dialog = overlay ? overlay.querySelector('.how-to-play-dialog') : null;
       const closeButton = document.getElementById('how-to-play-close');
-      let previousFocus = null;
-      let focusableElements = [];
 
-      if (!trigger || !overlay || !dialog || !closeButton) {
-        return;
-      }
+      if (trigger && overlay && dialog && closeButton) {
+        let previousFocus = null;
+        let focusableElements = [];
 
       const focusableSelector = [
-        'a[href]',
-        'button:not([disabled])',
-        'textarea:not([disabled])',
-        'input:not([disabled])',
-        'select:not([disabled])',
-        '[tabindex]:not([tabindex="-1"])'
-      ].join(',');
+          'a[href]',
+          'button:not([disabled])',
+          'textarea:not([disabled])',
+          'input:not([disabled])',
+          'select:not([disabled])',
+          '[tabindex]:not([tabindex="-1"])'
+        ].join(',');
 
       const updateFocusableElements = () => {
-        focusableElements = Array.from(overlay.querySelectorAll(focusableSelector));
-      };
+          focusableElements = Array.from(overlay.querySelectorAll(focusableSelector));
+        };
 
       const showOverlay = () => {
-        if (overlay.classList.contains('is-visible')) {
-          return;
-        }
-        previousFocus = document.activeElement;
-        overlay.classList.add('is-visible');
-        overlay.setAttribute('aria-hidden', 'false');
-        trigger.setAttribute('aria-expanded', 'true');
-        document.body.style.setProperty('overflow', 'hidden');
-        updateFocusableElements();
-        requestAnimationFrame(() => {
-          dialog.focus({ preventScroll: true });
-        });
-        document.addEventListener('keydown', handleKeyDown);
-      };
+          if (overlay.classList.contains('is-visible')) {
+            return;
+          }
+          previousFocus = document.activeElement;
+          overlay.classList.add('is-visible');
+          overlay.setAttribute('aria-hidden', 'false');
+          trigger.setAttribute('aria-expanded', 'true');
+          document.body.style.setProperty('overflow', 'hidden');
+          updateFocusableElements();
+          requestAnimationFrame(() => {
+            dialog.focus({ preventScroll: true });
+          });
+          document.addEventListener('keydown', handleKeyDown);
+        };
 
       const hideOverlay = () => {
-        if (!overlay.classList.contains('is-visible')) {
-          return;
-        }
-        overlay.classList.remove('is-visible');
-        overlay.setAttribute('aria-hidden', 'true');
-        trigger.setAttribute('aria-expanded', 'false');
-        document.body.style.removeProperty('overflow');
-        document.removeEventListener('keydown', handleKeyDown);
-        focusableElements = [];
-        if (previousFocus && typeof previousFocus.focus === 'function') {
-          previousFocus.focus();
-        } else {
-          trigger.focus();
-        }
-      };
-
-      const handleOverlayClick = (event) => {
-        if (event.target === overlay) {
-          hideOverlay();
-        }
-      };
-
-      const handleKeyDown = (event) => {
-        if (event.key === 'Escape' || event.key === 'Esc') {
-          event.preventDefault();
-          hideOverlay();
-          return;
-        }
-
-        if (event.key === 'Tab' && focusableElements.length > 0 && overlay.classList.contains('is-visible')) {
-          const firstFocusable = focusableElements[0];
-          const lastFocusable = focusableElements[focusableElements.length - 1];
-          const isShiftPressed = event.shiftKey;
-          const activeElement = document.activeElement;
-
-          if (!isShiftPressed && activeElement === lastFocusable) {
-            event.preventDefault();
-            firstFocusable.focus();
-          } else if (isShiftPressed && activeElement === firstFocusable) {
-            event.preventDefault();
-            lastFocusable.focus();
+          if (!overlay.classList.contains('is-visible')) {
+            return;
           }
+          overlay.classList.remove('is-visible');
+          overlay.setAttribute('aria-hidden', 'true');
+          trigger.setAttribute('aria-expanded', 'false');
+          document.body.style.removeProperty('overflow');
+          document.removeEventListener('keydown', handleKeyDown);
+          focusableElements = [];
+          if (previousFocus && typeof previousFocus.focus === 'function') {
+            previousFocus.focus();
+          } else {
+            trigger.focus();
+          }
+        };
+
+        const handleOverlayClick = (event) => {
+          if (event.target === overlay) {
+            hideOverlay();
+          }
+        };
+
+        const handleKeyDown = (event) => {
+          if (event.key === 'Escape' || event.key === 'Esc') {
+            event.preventDefault();
+            hideOverlay();
+            return;
+          }
+
+          if (event.key === 'Tab' && focusableElements.length > 0 && overlay.classList.contains('is-visible')) {
+            const firstFocusable = focusableElements[0];
+            const lastFocusable = focusableElements[focusableElements.length - 1];
+            const isShiftPressed = event.shiftKey;
+            const activeElement = document.activeElement;
+
+            if (!isShiftPressed && activeElement === lastFocusable) {
+              event.preventDefault();
+              firstFocusable.focus();
+            } else if (isShiftPressed && activeElement === firstFocusable) {
+              event.preventDefault();
+              lastFocusable.focus();
+            }
+          }
+        };
+
+        trigger.addEventListener('click', () => {
+          showOverlay();
+        });
+
+        closeButton.addEventListener('click', () => {
+          hideOverlay();
+        });
+
+        overlay.addEventListener('click', handleOverlayClick);
+      }
+
+      const easterEggToggle = document.getElementById('easter-egg-toggle');
+
+      if (easterEggToggle) {
+        const imageElement = easterEggToggle.querySelector('img');
+        const labelElement = easterEggToggle.querySelector('[data-easter-egg-label]');
+        const { dataset } = easterEggToggle;
+        const states = [0, 1, 2]
+          .map((index) => ({
+            src: dataset[`image${index}`],
+            label: dataset[`label${index}`]
+          }))
+          .filter((state) => state.src && state.label);
+
+        if (states.length > 0) {
+          let currentIndex = parseInt(dataset.state || '0', 10);
+
+          if (Number.isNaN(currentIndex) || currentIndex < 0 || currentIndex >= states.length) {
+            currentIndex = 0;
+          }
+
+          const applyState = () => {
+            const state = states[currentIndex];
+
+            if (!state) {
+              return;
+            }
+
+            if (imageElement) {
+              imageElement.setAttribute('src', state.src);
+            }
+
+            if (labelElement) {
+              labelElement.textContent = state.label;
+            }
+
+            easterEggToggle.setAttribute('aria-label', state.label);
+            easterEggToggle.dataset.state = String(currentIndex);
+          };
+
+          applyState();
+
+          easterEggToggle.addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % states.length;
+            applyState();
+          });
         }
-      };
-
-      trigger.addEventListener('click', () => {
-        showOverlay();
-      });
-
-      closeButton.addEventListener('click', () => {
-        hideOverlay();
-      });
-
-      overlay.addEventListener('click', handleOverlayClick);
+      }
     })();
   </script>
 </body>
