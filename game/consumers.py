@@ -82,6 +82,10 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                         return
 
                 res = engine.play_card(user_id)
+                if res.get("ok") and "card" in res:
+                    ctx = await self._ensure_slap_ctx()
+                    async with ctx["lock"]:
+                        ctx["last_card_ns"] = time.time_ns()
                 last_action = {
                     "type": "play",
                     "res": res,
@@ -109,12 +113,19 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
                 ctx = await self._ensure_slap_ctx()
                 async with ctx["lock"]:
+                    baseline_ns = ctx.get("last_card_ns")
+                    reaction_ns = None
+                    if isinstance(baseline_ns, int):
+                        reaction_ns = ts - baseline_ns
+                        if reaction_ns < 0:
+                            reaction_ns = 0
+                    candidate = {"ts": ts, "user_id": user_id, "reaction_ns": reaction_ns}
                     if not ctx["open"]:
                         ctx["open"] = True
-                        ctx["candidates"] = [(ts, user_id)]
+                        ctx["candidates"] = [candidate]
                         ctx["task"] = asyncio.create_task(self._resolve_slap_after_delay())
                     else:
-                        ctx["candidates"].append((ts, user_id))
+                        ctx["candidates"].append(candidate)
 
                 await self._broadcast_state(extra={
                     "lastAction": {"type": "slap_pending"},
@@ -224,9 +235,11 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         engine = ENGINES.get(self.room_code)
         ctx = SLAP_CTX[self.room_code]
         async with ctx["lock"]:
-            candidates = ctx.get("candidates", [])
+            candidates = list(ctx.get("candidates", []))
+            baseline_ns = ctx.get("last_card_ns")
             ctx["open"] = False
             ctx["task"] = None
+            ctx["candidates"] = []
 
         if not candidates:
             await self._broadcast_state(extra={"lastAction": {"type": "slap_none"}})
@@ -237,18 +250,69 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         # by user ID while keeping the earliest timestamp for each player so the
         # leaderboard reflects each participant only once.
         dedup = {}
-        for ts, uid in candidates:
-            if uid not in dedup or ts < dedup[uid]:
-                dedup[uid] = ts
-        deduped = sorted(((ts, uid) for uid, ts in dedup.items()), key=lambda x: (x[0], x[1]))
-        winner_ts, winner_id = deduped[0]
+        for candidate in candidates:
+            if isinstance(candidate, dict):
+                ts = candidate.get("ts")
+                uid = candidate.get("user_id")
+                reaction_ns = candidate.get("reaction_ns")
+            else:
+                try:
+                    ts, uid = candidate
+                except (TypeError, ValueError):
+                    continue
+                reaction_ns = None
+            if ts is None or uid is None:
+                continue
+            try:
+                ts_int = int(ts)
+            except (TypeError, ValueError):
+                continue
+            existing = dedup.get(uid)
+            if existing is None or ts_int < existing["ts"]:
+                dedup[uid] = {"ts": ts_int, "reaction_ns": reaction_ns}
+
+        if not dedup:
+            await self._broadcast_state(extra={"lastAction": {"type": "slap_none"}})
+            return
+
+        deduped_entries = [
+            (data["ts"], uid, data.get("reaction_ns")) for uid, data in dedup.items()
+        ]
+        deduped_entries.sort(key=lambda item: (item[0], item[1]))
+        winner_ts, winner_id, winner_reaction_ns = deduped_entries[0]
+
+        def normalized_reaction(ts_value, reaction_value):
+            if reaction_value is None and isinstance(baseline_ns, int):
+                reaction_value = ts_value - baseline_ns
+            if reaction_value is None:
+                return None
+            try:
+                reaction_int = int(reaction_value)
+            except (TypeError, ValueError):
+                return None
+            if reaction_int < 0:
+                reaction_int = 0
+            return reaction_int
+
         engine.resolve_slap(winner_id)
-        pretty = [{"userId": uid, "t_ns": ts} for ts, uid in deduped]
+        pretty = []
+        for ts, uid, reaction_ns in deduped_entries:
+            entry = {"userId": uid, "t_ns": ts}
+            normalized = normalized_reaction(ts, reaction_ns)
+            if normalized is not None:
+                entry["reaction_ns"] = normalized
+            pretty.append(entry)
+
+        winner_reaction = normalized_reaction(winner_ts, winner_reaction_ns)
         last_action = {
             "type": "slap_resolved",
             "winner": {"userId": winner_id, "t_ns": winner_ts},
             "candidates": pretty,
         }
+        if winner_reaction is not None:
+            last_action["winner"]["reaction_ns"] = winner_reaction
+        if isinstance(baseline_ns, int):
+            last_action["baselineNs"] = baseline_ns
         game_winner = engine.winner
         extra = {"lastAction": last_action}
         if game_winner is not None:
@@ -257,9 +321,19 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         await self._broadcast_state(extra=extra)
 
     async def _ensure_slap_ctx(self):
-        if self.room_code not in SLAP_CTX:
-            SLAP_CTX[self.room_code] = {"open": False, "candidates": [], "task": None, "lock": asyncio.Lock()}
-        return SLAP_CTX[self.room_code]
+        ctx = SLAP_CTX.get(self.room_code)
+        if ctx is None:
+            ctx = {
+                "open": False,
+                "candidates": [],
+                "task": None,
+                "lock": asyncio.Lock(),
+                "last_card_ns": None,
+            }
+            SLAP_CTX[self.room_code] = ctx
+        else:
+            ctx.setdefault("last_card_ns", None)
+        return ctx
 
     async def _get_options(self):
         cached = ROOM_OPTIONS.get(self.room_code)

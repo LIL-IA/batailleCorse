@@ -878,6 +878,24 @@
     return null;
   };
 
+  const parseNsValue = (rawValue) => {
+    if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+      return rawValue;
+    }
+    if (typeof rawValue === 'string') {
+      const parsed = Number.parseInt(rawValue, 10);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return null;
+  };
+
+  const formatNsKey = (rawValue) => {
+    const parsed = parseNsValue(rawValue);
+    return Number.isFinite(parsed) ? String(parsed) : '';
+  };
+
   const slapOverlayManager = (() => {
     let overlayEl = null;
     let hideTimerId = null;
@@ -984,9 +1002,13 @@
 
       const winner = action && action.winner ? action.winner : null;
       const winnerId = winner ? parseId(winner.userId) : null;
-      const winnerTsRaw = winner && winner.t_ns !== undefined ? winner.t_ns : null;
-      const winnerTs =
-        typeof winnerTsRaw === 'number' ? winnerTsRaw : Number.parseInt(winnerTsRaw, 10);
+      const winnerTs = parseNsValue(winner && winner.t_ns !== undefined ? winner.t_ns : null);
+      const winnerReaction = parseNsValue(
+        winner && winner.reaction_ns !== undefined ? winner.reaction_ns : null
+      );
+      const baselineNs = parseNsValue(
+        action && action.baselineNs !== undefined ? action.baselineNs : null
+      );
       const winnerName =
         (winnerId !== null && playersById.get(winnerId)) ||
         (winnerId !== null ? `Joueur ${winnerId}` : 'Gagnant');
@@ -996,9 +1018,14 @@
       const winnerStrong = document.createElement('strong');
       winnerStrong.textContent = winnerName;
       winnerLine.appendChild(winnerStrong);
-      if (Number.isFinite(winnerTs)) {
+      const winnerReactionNs = Number.isFinite(winnerReaction)
+        ? winnerReaction
+        : Number.isFinite(winnerTs) && Number.isFinite(baselineNs)
+        ? Math.max(0, winnerTs - baselineNs)
+        : null;
+      if (Number.isFinite(winnerReactionNs)) {
         const winnerTimeSpan = document.createElement('span');
-        winnerTimeSpan.textContent = ` (${(0).toFixed(2)} ms)`;
+        winnerTimeSpan.textContent = ` (${(winnerReactionNs / 1e6).toFixed(2)} ms)`;
         winnerLine.appendChild(winnerTimeSpan);
       }
       content.appendChild(winnerLine);
@@ -1012,25 +1039,25 @@
 
         const list = document.createElement('ol');
         list.className = 'slap-overlay-candidates';
-        const baseTs = Number.isFinite(winnerTs)
-          ? winnerTs
-          : (() => {
-              const first = candidates[0] && candidates[0].t_ns;
-              const parsed = typeof first === 'number' ? first : Number.parseInt(first, 10);
-              return Number.isFinite(parsed) ? parsed : null;
-            })();
         candidates.forEach((candidate) => {
           const li = document.createElement('li');
           const cid = candidate ? parseId(candidate.userId) : null;
           const candidateName =
             (cid !== null && playersById.get(cid)) ||
             (cid !== null ? `Joueur ${cid}` : 'Inconnu');
-          const tsRaw = candidate && candidate.t_ns !== undefined ? candidate.t_ns : null;
-          const ts = typeof tsRaw === 'number' ? tsRaw : Number.parseInt(tsRaw, 10);
+          const ts = parseNsValue(
+            candidate && candidate.t_ns !== undefined ? candidate.t_ns : null
+          );
+          const reactionNs = parseNsValue(
+            candidate && candidate.reaction_ns !== undefined ? candidate.reaction_ns : null
+          );
           let text = candidateName;
-          if (Number.isFinite(ts) && Number.isFinite(baseTs)) {
-            const deltaMs = (ts - baseTs) / 1e6;
-            text += ` - ${deltaMs.toFixed(2)} ms`;
+          let displayReaction = Number.isFinite(reactionNs) ? reactionNs : null;
+          if (displayReaction === null && Number.isFinite(ts) && Number.isFinite(baselineNs)) {
+            displayReaction = Math.max(0, ts - baselineNs);
+          }
+          if (Number.isFinite(displayReaction)) {
+            text += ` - ${(displayReaction / 1e6).toFixed(2)} ms`;
           }
           li.textContent = text;
           if (cid !== null && winnerId !== null && cid === winnerId) {
@@ -1218,15 +1245,30 @@
     const type = lastAction.type;
     if (type === 'slap_resolved') {
       const winnerId = parseId(lastAction.winner && lastAction.winner.userId);
-      const winnerTs =
-        lastAction.winner && lastAction.winner.t_ns !== undefined ? lastAction.winner.t_ns : '';
+      const winnerReactionKey = (() => {
+        if (lastAction.winner && lastAction.winner.reaction_ns !== undefined) {
+          return formatNsKey(lastAction.winner.reaction_ns);
+        }
+        if (lastAction.winner && lastAction.winner.t_ns !== undefined) {
+          return formatNsKey(lastAction.winner.t_ns);
+        }
+        return '';
+      })();
+      const baselineKey = formatNsKey(lastAction.baselineNs);
       const candidates = Array.isArray(lastAction.candidates)
         ? lastAction.candidates.map((candidate) => {
             const cid = candidate ? parseId(candidate.userId) : null;
-            return cid !== null ? cid : '';
+            const reactionPart = candidate
+              ? candidate.reaction_ns !== undefined
+                ? formatNsKey(candidate.reaction_ns)
+                : candidate.t_ns !== undefined
+                ? formatNsKey(candidate.t_ns)
+                : ''
+              : '';
+            return `${cid !== null ? cid : ''}:${reactionPart}`;
           })
         : [];
-      return `${type}:${winnerId !== null ? winnerId : ''}:${winnerTs}:${candidates.join(',')}`;
+      return `${type}:${winnerId !== null ? winnerId : ''}:${winnerReactionKey}:${baselineKey}:${candidates.join(',')}`;
     }
     if (type === 'slap_invalid') {
       const actorId = parseId(lastAction.userId);

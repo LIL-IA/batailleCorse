@@ -39,6 +39,20 @@ class RoomConsumerTests(TransactionTestCase):
         Player.objects.create(room=self.room, user=self.user1, seat=0)
         Player.objects.create(room=self.room, user=self.user2, seat=1)
 
+    async def _wait_for_last_action_message(self, communicator, expected_type, timeout=1.0):
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        while True:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise AssertionError(f"Timeout waiting for last action {expected_type}")
+            message = await asyncio.wait_for(communicator.receive_json_from(), remaining)
+            if message.get("type") != "state":
+                continue
+            last_action = message.get("lastAction")
+            if last_action and last_action.get("type") == expected_type:
+                return message
+
     def test_play_flow(self):
         async def inner():
             communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
@@ -52,6 +66,107 @@ class RoomConsumerTests(TransactionTestCase):
             assert response["type"] == "state"
             assert response["lastAction"]["type"] == "play"
             await communicator.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_play_updates_last_card_timestamp(self):
+        async def inner():
+            communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            communicator.scope["user"] = self.user1
+            connected, _ = await communicator.connect()
+            assert connected
+            initial = await communicator.receive_json_from()
+            assert initial["type"] == "state"
+            ctx = SLAP_CTX[self.room.code]
+            assert ctx.get("last_card_ns") is None
+
+            engine = ENGINES[self.room.code]
+            engine.center.clear()
+            engine.pending_collect = False
+            engine.collect_winner = None
+            engine.hands[self.user1.id].clear()
+            engine.hands[self.user1.id].appendleft("AH")
+            engine.turn_idx = engine.players.index(self.user1.id)
+
+            play_ns = 123456789
+            with patch("game.consumers.time.time_ns", return_value=play_ns):
+                await communicator.send_json_to({"type": "play"})
+                state = await self._wait_for_last_action_message(communicator, "play")
+            assert state["lastAction"]["type"] == "play"
+            ctx = SLAP_CTX[self.room.code]
+            assert ctx["last_card_ns"] == play_ns, ctx["last_card_ns"]
+
+            await communicator.disconnect()
+
+        async_to_sync(inner)()
+
+    def test_slap_reaction_times_emitted(self):
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            await host.receive_json_from()
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+            await guest.receive_json_from()
+
+            engine = ENGINES[self.room.code]
+            engine.center.clear()
+            engine.pending_collect = False
+            engine.collect_winner = None
+            engine.hands[self.user1.id].clear()
+            engine.hands[self.user1.id].appendleft("AH")
+            engine.turn_idx = engine.players.index(self.user1.id)
+
+            try:
+                play_ns = 1_000_000_000
+                with patch("game.consumers.time.time_ns", return_value=play_ns):
+                    await host.send_json_to({"type": "play"})
+                    await self._wait_for_last_action_message(host, "play")
+                    await self._wait_for_last_action_message(guest, "play")
+
+                engine = ENGINES[self.room.code]
+                engine.center = ["AH", "AS"]
+                assert engine.is_slap_valid()
+
+                host_slap_ns = play_ns + 1_500_000
+                guest_slap_ns = play_ns + 3_000_000
+                slap_values = [host_slap_ns, guest_slap_ns]
+
+                def slap_side_effect():
+                    if slap_values:
+                        return slap_values.pop(0)
+                    return guest_slap_ns
+
+                with patch("game.consumers.time.time_ns", side_effect=slap_side_effect):
+                    with patch("game.consumers.GRACE_MS", 5):
+                        await host.send_json_to({"type": "slap"})
+                        await guest.send_json_to({"type": "slap"})
+                        resolved = await self._wait_for_last_action_message(host, "slap_resolved", timeout=2.0)
+                        await self._wait_for_last_action_message(guest, "slap_resolved", timeout=2.0)
+
+                last_action = resolved["lastAction"]
+                assert last_action["type"] == "slap_resolved"
+                baseline = last_action.get("baselineNs")
+                assert baseline is not None
+                assert int(baseline) == play_ns
+                winner = last_action["winner"]
+                assert int(winner["userId"]) == self.user1.id
+                expected_host_reaction = host_slap_ns - play_ns
+                assert int(winner["reaction_ns"]) == expected_host_reaction
+                candidates = last_action["candidates"]
+                assert isinstance(candidates, list)
+                assert len(candidates) == 2
+                candidate_map = {int(entry["userId"]): entry for entry in candidates}
+                assert int(candidate_map[self.user1.id]["reaction_ns"]) == expected_host_reaction
+                assert int(candidate_map[self.user2.id]["reaction_ns"]) == guest_slap_ns - play_ns
+            finally:
+                await host.disconnect()
+                await guest.disconnect()
 
         async_to_sync(inner)()
 
