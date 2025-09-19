@@ -1809,6 +1809,13 @@
       });
     }
 
+    const currentUserDeckIndex =
+      currentUserKey !== null
+        ? deckElements.findIndex(
+            (deck) => deck.dataset.userId === currentUserKey
+          )
+        : -1;
+
     const totalDecks = deckElements.length;
     decksContainer.dataset.playerCount = String(totalDecks);
 
@@ -1872,8 +1879,14 @@
         Math.max(minRadiusByCount, computedSpacing + dynamicBoost)
       );
 
+      const hasCurrentUserDeck = currentUserDeckIndex >= 0;
+      const angleOffset = hasCurrentUserDeck ? Math.PI / 2 : -Math.PI / 2;
+
       deckElements.forEach((deck, idx) => {
-        const angle = (idx / totalDecks) * Math.PI * 2 - Math.PI / 2;
+        const relativeIndex = hasCurrentUserDeck
+          ? (idx - currentUserDeckIndex + totalDecks) % totalDecks
+          : idx;
+        const angle = (relativeIndex / totalDecks) * Math.PI * 2 + angleOffset;
         const x = 50 + radiusPercent * Math.cos(angle);
         const y = 50 + radiusPercent * Math.sin(angle);
         deck.style.left = `${x}%`;
