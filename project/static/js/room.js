@@ -1872,10 +1872,10 @@
         ? Math.max(...spacingCandidates)
         : 0;
       const minRadiusByCount =
-        totalDecks === 2 ? 42 : totalDecks === 3 ? 47 : 48;
+        totalDecks === 2 ? 44 : totalDecks === 3 ? 49 : 52;
       const dynamicBoost = Math.min(8, Math.max(0, totalDecks - 2) * 2);
       const radiusPercent = Math.min(
-        48,
+        55,
         Math.max(minRadiusByCount, computedSpacing + dynamicBoost)
       );
 
