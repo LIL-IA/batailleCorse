@@ -1,10 +1,21 @@
+import asyncio
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
 from django.test import TransactionTestCase, override_settings
 from channels.testing import WebsocketCommunicator
 from asgiref.sync import async_to_sync, sync_to_async
 
 from game.models import Room, Player
-from game.consumers import ENGINES, SLAP_CTX, ROOM_OPTIONS
+from game.consumers import (
+    CONNECTION_COUNTS,
+    ENGINES,
+    PENDING_FINAL_DISCONNECTS,
+    READY,
+    ROOM_CONNECTION_COUNTS,
+    ROOM_OPTIONS,
+    SLAP_CTX,
+)
 from game.engine import GameEngine
 from project.asgi import application
 
@@ -15,6 +26,13 @@ class RoomConsumerTests(TransactionTestCase):
         ENGINES.clear()
         SLAP_CTX.clear()
         ROOM_OPTIONS.clear()
+        READY.clear()
+        CONNECTION_COUNTS.clear()
+        ROOM_CONNECTION_COUNTS.clear()
+        PENDING_FINAL_DISCONNECTS.clear()
+        delay_patcher = patch("game.consumers.FINAL_DISCONNECT_DELAY_SECONDS", 0.01)
+        self.addCleanup(delay_patcher.stop)
+        delay_patcher.start()
         self.user1 = User.objects.create_user("user1", password="pass")
         self.user2 = User.objects.create_user("user2", password="pass")
         self.room = Room.objects.create(code="abcd", host=self.user1)
@@ -220,6 +238,7 @@ class RoomConsumerTests(TransactionTestCase):
             await communicator.receive_json_from()
             await other.receive_json_from()
             await other.disconnect()
+            await asyncio.sleep(0.05)
             started_db = await sync_to_async(lambda: Room.objects.get(pk=self.room.pk).is_started)()
             assert started_db is False
             await communicator.disconnect()
@@ -493,6 +512,7 @@ class RoomConsumerTests(TransactionTestCase):
             await comm2.receive_json_from()
 
             await comm1.disconnect()
+            await asyncio.sleep(0.05)
             started_db = await sync_to_async(lambda: Room.objects.get(pk=self.room.pk).is_started)()
             assert started_db is False
             ready_count = await sync_to_async(lambda: Player.objects.filter(room=self.room, is_ready=True).count())()
@@ -529,6 +549,71 @@ class RoomConsumerTests(TransactionTestCase):
 
         async_to_sync(inner)()
 
+    def test_quick_refresh_does_not_remove_player(self):
+        async def inner():
+            with patch("game.consumers.FINAL_DISCONNECT_DELAY_SECONDS", 0.05):
+                communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+                communicator.scope["user"] = self.user1
+                connected, _ = await communicator.connect()
+                assert connected
+                await communicator.receive_json_from()
+
+                await communicator.disconnect()
+                await asyncio.sleep(0.01)
+
+                refreshed = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+                refreshed.scope["user"] = self.user1
+                connected, _ = await refreshed.connect()
+                assert connected
+                await refreshed.receive_json_from()
+
+                await asyncio.sleep(0.1)
+
+                still_exists = await sync_to_async(
+                    lambda: Player.objects.filter(room=self.room, user=self.user1).exists()
+                )()
+                assert still_exists is True
+                assert (self.room.code, self.user1.id) not in PENDING_FINAL_DISCONNECTS
+
+                await refreshed.disconnect()
+                await asyncio.sleep(0.1)
+
+        async_to_sync(inner)()
+
+    def test_final_disconnect_cleanup_runs_after_delay(self):
+        async def inner():
+            with patch("game.consumers.FINAL_DISCONNECT_DELAY_SECONDS", 0.05):
+                communicator = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+                communicator.scope["user"] = self.user1
+                connected, _ = await communicator.connect()
+                assert connected
+                await communicator.receive_json_from()
+
+                await communicator.disconnect()
+                await asyncio.sleep(0.1)
+
+                exists = await sync_to_async(
+                    lambda: Player.objects.filter(room=self.room, user=self.user1).exists()
+                )()
+                assert exists is False
+                assert (self.room.code, self.user1.id) not in PENDING_FINAL_DISCONNECTS
+
+                room_exists = await sync_to_async(
+                    lambda: Room.objects.filter(pk=self.room.pk).exists()
+                )()
+                assert room_exists is True
+                new_host = await sync_to_async(
+                    lambda: Room.objects.get(pk=self.room.pk).host_id
+                )()
+                assert new_host == self.user2.id
+                assert self.room.code not in ENGINES
+                assert self.room.code not in SLAP_CTX
+                assert self.room.code not in ROOM_OPTIONS
+                assert self.room.code not in READY
+                assert self.room.code not in ROOM_CONNECTION_COUNTS
+
+        async_to_sync(inner)()
+
     def test_room_deleted_when_last_player_leaves(self):
         async def inner():
             host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
@@ -550,6 +635,7 @@ class RoomConsumerTests(TransactionTestCase):
             assert state_after_host_disconnect["type"] == "state"
 
             await guest.disconnect()
+            await asyncio.sleep(0.05)
 
             exists = await sync_to_async(lambda: Room.objects.filter(pk=self.room.pk).exists())()
             assert exists is False

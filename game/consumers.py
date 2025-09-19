@@ -16,6 +16,9 @@ READY = {}
 ROOM_OPTIONS = {}
 CONNECTION_COUNTS = defaultdict(int)
 ROOM_CONNECTION_COUNTS = defaultdict(int)
+PENDING_FINAL_DISCONNECTS = {}
+# Delay before performing the final disconnect cleanup to allow quick refreshes
+FINAL_DISCONNECT_DELAY_SECONDS = 2
 # Delay in milliseconds to collect all slap candidates before resolving
 GRACE_MS = 1000
 SUDDEN_DEATH_KEYS = set(PENALTY_SUDDEN_DEATH_MAP.values())
@@ -29,10 +32,11 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             if isinstance(user, AnonymousUser) or not user.is_authenticated:
                 await self.close()
                 return
-            await self.channel_layer.group_add(self.group, self.channel_name)
-            await self.accept()
             self.user_id = user.id
             self._connection_key = (self.room_code, self.user_id)
+            await self._cancel_pending_final_disconnect(self._connection_key)
+            await self.channel_layer.group_add(self.group, self.channel_name)
+            await self.accept()
             CONNECTION_COUNTS[self._connection_key] += 1
             ROOM_CONNECTION_COUNTS[self.room_code] += 1
             self._room_connection_tracked = True
@@ -177,13 +181,9 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         try:
             logger.debug("Disconnecting room %s", getattr(self, "room_code", None))
             await self.channel_layer.group_discard(self.group, self.channel_name)
-            ready = READY.get(self.room_code)
             uid = getattr(self, "user_id", None)
             if uid is None and self.scope.get("user"):
                 uid = self.scope.get("user").id
-            broadcast_needed = False
-            reset_required = False
-            room_deleted = False
             room_code = getattr(self, "room_code", None)
             room_empty = False
             if room_code:
@@ -199,7 +199,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             final_connection = False
             key = getattr(self, "_connection_key", None)
             if key is None and uid is not None:
-                key = (self.room_code, uid)
+                key = (room_code, uid)
             if key is not None:
                 current = CONNECTION_COUNTS.get(key, 0)
                 if current <= 1:
@@ -207,40 +207,15 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     CONNECTION_COUNTS.pop(key, None)
                 else:
                     CONNECTION_COUNTS[key] = current - 1
-            if final_connection:
+            if final_connection and room_code and uid is not None:
                 self._connection_key = None
-                if ready and uid:
-                    if uid in ready:
-                        broadcast_needed = True
-                    ready.discard(uid)
-                if uid:
-                    result = await self._remove_player_and_update_room(uid)
-                    if isinstance(result, tuple):
-                        removed_player, room_deleted = result
-                    else:
-                        removed_player = result
-                    if removed_player:
-                        if not room_deleted:
-                            reset_required = True
-                            broadcast_needed = True
-                if reset_required:
-                    await self._reset_ready_flags()
-                    await self._reset_engine(clear_ready=True)
-                if broadcast_needed:
-                    extra = {"playerLeft": uid} if uid else None
-                    await self._broadcast_state(extra=extra)
-            if room_empty:
-                engine = ENGINES.pop(self.room_code, None)
-                if engine and not room_deleted:
-                    await self._persist_state(engine)
-                ctx = SLAP_CTX.pop(self.room_code, None)
-                if ctx and ctx.get("task"):
-                    ctx["task"].cancel()
-                READY.pop(self.room_code, None)
-                ROOM_OPTIONS.pop(self.room_code, None)
-                stale_keys = [key for key in CONNECTION_COUNTS if key[0] == self.room_code]
-                for stale_key in stale_keys:
-                    CONNECTION_COUNTS.pop(stale_key, None)
+                self._schedule_final_disconnect_cleanup(room_code, uid)
+            else:
+                if final_connection:
+                    self._connection_key = None
+                    await self._final_disconnect_cleanup(room_code, uid)
+                elif room_empty:
+                    await self._final_disconnect_cleanup(room_code, uid)
         except Exception:
             logger.exception("Error in disconnect")
 
@@ -402,6 +377,83 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             ENGINES[self.room_code] = None
         if clear_ready:
             READY[self.room_code] = set()
+
+    def _schedule_final_disconnect_cleanup(self, room_code, user_id):
+        key = (room_code, user_id)
+        task = asyncio.create_task(self._final_disconnect_after_delay(room_code, user_id))
+        PENDING_FINAL_DISCONNECTS[key] = task
+
+    async def _final_disconnect_after_delay(self, room_code, user_id):
+        key = (room_code, user_id)
+        task = asyncio.current_task()
+        try:
+            await asyncio.sleep(FINAL_DISCONNECT_DELAY_SECONDS)
+            if CONNECTION_COUNTS.get(key, 0):
+                return
+            await self._final_disconnect_cleanup(room_code, user_id)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Error during delayed final disconnect cleanup for room %s", room_code)
+        finally:
+            if task and PENDING_FINAL_DISCONNECTS.get(key) is task:
+                PENDING_FINAL_DISCONNECTS.pop(key, None)
+
+    async def _cancel_pending_final_disconnect(self, key):
+        if key is None:
+            return
+        task = PENDING_FINAL_DISCONNECTS.get(key)
+        if not task:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("Error while cancelling pending final disconnect for %s", key)
+        finally:
+            if PENDING_FINAL_DISCONNECTS.get(key) is task:
+                PENDING_FINAL_DISCONNECTS.pop(key, None)
+
+    async def _final_disconnect_cleanup(self, room_code, user_id):
+        broadcast_needed = False
+        reset_required = False
+        room_deleted = False
+        ready = READY.get(room_code)
+        if ready and user_id is not None:
+            if user_id in ready:
+                broadcast_needed = True
+            ready.discard(user_id)
+        if user_id is not None:
+            result = await self._remove_player_and_update_room(user_id)
+            if isinstance(result, tuple):
+                removed_player, room_deleted = result
+            else:
+                removed_player = result
+            if removed_player and not room_deleted:
+                reset_required = True
+                broadcast_needed = True
+        if reset_required:
+            await self._reset_ready_flags()
+            await self._reset_engine(clear_ready=True)
+        if broadcast_needed:
+            extra = {"playerLeft": user_id} if user_id is not None else None
+            await self._broadcast_state(extra=extra)
+
+        room_empty = ROOM_CONNECTION_COUNTS.get(room_code, 0) <= 0
+        if room_empty:
+            engine = ENGINES.pop(room_code, None)
+            if engine and not room_deleted:
+                await self._persist_state(engine)
+            ctx = SLAP_CTX.pop(room_code, None)
+            if ctx and ctx.get("task"):
+                ctx["task"].cancel()
+            READY.pop(room_code, None)
+            ROOM_OPTIONS.pop(room_code, None)
+            stale_keys = [key for key in list(CONNECTION_COUNTS) if key[0] == room_code]
+            for stale_key in stale_keys:
+                CONNECTION_COUNTS.pop(stale_key, None)
 
     @database_sync_to_async
     def _remove_player_and_update_room(self, user_id):
