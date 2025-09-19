@@ -429,15 +429,15 @@ textarea:focus {
 }
 
 #player-decks .player-deck {
-  --deck-padding-y: clamp(0.55rem, 1.8vw, 1rem);
-  --deck-padding-x: clamp(0.75rem, 2.5vw, 1.4rem);
+  --deck-padding-y: clamp(0.45rem, 1.4vw, 0.85rem);
+  --deck-padding-x: clamp(0.6rem, 2vw, 1.15rem);
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   transform-origin: center;
-  width: clamp(140px, 38vw, 240px);
-  height: calc(clamp(80px, 24vw, 120px) + var(--deck-padding-y) * 2);
+  width: clamp(110px, 30vw, 180px);
+  height: calc(clamp(68px, 18vw, 96px) + var(--deck-padding-y) * 2);
   padding: var(--deck-padding-y) var(--deck-padding-x);
   border-radius: 18px;
   background: rgba(15, 23, 42, 0.86);
@@ -452,7 +452,7 @@ textarea:focus {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: clamp(0.65rem, 2vw, 1.2rem);
+  gap: clamp(0.5rem, 1.6vw, 0.95rem);
   justify-content: flex-start;
   text-align: left;
   width: 100%;
