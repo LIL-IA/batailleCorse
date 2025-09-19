@@ -891,6 +891,17 @@
     return null;
   };
 
+  const formatReactionTimeNs = (rawValue) => {
+    const nsValue = parseNsValue(rawValue);
+    if (!Number.isFinite(nsValue)) {
+      return null;
+    }
+    if (nsValue < 1e9) {
+      return `${(nsValue / 1e6).toFixed(2)} ms`;
+    }
+    return `${(nsValue / 1e9).toFixed(2)} s`;
+  };
+
   const formatNsKey = (rawValue) => {
     const parsed = parseNsValue(rawValue);
     return Number.isFinite(parsed) ? String(parsed) : '';
@@ -1024,9 +1035,12 @@
         ? Math.max(0, winnerTs - baselineNs)
         : null;
       if (Number.isFinite(winnerReactionNs)) {
-        const winnerTimeSpan = document.createElement('span');
-        winnerTimeSpan.textContent = ` (${(winnerReactionNs / 1e6).toFixed(2)} ms)`;
-        winnerLine.appendChild(winnerTimeSpan);
+        const formattedWinnerTime = formatReactionTimeNs(winnerReactionNs);
+        if (formattedWinnerTime) {
+          const winnerTimeSpan = document.createElement('span');
+          winnerTimeSpan.textContent = ` (${formattedWinnerTime})`;
+          winnerLine.appendChild(winnerTimeSpan);
+        }
       }
       content.appendChild(winnerLine);
 
@@ -1057,7 +1071,10 @@
             displayReaction = Math.max(0, ts - baselineNs);
           }
           if (Number.isFinite(displayReaction)) {
-            text += ` - ${(displayReaction / 1e6).toFixed(2)} ms`;
+            const formattedCandidateTime = formatReactionTimeNs(displayReaction);
+            if (formattedCandidateTime) {
+              text += ` - ${formattedCandidateTime}`;
+            }
           }
           li.textContent = text;
           if (cid !== null && winnerId !== null && cid === winnerId) {
