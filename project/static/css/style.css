@@ -377,15 +377,15 @@ textarea:focus {
 }
 
 #player-decks .player-deck {
-  --deck-padding-y: clamp(0.85rem, 2vw, 1.2rem);
-  --deck-padding-x: clamp(1rem, 2.6vw, 1.6rem);
+  --deck-padding-y: clamp(0.55rem, 1.8vw, 1rem);
+  --deck-padding-x: clamp(0.75rem, 2.5vw, 1.4rem);
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   transform-origin: center;
-  width: clamp(220px, 30vw, 300px);
-  height: calc(clamp(104px, 22vw, 132px) + var(--deck-padding-y) * 2);
+  width: clamp(140px, 38vw, 240px);
+  height: calc(clamp(80px, 24vw, 120px) + var(--deck-padding-y) * 2);
   padding: var(--deck-padding-y) var(--deck-padding-x);
   border-radius: 18px;
   background: rgba(15, 23, 42, 0.86);
@@ -504,8 +504,8 @@ textarea:focus {
 
 .card-back {
   position: relative;
-  width: clamp(72px, 16vw, 96px);
-  height: clamp(104px, 22vw, 132px);
+  width: clamp(60px, 18vw, 88px);
+  height: clamp(80px, 24vw, 120px);
   border-radius: 14px;
   background: linear-gradient(145deg, #312e81, #1e3a8a);
   border: 2px solid rgba(226, 232, 240, 0.35);
@@ -1482,9 +1482,9 @@ body.room-options-lock {
   }
 
   #player-decks .player-deck {
-    --deck-padding-y: clamp(0.7rem, 2.8vw, 1rem);
-    --deck-padding-x: clamp(0.9rem, 4vw, 1.4rem);
-    width: clamp(180px, 54vw, 236px);
+    --deck-padding-y: clamp(0.5rem, 2.6vw, 0.85rem);
+    --deck-padding-x: clamp(0.7rem, 4.5vw, 1.2rem);
+    width: clamp(130px, 38vw, 180px);
   }
 
   #player-decks .player-deck .deck-content {
@@ -1492,8 +1492,8 @@ body.room-options-lock {
   }
 
   .card-back {
-    width: clamp(64px, 22vw, 88px);
-    height: clamp(96px, 30vw, 120px);
+    width: clamp(52px, 18vw, 72px);
+    height: clamp(74px, 26vw, 102px);
   }
 }
 
@@ -1504,9 +1504,9 @@ body.room-options-lock {
   }
 
   #player-decks .player-deck {
-    --deck-padding-y: clamp(0.65rem, 4vw, 0.85rem);
-    --deck-padding-x: clamp(0.8rem, 5vw, 1.2rem);
-    width: min(82vw, 210px);
+    --deck-padding-y: clamp(0.5rem, 4.8vw, 0.75rem);
+    --deck-padding-x: clamp(0.65rem, 5.5vw, 1.05rem);
+    width: clamp(120px, 58vw, 140px);
   }
 
   #player-decks .player-deck .deck-content {
