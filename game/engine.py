@@ -275,18 +275,23 @@ class GameEngine:
         b = self.center[-2][0]
         if self.options["allow_double"] and a == b:
             return True
+            
         has_three = len(self.center) >= 3
         if self.options["allow_sandwich"] and has_three:
             c = self.center[-3][0]
             if a == c:
                 return True
+                
         if self.options["allow_runs"] and has_three:
             vals = [RANK_VALUE[self.center[-i][0]] for i in (1,2,3)]
-            if vals[0] == vals[1]+1 == vals[2]+2:
+            # FIX: Check for both descending AND ascending runs
+            if (vals[0] == vals[1]+1 == vals[2]+2) or (vals[0] == vals[1]-1 == vals[2]-2):
                 return True
+                
         v1, v2 = RANK_VALUE[a], RANK_VALUE[b]
         if self.options["allow_ten_sum"] and (v1 + v2) == 10:
             return True
+            
         if has_three and self.options["allow_ten_sandwich"]:
             c = self.center[-3][0]
             if (v1 + RANK_VALUE[c]) == 10:
@@ -299,9 +304,11 @@ class GameEngine:
             self._collect_center(player_id)
             self._advance_turn()
             return {"ok": True, "collected": True}
+            
         if self.players[self.turn_idx] != player_id:
             taken = self._apply_penalty(player_id, "bad_play_penalty")
             return {"error": "not-your-turn", "penalized": len(taken)}
+            
         if not self.hands[player_id]:
             return {"error":"no-cards"}
 
@@ -310,9 +317,17 @@ class GameEngine:
 
         if self._is_face(card):
             self.face_chances = FACE_PENALTIES[card[0]]
-            self.waiting_for_face_from = self._next_player()
-            self.turn_idx = self.players.index(self.waiting_for_face_from)
             self.last_face_player = player_id
+            
+            # FIX: Skip players without cards immediately when assigning the challenge
+            next_idx = self._next_active_idx(self.players.index(player_id))
+            if next_idx is not None:
+                self.waiting_for_face_from = self.players[next_idx]
+                self.turn_idx = next_idx
+            else:
+                # If everyone else is empty, immediately resolve
+                self.waiting_for_face_from = None
+                self._resolve_face_failure(self.last_face_player)
         else:
             if self.face_chances > 0:
                 self.face_chances -= 1
@@ -320,7 +335,6 @@ class GameEngine:
                     winner = self.last_face_player or self._prev_player()
                     self._resolve_face_failure(winner)
             else:
-                self.turn_idx = self.players.index(self._next_player())
                 self.waiting_for_face_from = None
                 self.last_face_player = None
 
@@ -408,32 +422,13 @@ class GameEngine:
         if len(active_players) == 1 and self.face_chances == 0:
             self.winner = active_players[0]
             self.turn_idx = self.players.index(self.winner)
-        else:
-            self.winner = None
+            return
 
-        if self.face_chances > 0:
-            if self.waiting_for_face_from is None and self.last_face_player is not None:
-                last_idx = self.players.index(self.last_face_player)
-                next_idx = self._next_active_idx(last_idx)
-                if next_idx is None:
-                    self._resolve_face_failure(self.last_face_player)
-                else:
-                    self.waiting_for_face_from = self.players[next_idx]
-
-            while self.face_chances > 0 and self.waiting_for_face_from is not None and not self.hands[self.waiting_for_face_from]:
-                self.face_chances -= 1
-                if self.face_chances <= 0:
-                    self._resolve_face_failure(self.last_face_player)
-                    break
-                next_idx = self._next_active_idx(self.players.index(self.waiting_for_face_from))
-                if next_idx is None:
-                    self._resolve_face_failure(self.last_face_player)
-                    break
-                self.waiting_for_face_from = self.players[next_idx]
-
-            if self.face_chances > 0 and self.waiting_for_face_from is not None:
-                self.turn_idx = self.players.index(self.waiting_for_face_from)
-                return
+        # FIX: Remove the faulty while loop that penalizes empty hands. 
+        # The correct turn index is already assigned in play_card.
+        if self.face_chances > 0 and self.waiting_for_face_from is not None:
+            self.turn_idx = self.players.index(self.waiting_for_face_from)
+            return
 
         if self.pending_collect and self.collect_winner is not None:
             self.turn_idx = self.players.index(self.collect_winner)
@@ -442,6 +437,7 @@ class GameEngine:
         current_player = self.players[self.turn_idx]
         if self.hands[current_player]:
             return
+            
         next_idx = self._next_active_idx(self.turn_idx)
         if next_idx is not None:
             self.turn_idx = next_idx

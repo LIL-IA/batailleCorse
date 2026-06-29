@@ -71,36 +71,64 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     return
 
                 pending_collect_for_user = engine.pending_collect and engine.collect_winner == user_id
-                if engine.winner is not None and engine.winner != user_id:
-                    await self.send_json({"error": "game-over"})
-                    return
-
-                if not pending_collect_for_user:
-                    hand = engine.hands.get(user_id)
-                    if not hand:
-                        await self.send_json({"error": "no-cards"})
+                
+                # RULE CHANGE: If there is a valid slap rule in play, the winner CANNOT bypass the race.
+                # Clicking the "Collect" button is dynamically converted into a "Slap".
+                if pending_collect_for_user and engine.is_slap_valid():
+                    t = "slap"
+                else:
+                    if engine.winner is not None and engine.winner != user_id:
+                        await self.send_json({"error": "game-over"})
                         return
 
-                res = engine.play_card(user_id)
-                if res.get("ok") and "card" in res:
                     ctx = await self._ensure_slap_ctx()
                     async with ctx["lock"]:
-                        ctx["last_card_ns"] = time.time_ns()
-                last_action = {
-                    "type": "play",
-                    "res": res,
-                    "collected": res.get("collected", False),
-                }
-                winner = engine.winner
-                extra = {"lastAction": last_action}
-                if winner is not None:
-                    last_action["winner"] = winner
-                    extra["winner"] = winner
-                await self._broadcast_state(extra=extra)
+                        if ctx["open"]:
+                            await self.send_json({"error": "slap-in-progress"})
+                            return
 
-            elif t == "slap":
+                    if not pending_collect_for_user:
+                        hand = engine.hands.get(user_id)
+                        if not hand:
+                            await self.send_json({"error": "no-cards"})
+                            return
+
+                    res = engine.play_card(user_id)
+                    if res.get("ok") and "card" in res:
+                        ctx = await self._ensure_slap_ctx()
+                        async with ctx["lock"]:
+                            ctx["last_card_ns"] = time.time_ns()
+                            
+                    last_action = {
+                        "type": "play",
+                        "res": res,
+                        "collected": res.get("collected", False),
+                    }
+                    winner = engine.winner
+                    extra = {"lastAction": last_action}
+                    if winner is not None:
+                        last_action["winner"] = winner
+                        extra["winner"] = winner
+                    await self._broadcast_state(extra=extra)
+
+            # Note: Changed to `if` instead of `elif` so the modified "play" above can fall through to "slap"
+            if t == "slap":
                 ts = time.time_ns()
                 if not engine.is_slap_valid():
+                    # RULE CHANGE: If the round winner touches the center pile (sends a slap) 
+                    # and there is NO contest, gracefully collect the cards instead of penalizing.
+                    if engine.pending_collect and engine.collect_winner == user_id:
+                        res = engine.play_card(user_id)
+                        await self._broadcast_state(extra={
+                            "lastAction": {
+                                "type": "play",
+                                "res": res,
+                                "collected": True
+                            }
+                        })
+                        return
+
+                    # Otherwise, standard penalty applies
                     res = engine.slap(user_id)
                     await self._broadcast_state(extra={
                         "lastAction": {

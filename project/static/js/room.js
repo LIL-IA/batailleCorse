@@ -852,14 +852,29 @@
     }
     const actionType = lastAction && typeof lastAction.type === 'string' ? lastAction.type : '';
     const previous = tableEl.dataset.lastActionType || '';
+    
+    // Prevent double firing if the state is merely refreshing
     if (actionType === previous) {
       return;
     }
+    
     tableEl.dataset.lastActionType = actionType;
-    if (actionType === 'slap_resolved') {
-      playSlapFeedback(tableEl, 'success');
-    } else if (actionType === 'slap_invalid' || actionType === 'slap_none') {
-      playSlapFeedback(tableEl, 'fail');
+    
+    if (actionType === 'slap_resolved' || actionType === 'slap_invalid' || actionType === 'slap_none') {
+      const isSuccess = actionType === 'slap_resolved';
+      playSlapFeedback(tableEl, isSuccess ? 'success' : 'fail');
+      
+      // -- NEW: Render the physical hand slapping the deck! --
+      const pile = document.getElementById('center-pile');
+      if (pile) {
+        const hand = document.createElement('div');
+        hand.className = `slap-hand-effect ${isSuccess ? 'success' : 'fail'}`;
+        hand.textContent = '✋';
+        pile.appendChild(hand);
+        
+        // Clean up node after animation finishes
+        setTimeout(() => hand.remove(), 800);
+      }
     } else {
       playSlapFeedback(tableEl, null);
     }
@@ -1427,6 +1442,9 @@
       }
     }
     if (msg.error) {
+      // Ignore concurrency block silently (just drops the input)
+      if (msg.error === 'slap-in-progress') return; 
+
       const err = errorMessages[msg.error] || msg.error;
       window.alert(err);
       if (errorDiv) {
