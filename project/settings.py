@@ -97,7 +97,8 @@ else:
 # Channels (Redis)
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        # Change this line from .core. to .pubsub.
+        "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
         "CONFIG": {
             "hosts": [os.getenv("REDIS_URL", "redis://localhost:6379/0")],
         },
