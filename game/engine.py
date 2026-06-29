@@ -302,6 +302,8 @@ class GameEngine:
         if self.pending_collect and player_id == self.collect_winner:
             self.turn_idx = self.players.index(player_id)
             self._collect_center(player_id)
+            # The person who collects the cards starts the next round.
+            # We do NOT advance the turn here.
             self._advance_turn()
             return {"ok": True, "collected": True}
             
@@ -319,13 +321,11 @@ class GameEngine:
             self.face_chances = FACE_PENALTIES[card[0]]
             self.last_face_player = player_id
             
-            # FIX: Skip players without cards immediately when assigning the challenge
             next_idx = self._next_active_idx(self.players.index(player_id))
             if next_idx is not None:
                 self.waiting_for_face_from = self.players[next_idx]
                 self.turn_idx = next_idx
             else:
-                # If everyone else is empty, immediately resolve
                 self.waiting_for_face_from = None
                 self._resolve_face_failure(self.last_face_player)
         else:
@@ -335,8 +335,13 @@ class GameEngine:
                     winner = self.last_face_player or self._prev_player()
                     self._resolve_face_failure(winner)
             else:
+                # FIX: It's a normal card play without a contest! 
+                # We strictly pass the turn to the next player.
                 self.waiting_for_face_from = None
                 self.last_face_player = None
+                next_idx = self._next_active_idx(self.turn_idx)
+                if next_idx is not None:
+                    self.turn_idx = next_idx
 
         self._advance_turn()
         return {"ok": True, "card": card}
@@ -423,9 +428,9 @@ class GameEngine:
             self.winner = active_players[0]
             self.turn_idx = self.players.index(self.winner)
             return
+        else:
+            self.winner = None
 
-        # FIX: Remove the faulty while loop that penalizes empty hands. 
-        # The correct turn index is already assigned in play_card.
         if self.face_chances > 0 and self.waiting_for_face_from is not None:
             self.turn_idx = self.players.index(self.waiting_for_face_from)
             return
@@ -434,13 +439,12 @@ class GameEngine:
             self.turn_idx = self.players.index(self.collect_winner)
             return
 
+        # Ensure the current player has cards. If they are empty, skip them.
         current_player = self.players[self.turn_idx]
-        if self.hands[current_player]:
-            return
-            
-        next_idx = self._next_active_idx(self.turn_idx)
-        if next_idx is not None:
-            self.turn_idx = next_idx
+        if not self.hands[current_player]:
+            next_idx = self._next_active_idx(self.turn_idx)
+            if next_idx is not None:
+                self.turn_idx = next_idx
 
     # Added for arbitration
     def is_slap_valid(self):

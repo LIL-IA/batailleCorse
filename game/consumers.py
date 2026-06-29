@@ -95,12 +95,6 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     # Normal play card or normal collection button click
                     res = engine.play_card(user_id)
                     
-                    # FIX: If it was a normal collection, explicitly force the turn to pass to the next player 
-                    # after the engine sets up the new empty table state.
-                    if res.get("ok") and res.get("collected"):
-                        engine.turn_idx = engine.players.index(engine._next_player())
-                        engine._advance_turn()
-
                     if res.get("ok") and "card" in res:
                         ctx = await self._ensure_slap_ctx()
                         async with ctx["lock"]:
@@ -117,20 +111,14 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                         last_action["winner"] = winner
                         extra["winner"] = winner
                     await self._broadcast_state(extra=extra)
-                    return  # Short-circuit to prevent reaching the default unknown-event fallback
+                    return  # Fast-exit
 
             if t == "slap":
                 ts = time.time_ns()
                 if not engine.is_slap_valid():
-                    # If the collection winner touches the pile without a contest, treat it as a collection
+                    # If the collection winner touches the pile without a contest, treat it as a normal collection
                     if engine.pending_collect and engine.collect_winner == user_id:
                         res = engine.play_card(user_id)
-                        
-                        # FIX: Explicitly cycle the turn index forward here too for center pile slap-to-collect actions
-                        if res.get("ok"):
-                            engine.turn_idx = engine.players.index(engine._next_player())
-                            engine._advance_turn()
-                            
                         await self._broadcast_state(extra={
                             "lastAction": {
                                 "type": "play",
@@ -171,7 +159,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     "lastAction": {"type": "slap_pending"},
                     "graceMs": GRACE_MS
                 })
-                return  # Short-circuit
+                return # Fast-exit
 
             elif t == "ready":
                 value = content.get("value", False)
