@@ -36,11 +36,25 @@
         <p>&copy; 2026 - Bataille Corse</p>
     </footer>
 
-    {% if user.is_authenticated and user.profile.easter_egg_active %}
-        <button class="easter-egg-toggle" id="global-easter-egg-btn">
-            <img src="{% static 'img/easter-eggs/sciel-expedition33.png' %}" alt="Easter Egg">
-        </button>
-    {% endif %}
+    <button 
+        class="easter-egg-toggle" 
+        id="global-easter-egg-btn"
+        type="button"
+        data-state="0"
+        data-image-0="{% static 'img/easter-eggs/sound-off.svg' %}"
+        data-image-1="{% static 'img/easter-eggs/sciel-expedition33.png' %}"
+        data-image-2="{% static 'img/easter-eggs/gims-ciel.png' %}"
+        data-audio-1="{% static 'audio/clair-obscur.mp3' %}"
+        data-audio-2="{% static 'audio/ciel-maitre-gims.mp3' %}"
+        data-label-0="Son coupé"
+        data-label-1="Icône Sciel (Clair Obscur Expedition 33)"
+        data-label-2="Icône Ciel (Maître Gims)"
+        aria-label="Son coupé"
+        style="{% if not user.is_authenticated or not user.profile.easter_egg_active %}display: none;{% endif %}"
+    >
+        <img src="{% static 'img/easter-eggs/sound-off.svg' %}" alt="" aria-hidden="true">
+        <span class="visually-hidden" data-easter-egg-label>Son coupé</span>
+    </button>
 
     <button id="info-bubble-btn" class="info-bubble-btn" aria-label="Informations">?</button>
 
@@ -56,7 +70,7 @@
             <div id="info-rules" class="info-tab-content active">
                 <h2>Règles du jeu</h2>
                 <p>Le but du jeu est de remporter toutes les cartes en étant le plus rapide à taper sur les combinaisons valides (Doubles, Sandwichs, Sommes de 10...) ou en complétant les défis lancés par les figures !</p>
-                </div>
+            </div>
 
             <div id="info-credits" class="info-tab-content" style="display: none; text-align: center; padding: 1.5rem 0;">
                 <h2>Crédits</h2>
@@ -88,6 +102,7 @@
         const infoClose = document.getElementById('info-close-btn');
         const tabBtns = document.querySelectorAll('.info-tab-btn');
         const tabContents = document.querySelectorAll('.info-tab-content');
+        const easterEggToggle = document.getElementById('global-easter-egg-btn');
 
         if (infoBubble) infoBubble.addEventListener('click', () => infoModal.classList.add('is-visible'));
         if (infoClose) infoClose.addEventListener('click', () => infoModal.classList.remove('is-visible'));
@@ -108,7 +123,7 @@
             });
         });
 
-        // --- NOUVEAU : Fonction pour extraire proprement le token CSRF des cookies ---
+        // --- Récupération du token CSRF ---
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
@@ -124,9 +139,9 @@
             return cookieValue;
         }
         const csrftoken = getCookie('csrftoken');
-        const toggleUrl = "{% url 'toggle_easter_egg' %}"; // Sécurise le chemin d'accès
+        const toggleUrl = "{% url 'toggle_easter_egg' %}";
 
-        // Détection des 5 clics sur le nom
+        // Détection des 5 clics sur le nom du créateur
         const authorName = document.getElementById('credits-author');
         const eeSettings = document.getElementById('easter-egg-settings');
         const eeCheckbox = document.getElementById('easter-egg-toggle-checkbox');
@@ -137,12 +152,10 @@
                 clicks++;
                 clearTimeout(clickTimeout);
                 
-                // Active le secret à 5 clics
                 if (clicks >= 5) {
                     clicks = 0;
                     unlockSecret();
                 } else {
-                    // Réinitialise si on s'arrête de cliquer pendant 1 seconde
                     clickTimeout = setTimeout(() => clicks = 0, 1000);
                 }
             });
@@ -155,7 +168,7 @@
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json', 
-                    'X-CSRFToken': csrftoken // <-- Le vrai token texte est envoyé ici
+                    'X-CSRFToken': csrftoken 
                 },
                 body: JSON.stringify({ action: 'unlock' })
             }).then(res => {
@@ -166,28 +179,112 @@
                     eeSettings.style.display = 'block';
                     if (eeCheckbox) eeCheckbox.checked = true;
                     authorName.style.color = '#2563eb';
-                    setTimeout(() => window.location.reload(), 600);
+                    if (easterEggToggle) easterEggToggle.style.display = 'block';
                 }
             }).catch(err => console.error("Erreur déverrouillage :", err));
         }
 
-        // Interrupteur d'activation / désactivation
+        // Interrupteur d'activation / désactivation sans rechargement de page
         if (eeCheckbox) {
             eeCheckbox.addEventListener('change', () => {
+                const isChecked = eeCheckbox.checked;
+                
                 fetch(toggleUrl, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json', 
-                        'X-CSRFToken': csrftoken // <-- Et ici aussi
+                        'X-CSRFToken': csrftoken 
                     },
                     body: JSON.stringify({ action: 'toggle' })
                 }).then(res => {
                     if (!res.ok) throw new Error("Erreur réseau");
                     return res.json();
                 }).then(data => {
-                    if (data.status === 'success') window.location.reload();
-                }).catch(err => console.error("Erreur Toggle :", err));
+                    if (data.status === 'success') {
+                        if (easterEggToggle) {
+                            if (isChecked) {
+                                easterEggToggle.style.display = 'block';
+                            } else {
+                                easterEggToggle.style.display = 'none';
+                                // Coupe proprement la musique si on désactive le module en plein milieu
+                                audioPlayer.pause();
+                                audioPlayer.removeAttribute('src');
+                                audioPlayer.load();
+                            }
+                        }
+                    }
+                }).catch(err => {
+                    console.error("Erreur Toggle :", err);
+                    eeCheckbox.checked = !isChecked; // Rétablir l'état si l'appel échoue
+                });
             });
+        }
+
+        // --- MODULE EASTER EGG : Gestion du Bouton Cyclique Multi-états ---
+        const audioPlayer = new Audio();
+        audioPlayer.loop = true;
+
+        if (easterEggToggle) {
+            const imageElement = easterEggToggle.querySelector('img');
+            const labelElement = easterEggToggle.querySelector('[data-easter-egg-label]');
+            const { dataset } = easterEggToggle;
+            
+            const states = [0, 1, 2]
+                .map((index) => ({
+                    src: dataset[`image-${index}`],
+                    label: dataset[`label-${index}`],
+                    audio: dataset[`audio-${index}`] || null
+                }))
+                .filter((state) => state.src && state.label);
+
+            if (states.length > 0) {
+                let currentIndex = parseInt(dataset.state || '0', 10);
+                let currentAudioSrc = null;
+
+                if (Number.isNaN(currentIndex) || currentIndex < 0 || currentIndex >= states.length) {
+                    currentIndex = 0;
+                }
+
+                const applyState = () => {
+                    const state = states[currentIndex];
+                    if (!state) return;
+
+                    if (imageElement) {
+                        imageElement.setAttribute('src', state.src);
+                    }
+
+                    if (labelElement) {
+                        labelElement.textContent = state.label;
+                    }
+
+                    easterEggToggle.setAttribute('aria-label', state.label);
+                    easterEggToggle.dataset.state = String(currentIndex);
+                    
+                    if (state.audio) {
+                        if (state.audio !== currentAudioSrc) {
+                            audioPlayer.pause();
+                            audioPlayer.src = state.audio;
+                            audioPlayer.load();
+                            currentAudioSrc = state.audio;
+                        }
+                        audioPlayer.play().catch(() => {});
+                    } else {
+                        audioPlayer.pause();
+                        audioPlayer.removeAttribute('src');
+                        audioPlayer.load();
+                        currentAudioSrc = null;
+                    }
+                };
+
+                // Initialisation au chargement de l'état
+                applyState();
+
+                // Écouteur de clic pour boucler sur les 3 états
+                easterEggToggle.addEventListener('click', () => {
+                    currentIndex = (currentIndex + 1) % states.length;
+                    applyState();
+                });
+            }
         }
     });
     </script>
