@@ -1,10 +1,14 @@
 import random
 import string
+import json
 from django.http import HttpResponseServerError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from .models import UserProfile
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from .models import Room, Player, GameState
@@ -103,3 +107,29 @@ def room(request, code):
             "initial_options": initial_options,
         },
     )
+
+@login_required
+@require_POST
+def toggle_easter_egg(request):
+    try:
+        data = json.loads(request.body)
+        action = data.get('action')
+        
+        # On utilise get_or_create pour éviter les crashs avec tes anciens comptes existants
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        
+        if action == 'unlock':
+            profile.easter_egg_unlocked = True
+            profile.easter_egg_active = True # On l'active direct quand le joueur le trouve
+            profile.save()
+            return JsonResponse({'status': 'success', 'unlocked': True, 'active': True})
+            
+        elif action == 'toggle':
+            if profile.easter_egg_unlocked:
+                profile.easter_egg_active = not profile.easter_egg_active
+                profile.save()
+                return JsonResponse({'status': 'success', 'active': profile.easter_egg_active})
+            return JsonResponse({'status': 'error', 'message': 'Not unlocked'}, status=403)
+            
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)

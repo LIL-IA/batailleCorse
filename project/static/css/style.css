@@ -1675,3 +1675,72 @@ body.room-options-lock {
     opacity: 0;
   }
 }
+
+/* --- Bulle Info (?) --- */
+.info-bubble-btn {
+    position: fixed;
+    bottom: clamp(1rem, 3vw, 2rem);
+    left: clamp(1rem, 3vw, 2rem); /* Placé à gauche pour la symétrie avec ton easter-egg à droite ! */
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #475569, #1e293b);
+    color: white;
+    font-size: 1.6rem;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 12px 25px -8px rgba(15, 23, 42, 0.7);
+    cursor: pointer;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.info-bubble-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.15);
+    box-shadow: 0 18px 35px -8px rgba(15, 23, 42, 0.85);
+}
+
+/* --- Onglets de la Modale --- */
+.info-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid rgba(148, 163, 184, 0.25);
+    padding-bottom: 0.75rem;
+}
+
+.info-tab-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    padding: 0.5rem 1.2rem;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    box-shadow: none;
+}
+
+.info-tab-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    transform: none;
+    box-shadow: none;
+}
+
+.info-tab-btn.active {
+    color: #2563eb;
+    background: #eff6ff;
+}
+
+.credits-text {
+    font-size: 1.25rem;
+    color: #334155;
+    margin-top: 1rem;
+}
