@@ -72,8 +72,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
                 pending_collect_for_user = engine.pending_collect and engine.collect_winner == user_id
                 
-                # RULE CHANGE: If there is a valid slap rule in play, the winner CANNOT bypass the race.
-                # Clicking the "Collect" button is dynamically converted into a "Slap".
+                # Rule check: If a slap rule is active, intercept the collection and route to slap race
                 if pending_collect_for_user and engine.is_slap_valid():
                     t = "slap"
                 else:
@@ -93,7 +92,15 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                             await self.send_json({"error": "no-cards"})
                             return
 
+                    # Normal play card or normal collection button click
                     res = engine.play_card(user_id)
+                    
+                    # FIX: If it was a normal collection, explicitly force the turn to pass to the next player 
+                    # after the engine sets up the new empty table state.
+                    if res.get("ok") and res.get("collected"):
+                        engine.turn_idx = engine.players.index(engine._next_player())
+                        engine._advance_turn()
+
                     if res.get("ok") and "card" in res:
                         ctx = await self._ensure_slap_ctx()
                         async with ctx["lock"]:
@@ -110,15 +117,20 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                         last_action["winner"] = winner
                         extra["winner"] = winner
                     await self._broadcast_state(extra=extra)
+                    return  # Short-circuit to prevent reaching the default unknown-event fallback
 
-            # Note: Changed to `if` instead of `elif` so the modified "play" above can fall through to "slap"
             if t == "slap":
                 ts = time.time_ns()
                 if not engine.is_slap_valid():
-                    # RULE CHANGE: If the round winner touches the center pile (sends a slap) 
-                    # and there is NO contest, gracefully collect the cards instead of penalizing.
+                    # If the collection winner touches the pile without a contest, treat it as a collection
                     if engine.pending_collect and engine.collect_winner == user_id:
                         res = engine.play_card(user_id)
+                        
+                        # FIX: Explicitly cycle the turn index forward here too for center pile slap-to-collect actions
+                        if res.get("ok"):
+                            engine.turn_idx = engine.players.index(engine._next_player())
+                            engine._advance_turn()
+                            
                         await self._broadcast_state(extra={
                             "lastAction": {
                                 "type": "play",
@@ -128,7 +140,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                         })
                         return
 
-                    # Otherwise, standard penalty applies
+                    # Real invalid slap penalty
                     res = engine.slap(user_id)
                     await self._broadcast_state(extra={
                         "lastAction": {
@@ -159,6 +171,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     "lastAction": {"type": "slap_pending"},
                     "graceMs": GRACE_MS
                 })
+                return  # Short-circuit
 
             elif t == "ready":
                 value = content.get("value", False)
