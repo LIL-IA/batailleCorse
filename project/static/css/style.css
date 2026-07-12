@@ -313,47 +313,126 @@ ul li a {
   color: #1d4ed8;
 }
 
-/* Enhancing Card Faces */
+/* --- Cartes à jouer : faces réalistes ---------------------------------- */
 .card-visual {
+  position: relative;
   width: 96px;
-  height: 134px;
+  aspect-ratio: 5 / 7;
   border-radius: 12px;
   border: 1px solid #cbd5e1;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.8rem;
-  font-weight: 700;
-  color: #0f172a;
-  box-shadow: 
-    inset 0 0 10px rgba(0,0,0,0.03),
+  background: linear-gradient(150deg, #ffffff 0%, #fdfcf7 55%, #f3f0e7 100%);
+  color: #111827;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
     0 18px 30px -15px rgba(30, 41, 59, 0.7);
 }
+
 .card-visual.red {
   color: #dc2626;
 }
 
-.card-corner {
+.playing-card {
+  container-type: size;
+  overflow: hidden;
+}
+
+.pc-corner {
   position: absolute;
-  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
   font-weight: 700;
+  gap: 1px;
+  gap: 1cqw;
 }
 
-.card-corner.top-left {
+.pc-corner--top {
   top: 4px;
-  left: 4px;
+  left: 5px;
+  top: 4cqw;
+  left: 5cqw;
 }
 
-.card-corner.bottom-right {
+.pc-corner--bottom {
   bottom: 4px;
-  right: 4px;
+  right: 5px;
+  bottom: 4cqw;
+  right: 5cqw;
   transform: rotate(180deg);
 }
 
-.card-name {
-  margin: 0;
-  font-weight: 600;
+.pc-corner-rank {
+  font-size: 0.9rem;
+  font-size: 15cqw;
+  letter-spacing: -0.02em;
+}
+
+.pc-corner-suit {
+  font-size: 0.8rem;
+  font-size: 13cqw;
+}
+
+.pc-center {
+  position: absolute;
+  inset: 0;
+}
+
+.pc-pip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 1.3rem;
+  font-size: 21cqw;
+  line-height: 1;
+}
+
+.pc-pip--flip {
+  transform: translate(-50%, -50%) rotate(180deg);
+}
+
+.pc-ace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.2rem;
+  font-size: 52cqw;
+  text-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+}
+
+.pc-court {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pc-court-frame {
+  width: 62%;
+  height: 64%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2%;
+  border: 2px solid currentColor;
+  border-radius: 8px;
+  border-radius: 6cqw;
+  background:
+    linear-gradient(135deg, rgba(212, 175, 55, 0.22), rgba(212, 175, 55, 0) 45%),
+    repeating-linear-gradient(45deg, rgba(15, 23, 42, 0.05) 0 3px, transparent 3px 9px);
+}
+
+.pc-court-letter {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  font-size: 32cqw;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pc-court-suit {
+  font-size: 1rem;
+  font-size: 15cqw;
+  line-height: 1;
 }
 
 .error-message,
@@ -397,14 +476,25 @@ textarea:focus {
 
 #table,
 .table {
+  --table-gold-ring: 0 0 0 3px #c9a227;
+  --table-wood-ring: 0 0 0 clamp(10px, 2vw, 16px) #53331c;
+  --table-wood-edge: 0 0 0 calc(clamp(10px, 2vw, 16px) + 2px) rgba(15, 23, 42, 0.4);
   position: relative;
-  margin: clamp(2rem, 6vw, 3.5rem) auto;
+  margin: clamp(2.5rem, 7vw, 4rem) auto;
   width: min(100%, 820px);
   aspect-ratio: 1;
   border-radius: 50%;
   padding: clamp(1.75rem, 5vw, 3.25rem);
-  background: radial-gradient(circle at 35% 25%, rgba(30, 58, 138, 0.22), rgba(15, 23, 42, 0.92));
-  box-shadow: 0 28px 70px -38px rgba(15, 23, 42, 0.85);
+  /* Feutrine de casino, éclairée par le haut, avec rebord acajou et liseré doré */
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 55%),
+    radial-gradient(circle at 50% 50%, #17805a 0%, #0f5e40 52%, #07402a 82%, #052e1e 100%);
+  box-shadow:
+    var(--table-gold-ring),
+    var(--table-wood-ring),
+    var(--table-wood-edge),
+    inset 0 0 70px rgba(0, 0, 0, 0.45),
+    0 34px 80px -34px rgba(15, 23, 42, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -418,7 +508,8 @@ textarea:focus {
   position: absolute;
   inset: clamp(1.25rem, 4vw, 2.4rem);
   border-radius: 50%;
-  border: 2px dashed rgba(148, 163, 184, 0.35);
+  border: 2px solid rgba(212, 175, 55, 0.38);
+  box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.22);
   pointer-events: none;
 }
 
@@ -436,8 +527,8 @@ textarea:focus {
   left: 50%;
   transform: translate(-50%, -50%);
   transform-origin: center;
-  width: clamp(110px, 30vw, 180px);
-  height: calc(clamp(68px, 18vw, 96px) + var(--deck-padding-y) * 2);
+  width: clamp(120px, 32vw, 214px);
+  min-height: calc(clamp(68px, 18vw, 96px) + var(--deck-padding-y) * 2);
   padding: var(--deck-padding-y) var(--deck-padding-x);
   border-radius: 18px;
   background: rgba(15, 23, 42, 0.86);
@@ -554,41 +645,81 @@ textarea:focus {
   line-height: 1.3;
 }
 
-/* Casino Style Geometric Card Backs */
+/* Dos de carte : bleu royal, croisillons dorés et cadre intérieur */
 .card-back {
   position: relative;
-  width: clamp(60px, 18vw, 88px);
-  height: clamp(80px, 24vw, 120px);
-  border-radius: 14px;
+  width: clamp(56px, 16vw, 84px);
+  aspect-ratio: 5 / 7;
+  border-radius: 12px;
   background-color: #1e3a8a;
-  /* Beautiful geometric interlocking pattern */
-  background-image: 
-    linear-gradient(135deg, #312e81 25%, transparent 25%),
-    linear-gradient(225deg, #312e81 25%, transparent 25%),
-    linear-gradient(315deg, #312e81 25%, transparent 25%),
-    linear-gradient(45deg, #312e81 25%, transparent 25%);
-  background-position: -15px 0, -15px 0, 0 0, 0 0;
-  background-size: 30px 30px;
-  border: 4px solid #ffffff;
+  background-image:
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 62%),
+    repeating-linear-gradient(45deg, rgba(201, 162, 39, 0.32) 0 1.5px, transparent 1.5px 9px),
+    repeating-linear-gradient(-45deg, rgba(201, 162, 39, 0.32) 0 1.5px, transparent 1.5px 9px);
+  border: 3px solid #f8fafc;
   box-shadow: 0 12px 25px -12px rgba(15, 23, 42, 0.9);
 }
 
-.card-back::before,
-.card-back::after {
+.card-back::before {
   content: "";
   position: absolute;
-  inset: -4px;
-  border-radius: inherit;
-  background: inherit;
-  border: inherit;
-  opacity: 0.65;
-  transform: translate(-6px, -4px);
-  z-index: -1;
+  inset: 7%;
+  border-radius: 8px;
+  border: 1.5px solid rgba(201, 162, 39, 0.75);
+  pointer-events: none;
 }
 
-.card-back::after {
-  opacity: 0.3;
-  transform: translate(-12px, -8px);
+/* Épaisseur du paquet : plus un joueur a de cartes, plus la pile est haute */
+.deck-card {
+  position: relative;
+}
+
+.deck-card[data-stack="0"] .card-back {
+  opacity: 0.5;
+  filter: grayscale(0.5);
+  box-shadow: none;
+}
+
+.deck-card[data-stack="2"] .card-back {
+  box-shadow:
+    -4px 3px 0 -1px #e2e8f0,
+    -4px 3px 0 0 rgba(15, 23, 42, 0.45),
+    0 12px 25px -12px rgba(15, 23, 42, 0.9);
+}
+
+.deck-card[data-stack="3"] .card-back {
+  box-shadow:
+    -4px 3px 0 -1px #e2e8f0,
+    -4px 3px 0 0 rgba(15, 23, 42, 0.45),
+    -8px 6px 0 -1px #cbd5e1,
+    -8px 6px 0 0 rgba(15, 23, 42, 0.35),
+    0 12px 25px -12px rgba(15, 23, 42, 0.9);
+}
+
+.deck-card .player-avatar {
+  position: absolute;
+  top: -8px;
+  left: -10px;
+  z-index: 2;
+  box-shadow: 0 3px 8px -2px rgba(15, 23, 42, 0.5);
+}
+
+.deck-count-badge {
+  position: absolute;
+  bottom: -6px;
+  right: -8px;
+  z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.78rem;
+  box-shadow: 0 4px 10px -4px rgba(15, 23, 42, 0.7);
 }
 
 .slap-overlay {
@@ -1296,8 +1427,8 @@ body.room-options-lock {
 
 #center-pile {
   position: relative;
-  width: clamp(150px, 28vw, 240px);
-  height: clamp(200px, 34vw, 280px);
+  width: clamp(118px, 28vw, 240px);
+  height: clamp(150px, 30vw, 208px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1325,8 +1456,10 @@ body.room-options-lock {
 
 #penalty-pile {
   position: absolute;
-  top: 50%;
-  left: 70%;
+  /* Placé dans la zone libre en bas à droite : les adversaires occupent l'arc
+     supérieur et le joueur local le bas-centre, donc rien ne le chevauche. */
+  top: 66%;
+  left: 72%;
   transform: translate(-50%, -50%);
   width: clamp(72px, 16vw, 96px);
   height: clamp(104px, 22vw, 132px);
@@ -1385,26 +1518,21 @@ body.room-options-lock {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 120px;
-  height: 168px;
-  font-size: 3rem;
+  width: clamp(92px, 24vw, 132px);
   box-shadow: 0 24px 36px -24px rgba(15, 23, 42, 0.9);
   transition: transform 0.3s ease;
 }
 
-.center-pile .card-visual.bottom {
-  transform: translate(-50%, -50%) rotate(-6deg);
-  z-index: 10;
+/* Arrivée d'une nouvelle carte sur le tas */
+.center-pile .card-enter {
+  animation: cardEnter 0.32s cubic-bezier(0.2, 0.8, 0.3, 1.1);
 }
 
-.center-pile .card-visual.mid {
-  transform: translate(-50%, -50%) rotate(2deg);
-  z-index: 11;
-}
-
-.center-pile .card-visual.top {
-  transform: translate(-50%, -50%) rotate(7deg);
-  z-index: 12;
+@keyframes cardEnter {
+  from {
+    transform: translate(-50%, -90%) scale(1.14);
+    opacity: 0;
+  }
 }
 
 @keyframes slapOverlayReveal {
@@ -1460,15 +1588,16 @@ body.room-options-lock {
   }
 }
 
+/* Le halo de réussite passe par un filtre pour préserver le rebord de la table. */
 @keyframes slapSuccessPulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55);
+    filter: drop-shadow(0 0 0 rgba(16, 185, 129, 0.7));
   }
-  65% {
-    box-shadow: 0 0 0 22px rgba(16, 185, 129, 0);
+  55% {
+    filter: drop-shadow(0 0 34px rgba(16, 185, 129, 0.6));
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    filter: drop-shadow(0 0 0 rgba(16, 185, 129, 0));
   }
 }
 
@@ -1490,9 +1619,12 @@ body.room-options-lock {
 #table.slap-pending,
 .table.slap-pending {
   box-shadow:
-    0 28px 70px -38px rgba(15, 23, 42, 0.85),
-    0 0 0 4px rgba(250, 204, 21, 0.32),
-    0 0 40px -12px rgba(250, 204, 21, 0.55);
+    var(--table-gold-ring),
+    var(--table-wood-ring),
+    0 0 0 calc(clamp(10px, 2vw, 16px) + 5px) rgba(250, 204, 21, 0.45),
+    inset 0 0 70px rgba(0, 0, 0, 0.45),
+    0 0 46px -8px rgba(250, 204, 21, 0.55),
+    0 34px 80px -34px rgba(15, 23, 42, 0.85);
 }
 
 #table.slap-pending::before,
@@ -1543,18 +1675,46 @@ body.room-options-lock {
   }
 
   #player-decks .player-deck {
-    --deck-padding-y: clamp(0.5rem, 2.6vw, 0.85rem);
-    --deck-padding-x: clamp(0.7rem, 4.5vw, 1.2rem);
-    width: clamp(130px, 38vw, 180px);
+    --deck-padding-y: clamp(0.45rem, 2.2vw, 0.75rem);
+    --deck-padding-x: clamp(0.6rem, 3.6vw, 1rem);
+    width: clamp(112px, 33vw, 152px);
   }
 
   #player-decks .player-deck .deck-content {
-    gap: clamp(0.5rem, 3vw, 0.9rem);
+    gap: clamp(0.45rem, 2.6vw, 0.8rem);
   }
 
   .card-back {
-    width: clamp(52px, 18vw, 72px);
-    height: clamp(74px, 26vw, 102px);
+    width: clamp(42px, 13vw, 60px);
+  }
+
+  /* Tas central plus compact sur mobile : il ne doit pas venir chevaucher les
+     paquets du haut et du bas (notamment à deux joueurs). */
+  #center-pile {
+    width: clamp(96px, 24vw, 150px);
+    height: clamp(118px, 30vw, 168px);
+  }
+
+  .center-pile .card-visual {
+    width: clamp(74px, 19vw, 108px);
+  }
+
+  /* Sur mobile le nom reste sur une seule ligne pour que les paquets ne
+     grandissent pas en hauteur et ne soient pas recouverts par la carte jouée. */
+  #player-decks .player-deck .deck-name {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  /* Emplacement de pénalité plus discret tant qu'il est vide. */
+  #penalty-pile {
+    width: clamp(52px, 13vw, 74px);
+    height: clamp(74px, 18vw, 102px);
+  }
+
+  #penalty-pile.penalty-empty {
+    background: rgba(15, 23, 42, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
   }
 }
 
@@ -1618,27 +1778,6 @@ body.room-options-lock {
     top: 0.75rem;
     right: 0.75rem;
   }
-}
-
-/* Enhancing Card Faces */
-.card-visual {
-  width: 96px;
-  height: 134px;
-  border-radius: 12px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.8rem;
-  font-weight: 700;
-  color: #0f172a;
-  box-shadow: 
-    inset 0 0 10px rgba(0,0,0,0.03),
-    0 18px 30px -15px rgba(30, 41, 59, 0.7);
-}
-.card-visual.red {
-  color: #dc2626;
 }
 
 /* The Hand Slap Animation */
@@ -1743,4 +1882,436 @@ body.room-options-lock {
     font-size: 1.25rem;
     color: #334155;
     margin-top: 1rem;
+}
+
+/* ======================================================================
+   Refonte visuelle du jeu : composants ajoutés
+   ====================================================================== */
+
+body {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.08), transparent 45%),
+    radial-gradient(circle at 88% 100%, rgba(16, 185, 129, 0.08), transparent 45%),
+    #f2f5fa;
+}
+
+/* --- Avatars des joueurs ------------------------------------------------ */
+.player-avatar {
+  --avatar-hue: 210;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: linear-gradient(
+    140deg,
+    hsl(var(--avatar-hue), 68%, 52%),
+    hsl(var(--avatar-hue), 72%, 36%)
+  );
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+  flex: 0 0 auto;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* --- Titre de salle + code copiable ------------------------------------ */
+.room-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.room-code-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.3rem 1rem;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #fbbf24;
+  box-shadow: 0 10px 24px -14px rgba(15, 23, 42, 0.8);
+  cursor: pointer;
+}
+
+.room-code-badge__code {
+  font-family: "Consolas", "Menlo", monospace;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.room-code-badge__hint {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.room-code-badge:hover .room-code-badge__hint,
+.room-code-badge:focus-visible .room-code-badge__hint {
+  color: #e2e8f0;
+}
+
+.room-code-badge.copied {
+  background: #065f46;
+  color: #d1fae5;
+}
+
+/* --- Bouton son (muet / actif) ------------------------------------------ */
+.sound-toggle-btn {
+  position: fixed;
+  bottom: clamp(1rem, 3vw, 2rem);
+  right: clamp(1rem, 3vw, 2rem);
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #475569, #1e293b);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 25px -8px rgba(15, 23, 42, 0.7);
+  z-index: 150;
+}
+
+.sound-toggle-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+}
+
+.sound-toggle-btn.sound-muted {
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+}
+
+.sound-toggle-btn svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  pointer-events: none;
+}
+
+/* --- Nom du joueur sur son paquet --------------------------------------- */
+/* Le nom s'affiche en entier (jusqu'à deux lignes) tant qu'il y a la place ;
+   il n'est tronqué qu'en dernier recours. */
+#player-decks .player-deck .deck-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* En mode compact (beaucoup de joueurs) on reste sur une seule ligne. */
+#player-decks.decks-crowded .player-deck:not(.player-deck-self) .deck-name {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+#player-decks .player-deck.deck-empty {
+  opacity: 0.55;
+  filter: saturate(0.5);
+}
+
+#player-decks .player-deck.player-deck-self {
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow:
+    0 0 0 2px rgba(251, 191, 36, 0.35),
+    0 22px 38px -26px rgba(15, 23, 42, 0.8);
+}
+
+/* Joueur attendu sur un défi figure */
+#player-decks .player-deck.deck-challenged {
+  animation: challengedPulse 1.15s ease-in-out infinite;
+}
+
+@keyframes challengedPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px rgba(249, 115, 22, 0.75),
+      0 0 18px -4px rgba(249, 115, 22, 0.65),
+      0 22px 38px -26px rgba(15, 23, 42, 0.8);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px rgba(249, 115, 22, 0.55),
+      0 0 30px -2px rgba(249, 115, 22, 0.85),
+      0 22px 38px -26px rgba(15, 23, 42, 0.8);
+  }
+}
+
+/* --- Boutons du jeu ------------------------------------------------------ */
+#slap-btn {
+  background: linear-gradient(145deg, #ef4444, #b91c1c);
+  font-size: clamp(1.05rem, 3vw, 1.3rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.9rem 2.6rem;
+  box-shadow: 0 16px 34px -16px rgba(220, 38, 38, 0.85);
+}
+
+#slap-btn:disabled {
+  background: #fca5a5;
+  box-shadow: none;
+}
+
+#slap-btn.slap-armed:not(:disabled) {
+  animation: slapArmedPulse 1.3s ease-in-out infinite;
+}
+
+@keyframes slapArmedPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 16px 34px -16px rgba(220, 38, 38, 0.85),
+      0 0 0 0 rgba(239, 68, 68, 0.55);
+  }
+  55% {
+    box-shadow:
+      0 16px 34px -16px rgba(220, 38, 38, 0.85),
+      0 0 0 14px rgba(239, 68, 68, 0);
+  }
+}
+
+#play-card-btn {
+  background: linear-gradient(145deg, #10b981, #047857);
+  box-shadow: 0 16px 34px -16px rgba(16, 185, 129, 0.8);
+  font-weight: 700;
+}
+
+#play-card-btn:disabled {
+  background: #a7f3d0;
+  color: rgba(6, 78, 59, 0.55);
+  box-shadow: none;
+}
+
+/* --- Toast « À vous de jouer » ------------------------------------------ */
+.turn-toast {
+  position: absolute;
+  top: 11%;
+  left: 50%;
+  z-index: 30;
+  padding: 0.55rem 1.4rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #451a03;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-size: clamp(0.95rem, 2.6vw, 1.15rem);
+  white-space: nowrap;
+  box-shadow: 0 14px 30px -12px rgba(245, 158, 11, 0.8);
+  pointer-events: none;
+  animation: turnToastPop 2.2s cubic-bezier(0.2, 0.9, 0.3, 1.1) forwards;
+}
+
+@keyframes turnToastPop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-14px) scale(0.8);
+  }
+  12%,
+  78% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.92);
+  }
+}
+
+/* --- Confettis de victoire ----------------------------------------------- */
+.confetti-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -14px;
+  left: var(--x, 50%);
+  width: var(--size, 8px);
+  height: calc(var(--size, 8px) * 0.45);
+  border-radius: 2px;
+  opacity: 0;
+  animation: confettiFall var(--fall, 3s) linear var(--delay, 0s) forwards;
+}
+
+@keyframes confettiFall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0.85;
+    transform: translateY(88vmin) rotate(var(--rot, 360deg));
+  }
+}
+
+.winner-crown {
+  font-size: clamp(2.6rem, 7vw, 4rem);
+  line-height: 1;
+  filter: drop-shadow(0 6px 18px rgba(251, 191, 36, 0.55));
+  animation: crownBounce 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes crownBounce {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
+}
+
+/* --- Badges du tas central ----------------------------------------------- */
+.center-count-badge {
+  position: absolute;
+  /* Juste sous le tas : hors des cartes, et au-dessus du paquet du joueur du
+     bas (qui est repoussé plus bas). */
+  top: calc(100% + 0.3rem);
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.78);
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.face-challenge-badge {
+  position: absolute;
+  top: -3.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  padding: 0.45rem 1.1rem;
+  border-radius: 14px;
+  background: rgba(69, 26, 3, 0.92);
+  border: 1px solid rgba(251, 191, 36, 0.65);
+  color: #fde68a;
+  white-space: nowrap;
+  z-index: 15;
+  box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+.face-challenge-badge strong {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.face-challenge-badge span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff7ed;
+}
+
+/* --- Distribution en début de partie -------------------------------------- */
+#table.game-starting .player-deck {
+  animation: deckDeal 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.15) backwards;
+}
+
+#table.game-starting .player-deck:nth-child(2) { animation-delay: 0.08s; }
+#table.game-starting .player-deck:nth-child(3) { animation-delay: 0.16s; }
+#table.game-starting .player-deck:nth-child(4) { animation-delay: 0.24s; }
+#table.game-starting .player-deck:nth-child(5) { animation-delay: 0.32s; }
+#table.game-starting .player-deck:nth-child(6) { animation-delay: 0.4s; }
+#table.game-starting .player-deck:nth-child(7) { animation-delay: 0.48s; }
+#table.game-starting .player-deck:nth-child(8) { animation-delay: 0.56s; }
+
+@keyframes deckDeal {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+}
+
+/* --- Mode compact : beaucoup de joueurs / petits écrans ------------------- */
+#player-decks.decks-crowded .player-deck:not(.player-deck-self) {
+  width: clamp(92px, 24vw, 124px);
+}
+
+#player-decks.decks-crowded .player-deck:not(.player-deck-self) .card-back {
+  width: clamp(38px, 9vw, 54px);
+}
+
+#player-decks.decks-crowded .player-deck:not(.player-deck-self) h3 {
+  font-size: clamp(0.8rem, 2vw, 0.95rem);
+}
+
+@media (max-width: 720px) {
+  /* Sur mobile, TOUS les paquets adverses adoptent le format compact, quel que
+     soit le nombre de joueurs : le joueur local (en bas) reste seul en grand. */
+  #player-decks .player-deck:not(.player-deck-self) {
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    padding: 0.45rem 0.5rem;
+    border-radius: 14px;
+  }
+
+  #player-decks .player-deck:not(.player-deck-self) .deck-content {
+    gap: 0.35rem;
+  }
+
+  #player-decks .player-deck:not(.player-deck-self) .deck-info {
+    display: none;
+  }
+
+  #player-decks .player-deck:not(.player-deck-self) .deck-count-badge {
+    display: inline-flex;
+  }
+
+  #player-decks .player-deck:not(.player-deck-self) .card-back {
+    width: clamp(30px, 8vw, 42px);
+  }
+
+  #player-decks .player-deck:not(.player-deck-self) .player-avatar {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* --- Accessibilité : mouvement réduit -------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .turn-toast,
+  .confetti-piece,
+  .winner-crown,
+  .center-pile .card-enter,
+  #slap-btn.slap-armed:not(:disabled),
+  #player-decks .player-deck.deck-challenged,
+  #table.game-starting .player-deck {
+    animation: none;
+  }
+
+  .turn-toast {
+    opacity: 1;
+  }
 }

@@ -1,7 +1,19 @@
 {% extends "base.html" %}
 {% load static %}
 {% block content %}
-<h2>Salle {{ room.code }}</h2>
+<h2 class="room-title">
+  Salle
+  <button
+    id="room-code-badge"
+    class="room-code-badge"
+    type="button"
+    title="Copier le code de la salle"
+    aria-label="Copier le code de la salle {{ room.code }}"
+  >
+    <span class="room-code-badge__code">{{ room.code }}</span>
+    <span class="room-code-badge__hint" aria-hidden="true">copier</span>
+  </button>
+</h2>
 <div id="players-section">
   <p>Joueurs :</p>
   <ul
@@ -434,6 +446,27 @@
 </div>
 
 <p><a href="/">Accueil</a></p>
+
+<button
+  id="sound-toggle-btn"
+  class="sound-toggle-btn"
+  type="button"
+  aria-pressed="false"
+  aria-label="Couper les effets sonores"
+  title="Couper le son"
+>
+  <svg data-sound-icon="on" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"></polygon>
+    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+  </svg>
+  <svg data-sound-icon="off" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"></polygon>
+    <line x1="23" y1="9" x2="17" y2="15"></line>
+    <line x1="17" y1="9" x2="23" y2="15"></line>
+  </svg>
+</button>
+
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     var startBtn = document.getElementById('start-btn');
@@ -443,5 +476,6 @@
   });
 </script>
 {{ initial_options|json_script:"initial-room-options" }}
+<script src="{% static 'js/sounds.js' %}"></script>
 <script src="{% static 'js/room.js' %}"></script>
 {% endblock %}

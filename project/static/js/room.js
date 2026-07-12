@@ -713,6 +713,198 @@
 
   const errorDiv = document.getElementById('error-message');
 
+  const playSound = (name) => {
+    if (window.GameSounds && typeof window.GameSounds.play === 'function') {
+      window.GameSounds.play(name);
+    }
+  };
+
+  const toFiniteCount = (raw) => {
+    const numeric = typeof raw === 'number' ? raw : Number.parseInt(raw, 10);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+
+  const avatarHue = (userId) => {
+    const id = Number.isFinite(userId) ? userId : 0;
+    // Angle d'or : répartit les teintes uniformément quel que soit l'id.
+    return Math.round((id * 137.508) % 360);
+  };
+
+  const createAvatarEl = (userId, username) => {
+    const el = document.createElement('span');
+    el.className = 'player-avatar';
+    el.style.setProperty('--avatar-hue', String(avatarHue(userId)));
+    const initial = (username || '').trim().charAt(0).toUpperCase();
+    el.textContent = initial || '?';
+    el.setAttribute('aria-hidden', 'true');
+    return el;
+  };
+
+  const prefersReducedMotion = () =>
+    Boolean(
+      window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+
+  let lastTurnToastTs = 0;
+  const showTurnToast = () => {
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl) {
+      return;
+    }
+    const now = Date.now();
+    // Anti-spam : dans les parties à deux, le tour revient très souvent.
+    if (now - lastTurnToastTs < 4000) {
+      return;
+    }
+    lastTurnToastTs = now;
+    const existing = tableEl.querySelector('.turn-toast');
+    if (existing) {
+      existing.remove();
+    }
+    const toast = document.createElement('div');
+    toast.className = 'turn-toast';
+    toast.setAttribute('role', 'status');
+    toast.textContent = 'À vous de jouer !';
+    tableEl.appendChild(toast);
+    const removeToast = () => toast.remove();
+    toast.addEventListener('animationend', removeToast, { once: true });
+    window.setTimeout(removeToast, 2400);
+  };
+
+  const CONFETTI_COLORS = [
+    '#f59e0b',
+    '#ef4444',
+    '#3b82f6',
+    '#10b981',
+    '#eab308',
+    '#a855f7',
+    '#f8fafc'
+  ];
+  let confettiActive = false;
+  const launchConfetti = () => {
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl || confettiActive || prefersReducedMotion()) {
+      return;
+    }
+    confettiActive = true;
+    const layer = document.createElement('div');
+    layer.className = 'confetti-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 90; i += 1) {
+      const piece = document.createElement('span');
+      piece.className = 'confetti-piece';
+      piece.style.setProperty('--x', `${Math.random() * 100}%`);
+      piece.style.setProperty('--delay', `${Math.random() * 1.6}s`);
+      piece.style.setProperty('--fall', `${2.4 + Math.random() * 1.8}s`);
+      piece.style.setProperty('--rot', `${Math.random() * 720 - 360}deg`);
+      piece.style.setProperty('--size', `${6 + Math.random() * 7}px`);
+      piece.style.backgroundColor = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      layer.appendChild(piece);
+    }
+    tableEl.appendChild(layer);
+    window.setTimeout(() => {
+      layer.remove();
+      confettiActive = false;
+    }, 6500);
+  };
+
+  const animateGameStart = () => {
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl || prefersReducedMotion()) {
+      return;
+    }
+    tableEl.classList.remove('game-starting');
+    void tableEl.offsetWidth;
+    tableEl.classList.add('game-starting');
+    window.setTimeout(() => tableEl.classList.remove('game-starting'), 1600);
+  };
+
+  let stateSnapshot = {
+    started: currentGameStarted,
+    centerCount: null,
+    penaltyCount: null,
+    turnId: null,
+    winnerId: null,
+    faceChances: 0
+  };
+
+  // Sons et retours visuels pilotés par les différences d'état successives.
+  const applyStateFeedback = (state, lastAction, started) => {
+    const prev = stateSnapshot;
+    const next = {
+      started: Boolean(started),
+      centerCount: state ? toFiniteCount(state.center_count) : null,
+      penaltyCount: state ? toFiniteCount(state.penalty_count) : null,
+      turnId: state ? parseId(state.turn) : null,
+      winnerId:
+        state && state.winner !== undefined && state.winner !== null
+          ? parseId(state.winner)
+          : null,
+      faceChances: state ? toFiniteCount(state.face_chances) : 0
+    };
+    stateSnapshot = next;
+
+    const actionType =
+      lastAction && typeof lastAction.type === 'string' ? lastAction.type : '';
+    const isSlapAction = actionType.indexOf('slap') === 0;
+
+    if (next.started && !prev.started) {
+      playSound('start');
+      animateGameStart();
+    }
+    if (!next.started) {
+      return;
+    }
+
+    if (next.winnerId !== null) {
+      if (prev.winnerId === null) {
+        playSound(
+          currentUserId !== null && next.winnerId === currentUserId
+            ? 'win'
+            : 'end'
+        );
+        launchConfetti();
+      }
+      return;
+    }
+
+    // Les tapes ont leurs propres sons (gérés avec le lastAction dédupliqué).
+    if (!isSlapAction) {
+      if (prev.centerCount !== null && next.centerCount !== null) {
+        if (next.centerCount > prev.centerCount) {
+          playSound('card');
+        } else if (
+          next.centerCount < prev.centerCount &&
+          lastAction &&
+          lastAction.collected
+        ) {
+          playSound('collect');
+        }
+      }
+      if (
+        prev.penaltyCount !== null &&
+        next.penaltyCount !== null &&
+        next.penaltyCount > prev.penaltyCount
+      ) {
+        playSound('penalty');
+      }
+    }
+
+    if (next.faceChances > 0 && prev.faceChances === 0) {
+      playSound('face');
+    }
+
+    if (
+      currentUserId !== null &&
+      next.turnId === currentUserId &&
+      prev.turnId !== currentUserId
+    ) {
+      playSound('turn');
+      showTurnToast();
+    }
+  };
+
   const wsScheme = location.protocol === 'https:' ? 'wss' : 'ws';
   const socket = new WebSocket(`${wsScheme}://${location.host}/ws/room/${roomCode}/`);
 
@@ -804,6 +996,9 @@
     }
     const isAvailable = centerPileActionAvailableFromState && isSlapActionCurrentlyEnabled();
     target.classList.toggle('center-pile-clickable', isAvailable);
+    if (slapBtn) {
+      slapBtn.classList.toggle('slap-armed', isAvailable);
+    }
     if (isAvailable) {
       target.setAttribute('tabindex', '0');
       target.setAttribute('aria-disabled', 'false');
@@ -1182,6 +1377,12 @@
       const content = document.createElement('div');
       content.className = 'slap-overlay-content';
 
+      const crown = document.createElement('div');
+      crown.className = 'winner-crown';
+      crown.textContent = '👑';
+      crown.setAttribute('aria-hidden', 'true');
+      content.appendChild(crown);
+
       const title = document.createElement('h3');
       title.textContent = 'Partie terminée';
       content.appendChild(title);
@@ -1338,6 +1539,7 @@
     }
 
     if (lastAction.type === 'slap_pending') {
+      playSound('pending');
       slapOverlayManager.showPending(graceMs);
       return;
     }
@@ -1345,6 +1547,7 @@
     slapOverlayManager.clearPendingIndicator();
 
     if (lastAction.type === 'slap_resolved') {
+      playSound('slapWin');
       slapOverlayManager.showResolution(lastAction, playersById);
       return;
     }
@@ -1352,6 +1555,7 @@
     slapOverlayManager.hide();
 
     if (lastAction.type === 'slap_invalid') {
+      playSound('slapFail');
       const explicit = parseId(lastAction.userId);
       let targetId = explicit;
       if (targetId === null) {
@@ -1397,16 +1601,36 @@
       const rawUsername = typeof player.username === 'string' ? player.username : '';
       const username = rawUsername || `Joueur ${userId}`;
 
+      li.appendChild(createAvatarEl(userId, username));
+      const nameEl = document.createElement('strong');
+      nameEl.textContent = username;
+      li.appendChild(nameEl);
+
       if (started) {
-        li.innerHTML = `<strong>${username}</strong>`;
         li.classList.remove('player-ready', 'player-waiting');
       } else {
         const isReady = readySet.has(userId);
-        const statusText = isReady ? 'prêt' : 'en attente';
-        const statusClass = isReady ? 'status-ready' : 'status-waiting';
-        const shouldDisable = currentUserId === null || userId !== currentUserId;
-        const readyButtonHtml = createReadyButtonHtml(shouldDisable, isReady);
-        li.innerHTML = `<strong>${username}</strong> <span class="status ${statusClass}">${statusText}</span> ${readyButtonHtml}`;
+        const status = document.createElement('span');
+        status.className = `status ${isReady ? 'status-ready' : 'status-waiting'}`;
+        status.textContent = isReady ? 'prêt' : 'en attente';
+        li.appendChild(status);
+
+        const readyBtn = document.createElement('button');
+        readyBtn.className = 'ready-btn';
+        readyBtn.type = 'button';
+        readyBtn.textContent = isReady ? "Annuler l'état prêt" : 'Se déclarer prêt';
+        readyBtn.setAttribute('aria-pressed', isReady ? 'true' : 'false');
+        if (currentUserId === null || userId !== currentUserId) {
+          readyBtn.disabled = true;
+          readyBtn.setAttribute('aria-disabled', 'true');
+        } else {
+          const nextValue = !isReady;
+          readyBtn.addEventListener('click', () =>
+            window.wsSend({ type: 'ready', value: nextValue })
+          );
+        }
+        li.appendChild(readyBtn);
+
         li.classList.toggle('player-ready', isReady);
         li.classList.toggle('player-waiting', !isReady);
       }
@@ -1529,6 +1753,8 @@
         graceMs
       );
       previousCountsMap = nextCountsMap;
+
+      applyStateFeedback(state, msg.lastAction, started);
 
       renderPlayersList(players, readyIds, started, currentTurnId);
       lastStartedState = started;
@@ -1695,6 +1921,31 @@
 
   bindPlayerDecksContainer(document.getElementById('player-decks'));
 
+  const roomCodeBadge = document.getElementById('room-code-badge');
+  if (roomCodeBadge) {
+    roomCodeBadge.addEventListener('click', () => {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) {
+        return;
+      }
+      navigator.clipboard
+        .writeText(roomCode)
+        .then(() => {
+          roomCodeBadge.classList.add('copied');
+          const hint = roomCodeBadge.querySelector('.room-code-badge__hint');
+          if (hint) {
+            hint.textContent = 'copié !';
+          }
+          window.setTimeout(() => {
+            roomCodeBadge.classList.remove('copied');
+            if (hint) {
+              hint.textContent = 'copier';
+            }
+          }, 1600);
+        })
+        .catch(() => {});
+    });
+  }
+
   document.addEventListener('keydown', (event) => {
     if (optionsModalOpen) {
       if (event.key === 'Escape') {
@@ -1712,31 +1963,99 @@
     }
   });
 
-  function createReadyButtonHtml(disabled, isReady) {
-    const nextValue = isReady ? 'false' : 'true';
-    const label = isReady ? "Annuler l'état prêt" : 'Se déclarer prêt';
-    const disabledAttributes = disabled ? ' disabled aria-disabled="true"' : '';
-    const ariaPressed = isReady ? 'true' : 'false';
-    return `<button class="ready-btn" type="button"${disabledAttributes} aria-pressed="${ariaPressed}" onclick="wsSend({type:'ready', value:${nextValue}})">${label}</button>`;
+  // Indices à la française : Valet, Dame, Roi.
+  const RANK_DISPLAY = { A: 'A', K: 'R', Q: 'D', J: 'V', T: '10' };
+  const COURT_RANKS = new Set(['J', 'Q', 'K']);
+
+  // Positions (en % de la carte) des symboles pour les cartes numérales,
+  // reproduisant la disposition d'une vraie carte à jouer.
+  const PIP_LAYOUTS = {
+    2: [[50, 16], [50, 84]],
+    3: [[50, 16], [50, 50], [50, 84]],
+    4: [[28, 16], [72, 16], [28, 84], [72, 84]],
+    5: [[28, 16], [72, 16], [50, 50], [28, 84], [72, 84]],
+    6: [[28, 16], [72, 16], [28, 50], [72, 50], [28, 84], [72, 84]],
+    7: [[28, 16], [72, 16], [50, 33], [28, 50], [72, 50], [28, 84], [72, 84]],
+    8: [[28, 16], [72, 16], [50, 33], [28, 50], [72, 50], [50, 67], [28, 84], [72, 84]],
+    9: [[28, 16], [72, 16], [28, 39], [72, 39], [50, 50], [28, 61], [72, 61], [28, 84], [72, 84]],
+    T: [[28, 16], [72, 16], [50, 27], [28, 39], [72, 39], [28, 61], [72, 61], [50, 73], [28, 84], [72, 84]]
+  };
+
+  function formatRankDisplay(rank) {
+    return RANK_DISPLAY[rank] || rank;
   }
 
-  function formatCardSymbol(card) {
-    if (!card) {
-      return '';
+  function buildCardFace(card) {
+    const el = document.createElement('div');
+    el.className = 'card-visual playing-card';
+    if (!card || card.length < 2) {
+      return el;
     }
     const rank = card[0];
     const suit = card[1];
-    const displayRank = rank === 'T' ? '10' : rank;
-    const symbol = SUIT_SYMBOLS[suit] || '';
-    return `${displayRank}${symbol}`;
-  }
-
-  function formatSuitSymbol(card) {
-    if (!card) {
-      return '';
+    const suitSymbol = SUIT_SYMBOLS[suit] || '';
+    if (suit === 'H' || suit === 'D') {
+      el.classList.add('red');
     }
-    const suit = card[1];
-    return SUIT_SYMBOLS[suit] || '';
+
+    ['pc-corner--top', 'pc-corner--bottom'].forEach((positionClass) => {
+      const corner = document.createElement('span');
+      corner.className = `pc-corner ${positionClass}`;
+      const cornerRank = document.createElement('span');
+      cornerRank.className = 'pc-corner-rank';
+      cornerRank.textContent = formatRankDisplay(rank);
+      const cornerSuit = document.createElement('span');
+      cornerSuit.className = 'pc-corner-suit';
+      cornerSuit.textContent = suitSymbol;
+      corner.appendChild(cornerRank);
+      corner.appendChild(cornerSuit);
+      el.appendChild(corner);
+    });
+
+    if (rank === 'A') {
+      const center = document.createElement('span');
+      center.className = 'pc-center pc-ace';
+      center.textContent = suitSymbol;
+      el.appendChild(center);
+    } else if (COURT_RANKS.has(rank)) {
+      const center = document.createElement('span');
+      center.className = 'pc-center pc-court';
+      const frame = document.createElement('span');
+      frame.className = 'pc-court-frame';
+      const letter = document.createElement('span');
+      letter.className = 'pc-court-letter';
+      letter.textContent = formatRankDisplay(rank);
+      const courtSuit = document.createElement('span');
+      courtSuit.className = 'pc-court-suit';
+      courtSuit.textContent = suitSymbol;
+      frame.appendChild(letter);
+      frame.appendChild(courtSuit);
+      center.appendChild(frame);
+      el.appendChild(center);
+    } else {
+      const center = document.createElement('span');
+      center.className = 'pc-center pc-pips';
+      const layout = PIP_LAYOUTS[rank] || [];
+      layout.forEach(([x, y]) => {
+        const pip = document.createElement('span');
+        pip.className = 'pc-pip';
+        if (y > 50) {
+          pip.classList.add('pc-pip--flip');
+        }
+        pip.style.left = `${x}%`;
+        pip.style.top = `${y}%`;
+        pip.textContent = suitSymbol;
+        center.appendChild(pip);
+      });
+      el.appendChild(center);
+    }
+
+    const readable = formatCardName(card);
+    if (readable) {
+      el.setAttribute('aria-label', readable);
+      el.title = readable;
+    }
+    return el;
   }
 
   function formatCardName(card) {
@@ -1832,33 +2151,55 @@
         deckContent.className = 'deck-content';
         deck.appendChild(deckContent);
 
+        const username = player.username || `Joueur ${index + 1}`;
+        let safeCount = null;
+        if (state) {
+          const rawCount = counts[key];
+          const count = typeof rawCount === 'number' ? rawCount : Number.parseInt(rawCount, 10);
+          safeCount = Number.isFinite(count) ? count : 0;
+        }
+
         const deckCard = document.createElement('div');
         deckCard.className = 'deck-card';
+        // Épaisseur visuelle du paquet selon le nombre de cartes restantes.
+        const stackLevel =
+          safeCount === null ? 1 : Math.min(3, Math.ceil(safeCount / 18));
+        deckCard.dataset.stack = String(stackLevel);
         const cardBack = document.createElement('div');
         cardBack.className = 'card-back';
         deckCard.appendChild(cardBack);
+        deckCard.appendChild(createAvatarEl(userId, username));
+        if (safeCount !== null) {
+          const countBadge = document.createElement('span');
+          countBadge.className = 'deck-count-badge';
+          countBadge.textContent = String(safeCount);
+          deckCard.appendChild(countBadge);
+        }
         deckContent.appendChild(deckCard);
 
         const info = document.createElement('div');
         info.className = 'deck-info';
 
         const title = document.createElement('h3');
-        title.textContent = player.username || `Joueur ${index + 1}`;
+        const titleName = document.createElement('span');
+        titleName.className = 'deck-name';
+        titleName.textContent = username;
+        title.appendChild(titleName);
         info.appendChild(title);
+        deck.title = username;
 
         const countEl = document.createElement('p');
         countEl.className = 'deck-count';
-        if (!state) {
+        if (safeCount === null) {
           countEl.textContent = 'En attente…';
         } else {
-          const rawCount = counts[key];
-          const count = typeof rawCount === 'number' ? rawCount : Number.parseInt(rawCount, 10);
-          const safeCount = Number.isFinite(count) ? count : 0;
           countEl.textContent = `${safeCount} carte${safeCount > 1 ? 's' : ''}`;
         }
         info.appendChild(countEl);
 
         deckContent.appendChild(info);
+
+        deck.classList.toggle('deck-empty', safeCount === 0);
 
         deck.style.removeProperty('transform');
         deck.style.removeProperty('left');
@@ -1895,87 +2236,80 @@
 
     const totalDecks = deckElements.length;
     decksContainer.dataset.playerCount = String(totalDecks);
+    decksContainer.classList.toggle('decks-crowded', totalDecks >= 5);
 
     if (totalDecks === 1) {
       const deck = deckElements[0];
       deck.style.left = '50%';
       deck.style.top = '78%';
-      deck.classList.add('player-deck-solo', 'player-deck-bottom');
+      deck.classList.add('player-deck-solo', 'player-deck-bottom', 'player-deck-self');
       deck.classList.remove('player-deck-top', 'player-deck-left', 'player-deck-right');
       deck.style.zIndex = '9';
     } else if (totalDecks >= 2) {
-      const containerRect = decksContainer.getBoundingClientRect();
-      const sampleDeckRect =
-        deckElements.length > 0 &&
-        typeof deckElements[0].getBoundingClientRect === 'function'
-          ? deckElements[0].getBoundingClientRect()
-          : null;
-      const centerPile = document.getElementById('center-pile');
-      const penaltyPile = document.getElementById('penalty-pile');
-      const centerRect = centerPile ? centerPile.getBoundingClientRect() : null;
-      const penaltyRect = penaltyPile
-        ? penaltyPile.getBoundingClientRect()
-        : null;
-
-      const computeSpacingPercent = (targetRect, axis) => {
-        if (!targetRect || !sampleDeckRect) {
-          return 0;
-        }
-        const containerSize =
-          axis === 'x' ? containerRect.width : containerRect.height;
-        if (!containerSize) {
-          return 0;
-        }
-        const deckSize =
-          axis === 'x' ? sampleDeckRect.width : sampleDeckRect.height;
-        const targetSize =
-          axis === 'x' ? targetRect.width : targetRect.height;
-        if (!deckSize) {
-          return 0;
-        }
-        const safetyMargin = axis === 'x' ? 36 : 30;
-        const spacing = (deckSize + targetSize) / 2 + safetyMargin;
-        return (spacing / containerSize) * 100;
-      };
-
-      const spacingCandidates = [
-        computeSpacingPercent(centerRect, 'x'),
-        computeSpacingPercent(centerRect, 'y'),
-        computeSpacingPercent(penaltyRect, 'x'),
-        computeSpacingPercent(penaltyRect, 'y')
-      ].filter((value) => Number.isFinite(value) && value > 0);
-
-      const computedSpacing = spacingCandidates.length
-        ? Math.max(...spacingCandidates)
-        : 0;
-      const minRadiusByCount =
-        totalDecks === 2 ? 44 : totalDecks === 3 ? 49 : 52;
-      const dynamicBoost = Math.min(8, Math.max(0, totalDecks - 2) * 2);
-      const radiusPercent = Math.min(
-        55,
-        Math.max(minRadiusByCount, computedSpacing + dynamicBoost)
-      );
-
+      // Disposition en éventail : le joueur local occupe le bas de la table,
+      // les adversaires se répartissent sur l'arc supérieur (par le haut).
+      // Les côtés restent ainsi dégagés pour le tas central et les pénalités,
+      // ce qui évite les chevauchements sur petits écrans.
       const hasCurrentUserDeck = currentUserDeckIndex >= 0;
-      const angleOffset = hasCurrentUserDeck ? Math.PI / 2 : -Math.PI / 2;
+      const anchorIndex = hasCurrentUserDeck ? currentUserDeckIndex : 0;
+      const opponents = totalDecks - 1;
+
+      const containerRect = decksContainer.getBoundingClientRect();
+      const sampleDeck =
+        deckElements.length > 1
+          ? deckElements[anchorIndex === 0 ? 1 : 0]
+          : deckElements[0];
+      const sampleDeckRect =
+        typeof sampleDeck.getBoundingClientRect === 'function'
+          ? sampleDeck.getBoundingClientRect()
+          : null;
+      const halfWidthPercent =
+        sampleDeckRect && containerRect.width
+          ? (sampleDeckRect.width / 2 / containerRect.width) * 100
+          : 12;
+      const halfHeightPercent =
+        sampleDeckRect && containerRect.height
+          ? (sampleDeckRect.height / 2 / containerRect.height) * 100
+          : 9;
+
+      const desiredX = totalDecks <= 3 ? 46 : totalDecks <= 5 ? 50 : 53;
+      const desiredY = totalDecks <= 3 ? 48 : totalDecks <= 5 ? 51 : 53;
+      // Horizontalement, le bord du paquet (rayon + demi-largeur) doit rester
+      // dans le conteneur, sinon les joueurs sortent de l'écran ou se
+      // chevauchent quand ils sont nombreux. Verticalement on tolère un léger
+      // débordement sur le rebord de la table (haut/bas) pour bien écarter les
+      // paquets du tas central.
+      const radiusX = Math.min(desiredX, Math.max(28, 50 - halfWidthPercent - 1));
+      const radiusY = Math.min(desiredY, Math.max(32, 50 - halfHeightPercent + 4));
 
       deckElements.forEach((deck, idx) => {
-        const relativeIndex = hasCurrentUserDeck
-          ? (idx - currentUserDeckIndex + totalDecks) % totalDecks
-          : idx;
-        const angle = (relativeIndex / totalDecks) * Math.PI * 2 + angleOffset;
-        const x = 50 + radiusPercent * Math.cos(angle);
-        const y = 50 + radiusPercent * Math.sin(angle);
+        const relativeIndex = (idx - anchorIndex + totalDecks) % totalDecks;
+        let angleDeg;
+        if (relativeIndex === 0) {
+          angleDeg = 90; // bas de la table
+        } else {
+          // Éventail dans la moitié supérieure uniquement (de ~180° à ~360°
+          // en passant par le sommet 270°). Les adversaires ne descendent
+          // jamais sous la ligne médiane, ce qui laisse toute la zone basse
+          // libre pour le tas de pénalité, même à 8 joueurs.
+          const arcSpan = 200;
+          const arcStart = 270 - arcSpan / 2; // 170°
+          angleDeg = arcStart + ((relativeIndex - 0.5) / opponents) * arcSpan;
+        }
+        const angleRad = (angleDeg * Math.PI) / 180;
+        const x = 50 + radiusX * Math.cos(angleRad);
+        const y = 50 + radiusY * Math.sin(angleRad);
         deck.style.left = `${x}%`;
         deck.style.top = `${y}%`;
         const isTop = y <= 50;
-        const isBottom = !isTop;
-        const isLeft = x < 50 - 0.5;
-        const isRight = x > 50 + 0.5;
         deck.classList.toggle('player-deck-top', isTop);
-        deck.classList.toggle('player-deck-bottom', isBottom);
-        deck.classList.toggle('player-deck-left', isLeft);
-        deck.classList.toggle('player-deck-right', isRight);
+        deck.classList.toggle('player-deck-bottom', !isTop);
+        deck.classList.toggle('player-deck-left', x < 50 - 0.5);
+        deck.classList.toggle('player-deck-right', x > 50 + 0.5);
+        deck.classList.toggle(
+          'player-deck-self',
+          hasCurrentUserDeck && idx === currentUserDeckIndex
+        );
         deck.classList.remove('player-deck-solo');
         deck.style.zIndex = isTop ? '6' : '9';
       });
@@ -2123,45 +2457,67 @@
       stack.className = 'center-pile';
 
       const totalCount = centerCount || cardsToRender.length;
-      const startIndex = Math.max(totalCount - cardsToRender.length, 0);
+      const isNewTopCard =
+        stateSnapshot.centerCount !== null &&
+        centerCount > stateSnapshot.centerCount;
 
-      cardsToRender.forEach((card, idx) => {
-        const pileCard = document.createElement('div');
-        pileCard.className = 'card-visual center-card';
+      // On n'affiche que les trois dernières cartes déposées. La position de
+      // chaque carte est déterminée par sa position ABSOLUE dans le tas (angle
+      // d'or), pas par son rang parmi les cartes visibles : ainsi les cartes
+      // déjà présentes ne bougent pas quand on en pose une nouvelle (pas de
+      // « réinitialisation »), et les trois cartes s'écartent dans des
+      // directions différentes pour qu'on voie le coin de chacune.
+      const fanCards = cardsToRender.slice(-3);
+      const firstAbsIndex = Math.max(totalCount - fanCards.length, 0);
+      fanCards.forEach((card, idx) => {
+        const pileCard = buildCardFace(card);
+        pileCard.classList.add('center-card');
 
-        const rotation = ((startIndex + idx) * 45) % 360;
-        pileCard.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+        const absIndex = firstAbsIndex + idx;
+        const angle = absIndex * 2.399963; // angle d'or (~137,5°)
+        const radius = 13;
+        const offsetX = Math.cos(angle) * radius;
+        const offsetY = Math.sin(angle) * radius;
+        const rotation = ((absIndex * 41) % 19) - 9; // -9°..9°, stable
+        pileCard.style.transform =
+          `translate(calc(-50% + ${offsetX.toFixed(1)}px), calc(-50% + ${offsetY.toFixed(1)}px)) rotate(${rotation}deg)`;
         pileCard.style.zIndex = String(10 + idx);
-
-        if (card && (card[1] === 'H' || card[1] === 'D')) {
-          pileCard.classList.add('red');
-        }
-
-        const topLeft = document.createElement('span');
-        topLeft.className = 'card-corner top-left';
-        topLeft.textContent = formatCardSymbol(card);
-        pileCard.appendChild(topLeft);
-
-        const symbol = document.createElement('span');
-        symbol.className = 'card-symbol';
-        symbol.textContent = formatSuitSymbol(card);
-        pileCard.appendChild(symbol);
-
-        const bottomRight = document.createElement('span');
-        bottomRight.className = 'card-corner bottom-right';
-        bottomRight.textContent = formatCardSymbol(card);
-        pileCard.appendChild(bottomRight);
-
-        const readable = formatCardName(card);
-        if (readable) {
-          pileCard.setAttribute('aria-label', readable);
-          pileCard.title = readable;
+        if (isNewTopCard && idx === fanCards.length - 1 && !prefersReducedMotion()) {
+          pileCard.classList.add('card-enter');
         }
 
         stack.appendChild(pileCard);
       });
 
       centerPileEl.appendChild(stack);
+
+      const countBadge = document.createElement('span');
+      countBadge.className = 'center-count-badge';
+      countBadge.textContent = `${totalCount} carte${totalCount > 1 ? 's' : ''}`;
+      centerPileEl.appendChild(countBadge);
     }
+
+    // Défi figure en cours : bandeau au-dessus du tas + joueur mis en évidence.
+    const faceChances = state ? toFiniteCount(state.face_chances) : 0;
+    const challengedId = state ? parseId(state.waiting_for_face_from) : null;
+    const challengedKey = challengedId !== null ? String(challengedId) : null;
+    if (faceChances > 0 && !hasWinner) {
+      const challengeBadge = document.createElement('div');
+      challengeBadge.className = 'face-challenge-badge';
+      challengeBadge.setAttribute('role', 'status');
+      const badgeTitle = document.createElement('strong');
+      badgeTitle.textContent = 'Défi figure';
+      const badgeDetail = document.createElement('span');
+      badgeDetail.textContent = `${faceChances} essai${faceChances > 1 ? 's' : ''} restant${faceChances > 1 ? 's' : ''}`;
+      challengeBadge.appendChild(badgeTitle);
+      challengeBadge.appendChild(badgeDetail);
+      centerPileEl.appendChild(challengeBadge);
+    }
+    deckElements.forEach((deck) => {
+      deck.classList.toggle(
+        'deck-challenged',
+        challengedKey !== null && faceChances > 0 && deck.dataset.userId === challengedKey
+      );
+    });
   }
 })();
