@@ -1059,15 +1059,16 @@
       const isSuccess = actionType === 'slap_resolved';
       playSlapFeedback(tableEl, isSuccess ? 'success' : 'fail');
       
-      // -- NEW: Render the physical hand slapping the deck! --
-      const pile = document.getElementById('center-pile');
-      if (pile) {
+      // Main géante qui vient taper le tas. On l'ajoute à la TABLE et non au
+      // tas central : renderTable vide le tas central (innerHTML) à chaque
+      // rafraîchissement, ce qui effaçait la main aussitôt posée.
+      if (!prefersReducedMotion()) {
         const hand = document.createElement('div');
         hand.className = `slap-hand-effect ${isSuccess ? 'success' : 'fail'}`;
         hand.textContent = '✋';
-        pile.appendChild(hand);
-        
-        // Clean up node after animation finishes
+        tableEl.appendChild(hand);
+
+        // Nettoyage du nœud une fois l'animation terminée
         setTimeout(() => hand.remove(), 800);
       }
     } else {
