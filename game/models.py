@@ -34,12 +34,10 @@ class UserProfile(models.Model):
     easter_egg_unlocked = models.BooleanField(default=False)
     easter_egg_active = models.BooleanField(default=False)
 
-# Ces signaux créent automatiquement un profil à chaque création d'un nouvel utilisateur
+# Garantit qu'un profil existe pour chaque utilisateur. get_or_create est
+# idempotent : il crée le profil pour les nouveaux comptes ET répare ceux créés
+# avant l'ajout du modèle UserProfile (sinon leur connexion planterait sur
+# instance.profile, qui n'existe pas encore).
 @receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs):
-    if created:
-        UserProfile.objects.create(user=instance)
-
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    instance.profile.save()
+def ensure_user_profile(sender, instance, created, **kwargs):
+    UserProfile.objects.get_or_create(user=instance)
