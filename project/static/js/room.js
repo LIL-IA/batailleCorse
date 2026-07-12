@@ -1981,6 +1981,15 @@
     T: [[28, 16], [72, 16], [50, 27], [28, 39], [72, 39], [28, 61], [72, 61], [50, 73], [28, 84], [72, 84]]
   };
 
+  // Trois emplacements fixes pour le tas central. Le motif se répète toutes les
+  // trois cartes (index % 3), en triangle, pour qu'on voie toujours le coin des
+  // trois dernières cartes déposées.
+  const CENTER_PILE_SLOTS = [
+    { x: -15, y: -8, rot: -9 },
+    { x: 15, y: -6, rot: 9 },
+    { x: 0, y: 11, rot: 0 },
+  ];
+
   function formatRankDisplay(rank) {
     return RANK_DISPLAY[rank] || rank;
   }
@@ -2461,12 +2470,12 @@
         stateSnapshot.centerCount !== null &&
         centerCount > stateSnapshot.centerCount;
 
-      // On n'affiche que les trois dernières cartes déposées. La position de
-      // chaque carte est déterminée par sa position ABSOLUE dans le tas (angle
-      // d'or), pas par son rang parmi les cartes visibles : ainsi les cartes
-      // déjà présentes ne bougent pas quand on en pose une nouvelle (pas de
-      // « réinitialisation »), et les trois cartes s'écartent dans des
-      // directions différentes pour qu'on voie le coin de chacune.
+      // On n'affiche que les trois dernières cartes déposées. Chaque carte
+      // occupe l'une de TROIS positions fixes, choisie selon sa position
+      // ABSOLUE dans le tas (index modulo 3) : le motif se répète toutes les
+      // trois poses. Les cartes déjà présentes ne bougent donc jamais quand on
+      // en pose une nouvelle, et les trois dernières occupent toujours les trois
+      // emplacements distincts — on voit le coin de chacune.
       const fanCards = cardsToRender.slice(-3);
       const firstAbsIndex = Math.max(totalCount - fanCards.length, 0);
       fanCards.forEach((card, idx) => {
@@ -2474,13 +2483,9 @@
         pileCard.classList.add('center-card');
 
         const absIndex = firstAbsIndex + idx;
-        const angle = absIndex * 2.399963; // angle d'or (~137,5°)
-        const radius = 13;
-        const offsetX = Math.cos(angle) * radius;
-        const offsetY = Math.sin(angle) * radius;
-        const rotation = ((absIndex * 41) % 19) - 9; // -9°..9°, stable
+        const slot = CENTER_PILE_SLOTS[absIndex % CENTER_PILE_SLOTS.length];
         pileCard.style.transform =
-          `translate(calc(-50% + ${offsetX.toFixed(1)}px), calc(-50% + ${offsetY.toFixed(1)}px)) rotate(${rotation}deg)`;
+          `translate(calc(-50% + ${slot.x}px), calc(-50% + ${slot.y}px)) rotate(${slot.rot}deg)`;
         pileCard.style.zIndex = String(10 + idx);
         if (isNewTopCard && idx === fanCards.length - 1 && !prefersReducedMotion()) {
           pileCard.classList.add('card-enter');

@@ -1895,6 +1895,32 @@ body {
     #f2f5fa;
 }
 
+/* Ambiance « casino » sombre, réservée à la table de jeu (les pages
+   accueil/connexion gardent leur fond clair). */
+body.game-room {
+  color: #e2e8f0;
+  background:
+    radial-gradient(circle at 50% -12%, rgba(23, 128, 90, 0.24), transparent 55%),
+    radial-gradient(circle at 10% 8%, rgba(59, 130, 246, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 96%, rgba(201, 162, 39, 0.13), transparent 45%),
+    linear-gradient(180deg, #0c1424 0%, #0a0f1b 58%, #070b14 100%);
+  background-attachment: fixed;
+}
+
+body.game-room header,
+body.game-room footer {
+  color: #cbd5e1;
+}
+
+body.game-room header a,
+body.game-room header h1 a {
+  color: #f8fafc;
+}
+
+body.game-room .room-title {
+  color: #f1f5f9;
+}
+
 /* --- Avatars des joueurs ------------------------------------------------ */
 .player-avatar {
   --avatar-hue: 210;
@@ -1995,6 +2021,46 @@ body {
   width: 1.5rem;
   height: 1.5rem;
   pointer-events: none;
+}
+
+/* --- Bouton d'aide : rappel des essais du défi figure -------------------- */
+.face-hint-toggle-btn {
+  position: fixed;
+  /* Juste au-dessus du bouton de son (même colonne, en bas à droite). */
+  bottom: calc(clamp(1rem, 3vw, 2rem) + 4.25rem);
+  right: clamp(1rem, 3vw, 2rem);
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #b45309, #7c2d12);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 25px -8px rgba(15, 23, 42, 0.7);
+  z-index: 150;
+}
+
+.face-hint-toggle-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+}
+
+.face-hint-toggle-btn.is-off {
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+}
+
+.face-hint-toggle-btn svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  pointer-events: none;
+}
+
+/* Masque le rappel du nombre d'essais restants (le titre « Défi figure »
+   reste affiché). */
+body.hide-face-hint .face-challenge-badge span {
+  display: none;
 }
 
 /* --- Nom du joueur sur son paquet --------------------------------------- */

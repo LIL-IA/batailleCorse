@@ -113,9 +113,22 @@ LOGOUT_REDIRECT_URL = "home"
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "project" / "static"]
-STORAGES = {
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
-}
+
+if DEBUG:
+    # En dev (Docker + Daphne + WhiteNoise), Daphne ne sert pas les statiques
+    # comme runserver : c'est WhiteNoise qui s'en charge. On le fait lire
+    # directement les sources (finders + autorefresh) et on désactive le
+    # stockage à manifeste, sinon il faudrait relancer collectstatic à chaque
+    # modif CSS/JS pour voir le moindre changement.
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = True
+    STORAGES = {
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+else:
+    STORAGES = {
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    }
 
 LOGGING = {
     "version": 1,
