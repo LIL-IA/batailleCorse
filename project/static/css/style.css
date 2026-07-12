@@ -1907,6 +1907,14 @@ body.game-room {
   background-attachment: fixed;
 }
 
+/* La page de jeu n'affiche pas la « carte » blanche de contenu : la table
+   ronde repose directement sur le fond sombre. */
+body.game-room main {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
 body.game-room header,
 body.game-room footer {
   color: #cbd5e1;
