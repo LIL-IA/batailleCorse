@@ -998,10 +998,14 @@
     if (!target) {
       return;
     }
-    const isAvailable = centerPileActionAvailableFromState && isSlapActionCurrentlyEnabled();
+    const slapAvailable = centerPileActionAvailableFromState && isSlapActionCurrentlyEnabled();
+    // Le gagnant du pli (y compris sans avoir tapé, ex. défi figure) peut
+    // toujours cliquer au centre pour ramasser, même hors situation de tape.
+    const isAvailable = slapAvailable || pendingCollectForCurrentUser;
     target.classList.toggle('center-pile-clickable', isAvailable);
     if (slapBtn) {
-      slapBtn.classList.toggle('slap-armed', isAvailable);
+      // Le bouton ne « s'arme » que pour une vraie tape, pas pour un ramassage.
+      slapBtn.classList.toggle('slap-armed', slapAvailable);
     }
     if (isAvailable) {
       target.setAttribute('tabindex', '0');
@@ -1841,6 +1845,10 @@
     }
     if (!centerPileInteractiveEl.classList.contains('center-pile-clickable')) {
       return false;
+    }
+    // Ramassage du pli gagné : autorisé même hors situation de tape.
+    if (pendingCollectForCurrentUser) {
+      return true;
     }
     return isSlapActionCurrentlyEnabled();
   };
