@@ -1733,16 +1733,12 @@
         ? `${leftName} a quitté la partie.`
         : 'Un joueur a quitté la partie.';
       showTemporaryErrorMessage(leaveMessage);
-      if (typeof window.alert === 'function') {
-        window.alert(leaveMessage);
-      }
     }
     if (msg.error) {
       // Ignore concurrency block silently (just drops the input)
       if (msg.error === 'slap-in-progress') return; 
 
       const err = errorMessages[msg.error] || msg.error;
-      window.alert(err);
       showTemporaryErrorMessage(err);
       if (msg.error === 'no-cards' || msg.error === 'game-over') {
         playCardShouldBeDisabled = true;
