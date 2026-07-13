@@ -10,7 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
 ENV DJANGO_SETTINGS_MODULE=project.settings
-RUN python manage.py collectstatic --noinput || true
+
+RUN SECRET_KEY=dummy-build-key python manage.py collectstatic --noinput
 
 EXPOSE 8000
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "project.asgi:application"]
