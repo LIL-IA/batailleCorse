@@ -2404,7 +2404,11 @@
         : 'Jouer une carte';
     }
 
-    if (hasWinner) {
+    // Tant qu'un ramassage est en attente (ex. défi figure remporté), la
+    // victoire n'est pas acquise : les autres joueurs peuvent encore taper pour
+    // voler le tas. On n'affiche donc PAS l'écran de victoire dans ce cas, pour
+    // ne pas faire croire que la partie est finie et bloquer la contestation.
+    if (hasWinner && !pendingCollect) {
       const resolvedName = winnerId !== null ? resolvedPlayersById.get(winnerId) : null;
       const fallbackName = winnerId !== null ? `Joueur ${winnerId}` : 'Gagnant';
       const winnerName =
