@@ -2523,30 +2523,42 @@
         stateSnapshot.centerCount !== null &&
         centerCount > stateSnapshot.centerCount;
 
-      // On n'affiche que les trois dernières cartes déposées. Chaque carte
-      // occupe l'une de TROIS positions fixes, choisie selon sa position
-      // ABSOLUE dans le tas (index modulo 3) : le motif se répète toutes les
-      // trois poses. Les cartes déjà présentes ne bougent donc jamais quand on
-      // en pose une nouvelle, et les trois dernières occupent toujours les trois
-      // emplacements distincts — on voit le coin de chacune.
-      const fanCards = cardsToRender.slice(-3);
-      const firstAbsIndex = Math.max(totalCount - fanCards.length, 0);
-      fanCards.forEach((card, idx) => {
-        const pileCard = buildCardFace(card);
-        pileCard.classList.add('center-card');
+      // Chaque carte occupe l'une des TROIS positions du cycle selon sa position
+      // ABSOLUE dans le tas (index % 3) : les cartes déjà posées ne bougent pas.
+      // On garde plusieurs cartes empilées en dessous pour que le tas
+      // s'épaississe (les cartes du dessous ne disparaissent pas). Le client ne
+      // connaît que les dernières faces (last_four_center) ; les cartes plus
+      // profondes sont dessinées comme une tranche neutre.
+      const knownCards = cardsToRender;
+      const knownStartAbs = Math.max(totalCount - knownCards.length, 0);
+      const PILE_DEPTH = 8; // nombre de cartes empilées visibles au maximum
+      const startAbs = Math.max(totalCount - PILE_DEPTH, 0);
 
-        const absIndex = firstAbsIndex + idx;
+      for (let absIndex = startAbs; absIndex < totalCount; absIndex += 1) {
+        const idx = absIndex - startAbs;
+        const isKnown = absIndex >= knownStartAbs;
+        const pileCard = buildCardFace(isKnown ? knownCards[absIndex - knownStartAbs] : null);
+        pileCard.classList.add('center-card');
+        if (!isKnown) {
+          pileCard.classList.add('center-card--buried');
+        }
+
         const slot = CENTER_PILE_SLOTS[absIndex % CENTER_PILE_SLOTS.length];
+        // Micro-décalages déterministes (stables par carte) : la pose paraît
+        // plus naturelle sans « sauter » à chaque rafraîchissement.
+        const jitterRot = ((absIndex * 73) % 9) - 4; // -4°..+4°
+        const jitterX = ((absIndex * 53) % 7) - 3; // -3..+3 px
+        const jitterY = ((absIndex * 37) % 7) - 3; // -3..+3 px
         pileCard.style.transform =
-          `translate(calc(-50% + ${slot.x}px), calc(-50% + ${slot.y}px)) rotate(${slot.rot}deg)`;
+          `translate(calc(-50% + ${slot.x + jitterX}px), calc(-50% + ${slot.y + jitterY}px)) rotate(${slot.rot + jitterRot}deg)`;
         // z par ordre d'arrivée : la dernière carte posée est au-dessus.
         pileCard.style.zIndex = String(10 + idx);
-        if (isNewTopCard && idx === fanCards.length - 1 && !prefersReducedMotion()) {
+        if (isNewTopCard && absIndex === totalCount - 1 && !prefersReducedMotion()) {
           pileCard.classList.add('card-enter');
         }
 
         stack.appendChild(pileCard);
-      });
+      }
 
       centerPileEl.appendChild(stack);
 

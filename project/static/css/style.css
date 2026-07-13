@@ -1558,6 +1558,12 @@ body.room-options-lock {
   transition: transform 0.3s ease;
 }
 
+/* Cartes enfouies (identité inconnue du client) : légèrement assombries, elles
+   ne montrent que leur tranche pour donner l'épaisseur du tas. */
+.center-pile .card-visual.center-card--buried {
+  filter: brightness(0.9);
+}
+
 /* Arrivée d'une nouvelle carte sur le tas */
 .center-pile .card-enter {
   animation: cardEnter 0.32s cubic-bezier(0.2, 0.8, 0.3, 1.1);
