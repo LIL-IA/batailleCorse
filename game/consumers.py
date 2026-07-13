@@ -44,7 +44,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             if await self._is_room_started():
                 await self._ensure_engine()
             else:
-                await self._reset_engine(clear_ready=False)
+                ENGINES[self.room_code] = None
             engine = ENGINES.get(self.room_code)
             db_players = await self._players_order()
             if engine and set(db_players) != set(engine.players):
@@ -64,6 +64,10 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             t = content.get("type")
             user_id = self.scope["user"].id
             engine = ENGINES.get(self.room_code)
+
+            if t in {"play", "slap"} and not await self._is_started():
+                await self.send_json({"error": "game-not-started"})
+                return
 
             if t == "play":
                 if engine is None:
@@ -115,9 +119,17 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
             if t == "slap":
                 ts = time.time_ns()
-                if not engine.is_slap_valid():
-                    # If the collection winner touches the pile without a contest, treat it as a normal collection
-                    if engine.pending_collect and engine.collect_winner == user_id:
+                ctx = await self._ensure_slap_ctx()
+
+                # Le gagnant légitime du défi de figure qui tape sur le tas le
+                # ramasse normalement, sans animation ni course au slap — tant
+                # qu'aucune tentative de vol n'est déjà en cours. La course (et
+                # donc l'animation) ne se déclenche que si d'autres joueurs
+                # tentent de lui voler le pli avant qu'il ne ramasse.
+                if engine.pending_collect and engine.collect_winner == user_id:
+                    async with ctx["lock"]:
+                        steal_in_progress = ctx["open"]
+                    if not steal_in_progress:
                         res = engine.play_card(user_id)
                         await self._broadcast_state(extra={
                             "lastAction": {
@@ -128,6 +140,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                         })
                         return
 
+                if not engine.is_slap_valid():
                     # Real invalid slap penalty
                     res = engine.slap(user_id)
                     await self._broadcast_state(extra={
@@ -139,7 +152,6 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     })
                     return
 
-                ctx = await self._ensure_slap_ctx()
                 async with ctx["lock"]:
                     baseline_ns = ctx.get("last_card_ns")
                     reaction_ns = None

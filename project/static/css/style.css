@@ -2150,9 +2150,8 @@ body.game-room #players li.current-turn strong {
   pointer-events: none;
 }
 
-/* Masque le rappel du nombre d'essais restants (le titre « Défi figure »
-   reste affiché). */
-body.hide-face-hint .face-challenge-badge span {
+/* Masque entièrement la pop-up du défi figure (titre + rappel des essais). */
+body.hide-face-hint .face-challenge-badge {
   display: none;
 }
 
@@ -2370,7 +2369,7 @@ body.hide-face-hint .face-challenge-badge span {
 
 .face-challenge-badge {
   position: absolute;
-  top: -3.6rem;
+  top: -5.0rem;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
