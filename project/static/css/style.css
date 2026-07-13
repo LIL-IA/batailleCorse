@@ -551,10 +551,30 @@ textarea:focus {
 }
 
 #player-decks .player-deck.current-turn {
+  /* Halo jaune-orange bien visible, avec pulsation, pour la personne qui doit
+     jouer. (La valeur statique sert aussi de repli en mouvement réduit.) */
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.55),
-    0 28px 60px -26px rgba(59, 130, 246, 0.65);
-  transform: translate(-50%, -50%) scale(1.04);
+    0 0 0 3px rgba(251, 191, 36, 0.9),
+    0 0 22px 4px rgba(249, 115, 22, 0.6),
+    0 28px 60px -26px rgba(249, 115, 22, 0.5);
+  transform: translate(-50%, -50%) scale(1.05);
+  animation: turnHaloPulse 1.35s ease-in-out infinite;
+}
+
+@keyframes turnHaloPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px rgba(251, 191, 36, 0.9),
+      0 0 20px 3px rgba(249, 115, 22, 0.55),
+      0 28px 60px -26px rgba(249, 115, 22, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(253, 224, 71, 1),
+      0 0 34px 8px rgba(249, 115, 22, 0.8),
+      0 28px 60px -26px rgba(249, 115, 22, 0.5);
+  }
 }
 
 #player-decks .player-deck.current-turn:hover,
@@ -563,7 +583,7 @@ textarea:focus {
 }
 
 #player-decks .player-deck.current-turn .deck-count {
-  color: #dbeafe;
+  color: #fde68a;
 }
 
 #player-decks .player-deck.player-deck-solo {
@@ -2152,9 +2172,9 @@ body.hide-face-hint .face-challenge-badge span {
    doré de .player-deck-self l'emportait et masquait l'indication de tour. */
 #player-decks .player-deck.player-deck-self.current-turn {
   box-shadow:
-    0 0 0 3px rgba(59, 130, 246, 0.7),
-    0 0 0 6px rgba(251, 191, 36, 0.3),
-    0 28px 60px -26px rgba(59, 130, 246, 0.65);
+    0 0 0 3px rgba(251, 191, 36, 0.9),
+    0 0 22px 4px rgba(249, 115, 22, 0.6),
+    0 28px 60px -26px rgba(249, 115, 22, 0.5);
 }
 
 /* Joueur attendu sur un défi figure */
@@ -2435,6 +2455,7 @@ body.hide-face-hint .face-challenge-badge span {
   .center-pile .card-enter,
   #slap-btn.slap-armed:not(:disabled),
   #player-decks .player-deck.deck-challenged,
+  #player-decks .player-deck.current-turn,
   #table.game-starting .player-deck {
     animation: none;
   }
