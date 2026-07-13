@@ -901,7 +901,8 @@
       prev.turnId !== currentUserId
     ) {
       playSound('turn');
-      showTurnToast();
+      // Plus de bandeau « À vous de jouer ! » : le halo orange sur le paquet
+      // suffit à indiquer que c'est notre tour.
     }
   };
 
@@ -985,6 +986,9 @@
   };
 
   let centerPileActionAvailableFromState = false;
+  // Vrai quand on a déjà gagné le pli et qu'un ramassage est en attente : un
+  // clic au centre est alors un simple ramassage, pas une tape.
+  let pendingCollectForCurrentUser = false;
 
   function updateCenterPileActionMarker(element) {
     const target =
@@ -1037,9 +1041,14 @@
   // envoie la tape au serveur (dont la résolution, différée par la fenêtre de
   // grâce, ne fera plus que colorer la table en vert/rouge).
   const triggerLocalSlap = () => {
-    localSlapHandTs = Date.now();
-    spawnSlapHand('pending');
-    playSound('pending');
+    // Si l'on a déjà remporté le pli et qu'on clique au centre pour ramasser,
+    // ce n'est pas une tape : on ne montre ni la main ni la secousse, on envoie
+    // simplement l'action (le serveur la traite comme un ramassage).
+    if (!pendingCollectForCurrentUser) {
+      localSlapHandTs = Date.now();
+      spawnSlapHand('pending');
+      playSound('pending');
+    }
     wsSend({ type: 'slap' });
   };
 
@@ -2372,6 +2381,7 @@
       collectWinnerId !== null &&
       currentUserId !== null &&
       collectWinnerId === currentUserId;
+    pendingCollectForCurrentUser = isCollectWinner;
     const hasWinner = Boolean(state && state.winner !== undefined && state.winner !== null);
     const winnerId = hasWinner ? parseId(state.winner) : null;
 
