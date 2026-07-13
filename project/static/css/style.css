@@ -1795,6 +1795,8 @@ body.room-options-lock {
 
 .slap-hand-effect.success { filter: drop-shadow(0 0 25px #10b981); }
 .slap-hand-effect.fail { filter: drop-shadow(0 0 25px #ef4444); opacity: 0.85; }
+/* Main neutre affichée immédiatement au moment où l'on tape. */
+.slap-hand-effect.pending { filter: drop-shadow(0 0 22px rgba(248, 250, 252, 0.8)); }
 
 @keyframes slapDown {
   0% {

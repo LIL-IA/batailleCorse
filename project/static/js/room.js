@@ -1011,6 +1011,44 @@
   const SLAP_FEEDBACK_CLASSES = ['slap-success', 'slap-fail'];
   const SLAP_OVERLAY_DURATION_MS = 1600;
 
+  // Horodatage de la dernière tape déclenchée localement : sert à afficher la
+  // main immédiatement au clic, sans attendre la résolution serveur, tout en
+  // évitant d'en afficher une seconde quand la résolution de NOTRE tape arrive.
+  let localSlapHandTs = 0;
+
+  // Ajoute la main géante ✋ sur la table (jamais vidée, contrairement au tas
+  // central). kind : 'success' | 'fail' | 'pending' (neutre, au moment du clic).
+  const spawnSlapHand = (kind) => {
+    if (prefersReducedMotion()) {
+      return;
+    }
+    const tableEl = document.querySelector(tableSelector);
+    if (!tableEl) {
+      return;
+    }
+    const hand = document.createElement('div');
+    hand.className = `slap-hand-effect ${kind || 'pending'}`;
+    hand.textContent = '✋';
+    tableEl.appendChild(hand);
+    setTimeout(() => hand.remove(), 800);
+  };
+
+  // Retour immédiat au clic : on « claque » la main tout de suite, puis on
+  // envoie la tape au serveur (dont la résolution, différée par la fenêtre de
+  // grâce, ne fera plus que colorer la table en vert/rouge).
+  const triggerLocalSlap = () => {
+    localSlapHandTs = Date.now();
+    spawnSlapHand('pending');
+    playSound('pending');
+    wsSend({ type: 'slap' });
+  };
+
+  // Le bouton « TAPER ! » passe désormais par le retour immédiat (auparavant un
+  // onclick inline appelait directement wsSend, sans afficher la main).
+  if (slapBtn) {
+    slapBtn.addEventListener('click', triggerLocalSlap);
+  }
+
   const clearSlapFeedback = (tableEl) => {
     if (!tableEl) {
       return;
@@ -1058,18 +1096,15 @@
     if (actionType === 'slap_resolved' || actionType === 'slap_invalid' || actionType === 'slap_none') {
       const isSuccess = actionType === 'slap_resolved';
       playSlapFeedback(tableEl, isSuccess ? 'success' : 'fail');
-      
-      // Main géante qui vient taper le tas. On l'ajoute à la TABLE et non au
-      // tas central : renderTable vide le tas central (innerHTML) à chaque
-      // rafraîchissement, ce qui effaçait la main aussitôt posée.
-      if (!prefersReducedMotion()) {
-        const hand = document.createElement('div');
-        hand.className = `slap-hand-effect ${isSuccess ? 'success' : 'fail'}`;
-        hand.textContent = '✋';
-        tableEl.appendChild(hand);
 
-        // Nettoyage du nœud une fois l'animation terminée
-        setTimeout(() => hand.remove(), 800);
+      // Si l'on vient de taper soi-même, la main neutre a déjà été affichée au
+      // clic : on ne la redouble pas (la table clignote quand même en
+      // vert/rouge). Sinon (tape d'un autre joueur), on affiche la main colorée.
+      const isOwnRecentSlap = Date.now() - localSlapHandTs < 1500;
+      if (isOwnRecentSlap) {
+        localSlapHandTs = 0;
+      } else {
+        spawnSlapHand(isSuccess ? 'success' : 'fail');
       }
     } else {
       playSlapFeedback(tableEl, null);
@@ -1826,7 +1861,7 @@
       return;
     }
 
-    wsSend({ type: 'slap' });
+    triggerLocalSlap();
     event.preventDefault();
 
     if (event.type === 'click') {
@@ -1957,7 +1992,7 @@
     }
     if (event.code === 'Space') {
       event.preventDefault();
-      wsSend({ type: 'slap' });
+      triggerLocalSlap();
     } else if (event.code === 'Enter') {
       event.preventDefault();
       wsSend({ type: 'play' });
