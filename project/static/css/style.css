@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 * {
@@ -11,8 +11,13 @@ body {
   min-height: 100vh;
   font-family: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.6;
-  color: #1f2933;
-  background: #f4f7fb;
+  color: #e2e8f0;
+  background:
+    radial-gradient(circle at 50% -12%, rgba(23, 128, 90, 0.24), transparent 55%),
+    radial-gradient(circle at 10% 8%, rgba(59, 130, 246, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 96%, rgba(201, 162, 39, 0.13), transparent 45%),
+    linear-gradient(180deg, #0c1424 0%, #0a0f1b 58%, #070b14 100%);
+  background-attachment: fixed;
 }
 
 header,
@@ -26,16 +31,21 @@ header,
 footer {
   padding: 1rem 0;
   text-align: center;
-  color: #4a5568;
+  color: #cbd5e1;
 }
 
 main {
   margin-top: 3rem;
   margin-bottom: 3rem;
   padding: 2.5rem;
-  background: #ffffff;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.74)),
+    radial-gradient(circle at 50% 0%, rgba(23, 128, 90, 0.16), transparent 55%);
   border-radius: 16px;
-  box-shadow: 0 18px 40px -24px rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(201, 162, 39, 0.18);
+  box-shadow:
+    0 24px 54px -28px rgba(0, 0, 0, 0.78),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .messages {
@@ -81,7 +91,7 @@ h2,
 h3 {
   font-weight: 600;
   margin-top: 0;
-  color: #0f172a;
+  color: #f8fafc;
 }
 
 p {
@@ -90,7 +100,7 @@ p {
 }
 
 a {
-  color: #2563eb;
+  color: #fbbf24;
   text-decoration: none;
   font-weight: 500;
 }
@@ -109,20 +119,22 @@ button,
   padding: 0.6rem 1.4rem;
   border: none;
   border-radius: 999px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #17805a, #0f5e40);
   color: #ffffff;
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
-  box-shadow: 0 12px 30px -18px rgba(37, 99, 235, 0.9);
+  box-shadow: 0 14px 30px -18px rgba(16, 185, 129, 0.8);
 }
 
 button:hover,
 .button:hover {
   transform: translateY(-1px);
   filter: brightness(1.05);
-  box-shadow: 0 14px 35px -20px rgba(29, 78, 216, 0.8);
+  box-shadow:
+    0 0 0 2px rgba(201, 162, 39, 0.22),
+    0 16px 35px -20px rgba(16, 185, 129, 0.85);
 }
 
 button:active,
@@ -134,7 +146,8 @@ button:active,
 button:disabled,
 .button:disabled {
   cursor: not-allowed;
-  background: #a5b4fc;
+  background: #475569;
+  color: rgba(226, 232, 240, 0.65);
   box-shadow: none;
 }
 
@@ -145,15 +158,15 @@ button:disabled,
   width: 3.25rem;
   height: 3.25rem;
   padding: 0.5rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(201, 162, 39, 0.28);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(15, 23, 42, 0.9);
   color: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0;
-  box-shadow: 0 18px 40px -22px rgba(15, 23, 42, 0.45);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.85);
   cursor: pointer;
   z-index: 999;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -240,10 +253,10 @@ ul {
 }
 
 ul li {
-  background: #f8fafc;
+  background: rgba(15, 23, 42, 0.62);
   border-radius: 12px;
   padding: 0.9rem 1.1rem;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
 }
 
 ul li a {
@@ -474,17 +487,20 @@ textarea {
   width: 100%;
   padding: 0.65rem 0.85rem;
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  background: rgba(2, 6, 23, 0.42);
+  color: #f8fafc;
   font-size: 1rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  border-color: #c9a227;
+  background: rgba(2, 6, 23, 0.58);
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.22);
 }
 
 /* --- Game table layout -------------------------------------------------- */
@@ -799,15 +815,15 @@ textarea:focus {
   z-index: 150;
   padding: 0.85rem 1.8rem;
   font-size: 1rem;
-  background: linear-gradient(135deg, #0ea5e9, #2563eb);
-  box-shadow: 0 24px 44px -20px rgba(14, 165, 233, 0.6);
+  background: linear-gradient(135deg, #17805a, #0f5e40);
+  box-shadow: 0 24px 44px -20px rgba(16, 185, 129, 0.65);
 }
 
 .how-to-play-button:hover,
 .how-to-play-button:focus-visible {
   box-shadow:
-    0 0 0 4px rgba(14, 165, 233, 0.24),
-    0 28px 50px -22px rgba(14, 165, 233, 0.65);
+    0 0 0 4px rgba(201, 162, 39, 0.18),
+    0 28px 50px -22px rgba(16, 185, 129, 0.65);
 }
 
 .how-to-play-overlay {
@@ -838,11 +854,14 @@ textarea:focus {
   width: min(100%, 640px);
   max-height: min(90vh, 720px);
   overflow-y: auto;
-  background: #ffffff;
-  color: #0f172a;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.97), rgba(15, 23, 42, 0.93)),
+    radial-gradient(circle at 24% 0%, rgba(23, 128, 90, 0.18), transparent 50%);
+  color: #e2e8f0;
   border-radius: 22px;
   padding: clamp(1.5rem, 4vw, 2.5rem);
-  box-shadow: 0 32px 70px -34px rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  box-shadow: 0 32px 70px -34px rgba(0, 0, 0, 0.9);
   outline: none;
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
@@ -868,8 +887,8 @@ textarea:focus {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.15);
-  color: #1f2937;
+  background: rgba(148, 163, 184, 0.16);
+  color: #f8fafc;
   font-size: 1.45rem;
   font-weight: 600;
   line-height: 1;
@@ -878,9 +897,9 @@ textarea:focus {
 
 .how-to-play-close:hover,
 .how-to-play-close:focus-visible {
-  background: rgba(37, 99, 235, 0.16);
-  color: #1d4ed8;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
+  background: rgba(201, 162, 39, 0.16);
+  color: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.22);
 }
 
 .how-to-play-dialog h2 {
@@ -891,7 +910,7 @@ textarea:focus {
 .how-to-play-dialog h3 {
   margin-bottom: 0.35rem;
   font-size: clamp(1.2rem, 3.2vw, 1.45rem);
-  color: #1d4ed8;
+  color: #fbbf24;
 }
 
 .how-to-play-section + .how-to-play-section {
@@ -916,8 +935,8 @@ textarea:focus {
   position: relative;
   padding: 0.85rem 1rem 0.85rem 1.9rem;
   border-radius: 14px;
-  background: rgba(148, 163, 184, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.56);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
 }
 
 .how-to-play-dialog li::before {
@@ -928,16 +947,17 @@ textarea:focus {
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  background: linear-gradient(135deg, #fbbf24, #c9a227);
 }
 
 .how-to-play-dialog strong {
-  color: #0f172a;
+  color: #f8fafc;
 }
 
 .how-to-play-dialog code {
   font-family: "Fira Code", "SFMono-Regular", "Consolas", monospace;
-  background: rgba(226, 232, 240, 0.7);
+  background: rgba(2, 6, 23, 0.55);
+  color: #fde68a;
   padding: 0.1rem 0.35rem;
   border-radius: 6px;
   font-size: 0.95em;
@@ -1009,7 +1029,7 @@ textarea:focus {
 
 .room-options-trigger-hint {
   font-size: 0.9rem;
-  color: #6b7280;
+  color: #94a3b8;
 }
 
 body.room-options-lock {
@@ -1045,10 +1065,14 @@ body.room-options-lock {
   width: min(90vw, 520px);
   max-height: 90vh;
   overflow-y: auto;
-  background: #ffffff;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.97), rgba(15, 23, 42, 0.93)),
+    radial-gradient(circle at 24% 0%, rgba(23, 128, 90, 0.16), transparent 50%);
+  color: #e2e8f0;
   border-radius: 18px;
   padding: 2.2rem 2.4rem;
-  box-shadow: 0 28px 48px -24px rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  box-shadow: 0 28px 48px -24px rgba(0, 0, 0, 0.9);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -1063,7 +1087,7 @@ body.room-options-lock {
 
 .room-options-modal__close {
   background: none;
-  color: #1f2933;
+  color: #f8fafc;
   width: 2.5rem;
   height: 2.5rem;
   padding: 0;
@@ -1075,14 +1099,14 @@ body.room-options-lock {
 
 .room-options-modal__close:hover,
 .room-options-modal__close:focus-visible {
-  background: rgba(148, 163, 184, 0.2);
-  color: #1d4ed8;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  background: rgba(201, 162, 39, 0.16);
+  color: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.22);
 }
 
 .room-options-intro {
   margin: 0;
-  color: #4b5563;
+  color: #cbd5e1;
   font-size: 0.95rem;
 }
 
@@ -1100,7 +1124,7 @@ body.room-options-lock {
 .room-options-note {
   margin: 0;
   font-size: 0.85rem;
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .room-options-note.is-hidden {
@@ -1117,7 +1141,7 @@ body.room-options-lock {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #1d4ed8;
+  color: #fbbf24;
 }
 
 .room-options-choices {
@@ -1148,10 +1172,10 @@ body.room-options-lock {
   gap: 0.25rem;
   padding: 0.85rem 1rem;
   border-radius: 12px;
-  border: 1px solid #dbe1f1;
-  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.56);
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-  color: #1f2937;
+  color: #e2e8f0;
 }
 
 .room-options-choice__label {
@@ -1161,24 +1185,24 @@ body.room-options-lock {
 
 .room-options-choice__description {
   font-size: 0.9rem;
-  color: #4b5563;
+  color: #94a3b8;
   line-height: 1.45;
 }
 
 .room-options-choice input:checked + .room-options-choice__texts {
-  border-color: #2563eb;
-  background: #eef2ff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-  color: #1e3a8a;
+  border-color: #c9a227;
+  background: rgba(23, 128, 90, 0.2);
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.14);
+  color: #f8fafc;
 }
 
 .room-options-choice input:checked + .room-options-choice__texts .room-options-choice__description {
-  color: #1f3070;
+  color: #d1fae5;
 }
 
 .room-options-choice input:focus-visible + .room-options-choice__texts {
-  border-color: #1d4ed8;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.24);
+  border-color: #c9a227;
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.24);
 }
 
 .room-options-switches {
@@ -1196,8 +1220,8 @@ body.room-options-lock {
   gap: 1rem;
   padding: 1rem 1.25rem;
   border-radius: 14px;
-  background: #f8fafc;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.56);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
 }
 
 .room-options-switch__texts {
@@ -1209,12 +1233,12 @@ body.room-options-lock {
 
 .room-options-switch__label {
   font-weight: 600;
-  color: #0f172a;
+  color: #f8fafc;
 }
 
 .room-options-switch__description {
   font-size: 0.85rem;
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .room-options-switch__control {
@@ -1253,7 +1277,7 @@ body.room-options-lock {
 }
 
 .room-options-switch__control input:checked + .room-options-switch__slider {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #17805a, #0f5e40);
 }
 
 .room-options-switch__control input:checked + .room-options-switch__slider::after {
@@ -1281,8 +1305,8 @@ body.room-options-lock {
   gap: 0.85rem;
   padding: 1rem 1.25rem;
   border-radius: 14px;
-  background: #f8fafc;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.56);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
   transition: box-shadow 0.2s ease, background 0.2s ease;
 }
 
@@ -1304,12 +1328,12 @@ body.room-options-lock {
 
 .room-options-counter__label {
   font-weight: 600;
-  color: #0f172a;
+  color: #f8fafc;
 }
 
 .room-options-counter__description {
   font-size: 0.85rem;
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .room-options-counter__settings {
@@ -1325,7 +1349,7 @@ body.room-options-lock {
   align-items: center;
   gap: 0.6rem;
   font-weight: 600;
-  color: #0f172a;
+  color: #e2e8f0;
   cursor: pointer;
 }
 
@@ -1338,7 +1362,7 @@ body.room-options-lock {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: rgba(226, 232, 240, 0.8);
+  background: rgba(2, 6, 23, 0.48);
   padding: 0.25rem 0.4rem;
   border-radius: 999px;
   transition: opacity 0.2s ease;
@@ -1351,14 +1375,14 @@ body.room-options-lock {
   border-radius: 50%;
   font-size: 1.25rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  box-shadow: 0 12px 26px -18px rgba(37, 99, 235, 0.8);
+  background: linear-gradient(135deg, #17805a, #0f5e40);
+  box-shadow: 0 12px 26px -18px rgba(16, 185, 129, 0.8);
 }
 
 .room-options-counter__btn:disabled,
 .room-options-form--readonly .room-options-counter__btn {
   cursor: not-allowed;
-  background: #a5b4fc;
+  background: #475569;
   box-shadow: none;
 }
 
@@ -1366,8 +1390,8 @@ body.room-options-lock {
   min-width: 2.4rem;
   text-align: center;
   font-weight: 600;
-  color: #1f2937;
-  background: #ffffff;
+  color: #fde68a;
+  background: rgba(15, 23, 42, 0.72);
   border-radius: 999px;
   padding: 0.2rem 0.75rem;
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
@@ -1375,7 +1399,7 @@ body.room-options-lock {
 }
 
 .room-options-counter--sudden-death {
-  background: linear-gradient(180deg, rgba(254, 242, 242, 0.75), #f8fafc);
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.42), rgba(15, 23, 42, 0.64));
   box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.28);
 }
 
@@ -1388,8 +1412,8 @@ body.room-options-lock {
 }
 
 .room-options-counter--sudden-death .room-options-counter__value {
-  color: #475569;
-  background: #f1f5f9;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.62);
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.28);
 }
 
@@ -1901,7 +1925,7 @@ body.room-options-lock {
     border: none;
     font-size: 1.1rem;
     font-weight: 600;
-    color: #64748b;
+    color: #94a3b8;
     cursor: pointer;
     padding: 0.5rem 1.2rem;
     border-radius: 12px;
@@ -1910,20 +1934,20 @@ body.room-options-lock {
 }
 
 .info-tab-btn:hover {
-    background: #f1f5f9;
-    color: #0f172a;
+    background: rgba(148, 163, 184, 0.14);
+    color: #f8fafc;
     transform: none;
     box-shadow: none;
 }
 
 .info-tab-btn.active {
-    color: #2563eb;
-    background: #eff6ff;
+    color: #fbbf24;
+    background: rgba(201, 162, 39, 0.14);
 }
 
 .credits-text {
     font-size: 1.25rem;
-    color: #334155;
+    color: #cbd5e1;
     margin-top: 1rem;
 }
 
@@ -1932,14 +1956,16 @@ body.room-options-lock {
    ====================================================================== */
 
 body {
+  color: #e2e8f0;
   background:
-    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.08), transparent 45%),
-    radial-gradient(circle at 88% 100%, rgba(16, 185, 129, 0.08), transparent 45%),
-    #f2f5fa;
+    radial-gradient(circle at 50% -12%, rgba(23, 128, 90, 0.24), transparent 55%),
+    radial-gradient(circle at 10% 8%, rgba(59, 130, 246, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 96%, rgba(201, 162, 39, 0.13), transparent 45%),
+    linear-gradient(180deg, #0c1424 0%, #0a0f1b 58%, #070b14 100%);
+  background-attachment: fixed;
 }
 
-/* Ambiance « casino » sombre, réservée à la table de jeu (les pages
-   accueil/connexion gardent leur fond clair). */
+/* Ambiance casino sombre partagée par toutes les pages. */
 body.game-room {
   color: #e2e8f0;
   background:
@@ -1954,6 +1980,7 @@ body.game-room {
    ronde repose directement sur le fond sombre. */
 body.game-room main {
   background: transparent;
+  border: 0;
   box-shadow: none;
   padding: 0;
 }

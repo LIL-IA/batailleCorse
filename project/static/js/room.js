@@ -18,6 +18,7 @@
   const SUIT_SYMBOLS = { S: '♠', H: '♥', D: '♦', C: '♣' };
   const SUIT_NAMES = { S: 'pique', H: 'cœur', D: 'carreau', C: 'trèfle' };
   const RANK_NAMES = { A: 'As', K: 'Roi', Q: 'Dame', J: 'Valet', T: '10' };
+  const ERROR_MESSAGE_DURATION_MS = 5000;
 
   window.wsSend = function noop() {
     console.error('WebSocket non initialisée.');
@@ -712,6 +713,30 @@
   setCurrentTurnDataset(parseId(playersList.dataset.currentTurnId));
 
   const errorDiv = document.getElementById('error-message');
+  let errorMessageTimerId = null;
+
+  const showTemporaryErrorMessage = (message) => {
+    if (!errorDiv) {
+      return;
+    }
+    if (errorMessageTimerId !== null) {
+      window.clearTimeout(errorMessageTimerId);
+      errorMessageTimerId = null;
+    }
+
+    const text = message === null || message === undefined ? '' : String(message);
+    errorDiv.textContent = text;
+    if (!text) {
+      return;
+    }
+
+    errorMessageTimerId = window.setTimeout(() => {
+      if (errorDiv.textContent === text) {
+        errorDiv.textContent = '';
+      }
+      errorMessageTimerId = null;
+    }, ERROR_MESSAGE_DURATION_MS);
+  };
 
   const playSound = (name) => {
     if (window.GameSounds && typeof window.GameSounds.play === 'function') {
@@ -1707,9 +1732,7 @@
       const leaveMessage = leftName
         ? `${leftName} a quitté la partie.`
         : 'Un joueur a quitté la partie.';
-      if (errorDiv) {
-        errorDiv.textContent = leaveMessage;
-      }
+      showTemporaryErrorMessage(leaveMessage);
       if (typeof window.alert === 'function') {
         window.alert(leaveMessage);
       }
@@ -1720,9 +1743,7 @@
 
       const err = errorMessages[msg.error] || msg.error;
       window.alert(err);
-      if (errorDiv) {
-        errorDiv.textContent = err;
-      }
+      showTemporaryErrorMessage(err);
       if (msg.error === 'no-cards' || msg.error === 'game-over') {
         playCardShouldBeDisabled = true;
         applyPlayCardDisabledState();
