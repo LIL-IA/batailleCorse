@@ -2487,8 +2487,12 @@
     }
 
     const hasCenterPileCards = !justCollected && centerCount > 0;
-    const stateAllowsSlap =
-      Boolean(state) && !hasWinner && hasCenterPileCards;
+    // On autorise la tape dès qu'il reste des cartes au centre, MÊME si un
+    // gagnant est provisoirement désigné : le moteur déclare un gagnant dès
+    // qu'un seul joueur a des cartes en main, mais tant que le tas central
+    // n'est pas ramassé il reste contestable (un joueur sans carte peut taper
+    // pour le remporter et revenir). Le serveur valide de toute façon la tape.
+    const stateAllowsSlap = Boolean(state) && hasCenterPileCards;
     centerPileActionAvailableFromState = stateAllowsSlap;
     updateCenterPileActionMarker(centerPileEl);
 
