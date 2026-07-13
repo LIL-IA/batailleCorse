@@ -2035,7 +2035,7 @@
   // La rotation étant fixée par l'index absolu, les cartes déjà posées ne
   // bougent pas ; seule la nouvelle vient se poser par-dessus.
   const CENTER_PILE_SLOTS = [
-    { x: 0, y: -16, rot: 0 },
+    { x: 0, y: -22, rot: 0 },
     { x: -9, y: 0, rot: -13 },
     { x: 9, y: 0, rot: 13 },
   ];
@@ -2537,18 +2537,25 @@
       for (let absIndex = startAbs; absIndex < totalCount; absIndex += 1) {
         const idx = absIndex - startAbs;
         const isKnown = absIndex >= knownStartAbs;
-        const pileCard = buildCardFace(isKnown ? knownCards[absIndex - knownStartAbs] : null);
+        const card = isKnown ? knownCards[absIndex - knownStartAbs] : null;
+        const isTen = Boolean(card) && card[0] === 'T';
+        const pileCard = buildCardFace(card);
         pileCard.classList.add('center-card');
         if (!isKnown) {
           pileCard.classList.add('center-card--buried');
         }
 
         const slot = CENTER_PILE_SLOTS[absIndex % CENTER_PILE_SLOTS.length];
-        // Micro-décalages déterministes (stables par carte) : la pose paraît
-        // plus naturelle sans « sauter » à chaque rafraîchissement.
-        const jitterRot = ((absIndex * 73) % 9) - 4; // -4°..+4°
-        const jitterX = ((absIndex * 53) % 7) - 3; // -3..+3 px
-        const jitterY = ((absIndex * 37) % 7) - 3; // -3..+3 px
+        // Micro-décalages déterministes (stables par carte) pour une pose plus
+        // naturelle. Mesures de sécurité :
+        //  - le décalage vertical ne va JAMAIS vers le haut (0..+2 px) : une
+        //    carte posée ensuite ne peut donc pas remonter couvrir la carte
+        //    « droite » décentrée vers le haut ;
+        //  - les « 10 » ne reçoivent aucune rotation aléatoire (chiffre large,
+        //    à garder lisible).
+        const jitterRot = isTen ? 0 : ((absIndex * 73) % 7) - 3; // -3°..+3°
+        const jitterX = ((absIndex * 53) % 5) - 2; // -2..+2 px
+        const jitterY = (absIndex * 37) % 3; // 0..+2 px (vers le bas uniquement)
         pileCard.style.transform =
           `translate(calc(-50% + ${slot.x + jitterX}px), calc(-50% + ${slot.y + jitterY}px)) rotate(${slot.rot + jitterRot}deg)`;
         // z par ordre d'arrivée : la dernière carte posée est au-dessus.
