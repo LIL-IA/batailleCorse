@@ -2028,13 +2028,14 @@
 
   // Cartes empilées (superposées) au centre, différenciées par leur rotation,
   // selon un cycle qui se répète toutes les trois cartes (index absolu % 3) :
-  //  - 1re : droite ;
+  //  - 1re : droite, légèrement décalée vers le HAUT (pour rester visible une
+  //          fois les deux cartes suivantes posées par-dessus) ;
   //  - 2e  : légère rotation à gauche → son coin haut-gauche dépasse à gauche ;
   //  - 3e  : légère rotation à droite → son coin haut-droit dépasse à droite.
   // La rotation étant fixée par l'index absolu, les cartes déjà posées ne
   // bougent pas ; seule la nouvelle vient se poser par-dessus.
   const CENTER_PILE_SLOTS = [
-    { x: 0, y: 0, rot: 0 },
+    { x: 0, y: -16, rot: 0 },
     { x: -9, y: 0, rot: -13 },
     { x: 9, y: 0, rot: 13 },
   ];
