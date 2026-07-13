@@ -2147,6 +2147,16 @@ body.hide-face-hint .face-challenge-badge span {
     0 22px 38px -26px rgba(15, 23, 42, 0.8);
 }
 
+/* Quand c'est NOTRE tour, notre propre paquet doit aussi porter le contour
+   « tour en cours » : sans cette règle (3 classes, plus spécifique), l'anneau
+   doré de .player-deck-self l'emportait et masquait l'indication de tour. */
+#player-decks .player-deck.player-deck-self.current-turn {
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.7),
+    0 0 0 6px rgba(251, 191, 36, 0.3),
+    0 28px 60px -26px rgba(59, 130, 246, 0.65);
+}
+
 /* Joueur attendu sur un défi figure */
 #player-decks .player-deck.deck-challenged {
   animation: challengedPulse 1.15s ease-in-out infinite;

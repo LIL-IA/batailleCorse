@@ -2017,13 +2017,16 @@
     T: [[28, 16], [72, 16], [50, 27], [28, 39], [72, 39], [28, 61], [72, 61], [50, 73], [28, 84], [72, 84]]
   };
 
-  // Trois emplacements fixes pour le tas central. Le motif se répète toutes les
-  // trois cartes (index % 3), en triangle, pour qu'on voie toujours le coin des
-  // trois dernières cartes déposées.
+  // Trois emplacements fixes pour le tas central, en escalier vers le bas-droite.
+  // Le motif se répète toutes les trois cartes (index % 3). Le z-index suit la
+  // POSITION (la carte la plus à droite est toujours au-dessus) et non l'ordre
+  // d'arrivée : chaque carte laisse donc dépasser son coin haut-gauche (la
+  // valeur) à gauche de la carte suivante — les trois valeurs restent toujours
+  // visibles, quel que soit l'ordre des cartes.
   const CENTER_PILE_SLOTS = [
-    { x: -15, y: -8, rot: -9 },
-    { x: 15, y: -6, rot: 9 },
-    { x: 0, y: 11, rot: 0 },
+    { x: -18, y: -14, rot: -6, z: 10 },
+    { x: 0, y: 0, rot: 0, z: 11 },
+    { x: 18, y: 14, rot: 6, z: 12 },
   ];
 
   function formatRankDisplay(rank) {
@@ -2522,7 +2525,7 @@
         const slot = CENTER_PILE_SLOTS[absIndex % CENTER_PILE_SLOTS.length];
         pileCard.style.transform =
           `translate(calc(-50% + ${slot.x}px), calc(-50% + ${slot.y}px)) rotate(${slot.rot}deg)`;
-        pileCard.style.zIndex = String(10 + idx);
+        pileCard.style.zIndex = String(slot.z);
         if (isNewTopCard && idx === fanCards.length - 1 && !prefersReducedMotion()) {
           pileCard.classList.add('card-enter');
         }
