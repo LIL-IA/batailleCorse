@@ -354,11 +354,26 @@ ul li a {
   left: 5cqw;
 }
 
+.pc-corner--top-right {
+  top: 4px;
+  right: 5px;
+  top: 4cqw;
+  right: 5cqw;
+}
+
 .pc-corner--bottom {
   bottom: 4px;
   right: 5px;
   bottom: 4cqw;
   right: 5cqw;
+  transform: rotate(180deg);
+}
+
+.pc-corner--bottom-left {
+  bottom: 4px;
+  left: 5px;
+  bottom: 4cqw;
+  left: 5cqw;
   transform: rotate(180deg);
 }
 

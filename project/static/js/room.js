@@ -2026,16 +2026,17 @@
     T: [[28, 16], [72, 16], [50, 27], [28, 39], [72, 39], [28, 61], [72, 61], [50, 73], [28, 84], [72, 84]]
   };
 
-  // Trois emplacements fixes pour le tas central, en escalier vers le bas-droite.
-  // Le motif se répète toutes les trois cartes (index % 3). Le z-index suit la
-  // POSITION (la carte la plus à droite est toujours au-dessus) et non l'ordre
-  // d'arrivée : chaque carte laisse donc dépasser son coin haut-gauche (la
-  // valeur) à gauche de la carte suivante — les trois valeurs restent toujours
-  // visibles, quel que soit l'ordre des cartes.
+  // Cartes empilées (superposées) au centre, différenciées par leur rotation,
+  // selon un cycle qui se répète toutes les trois cartes (index absolu % 3) :
+  //  - 1re : droite ;
+  //  - 2e  : légère rotation à gauche → son coin haut-gauche dépasse à gauche ;
+  //  - 3e  : légère rotation à droite → son coin haut-droit dépasse à droite.
+  // La rotation étant fixée par l'index absolu, les cartes déjà posées ne
+  // bougent pas ; seule la nouvelle vient se poser par-dessus.
   const CENTER_PILE_SLOTS = [
-    { x: -18, y: -14, rot: -6, z: 10 },
-    { x: 0, y: 0, rot: 0, z: 11 },
-    { x: 18, y: 14, rot: 6, z: 12 },
+    { x: 0, y: 0, rot: 0 },
+    { x: -9, y: 0, rot: -13 },
+    { x: 9, y: 0, rot: 13 },
   ];
 
   function formatRankDisplay(rank) {
@@ -2055,7 +2056,9 @@
       el.classList.add('red');
     }
 
-    ['pc-corner--top', 'pc-corner--bottom'].forEach((positionClass) => {
+    // Rang aux QUATRE coins : ainsi, quel que soit le sens de rotation d'une
+    // carte dans le tas, un coin chiffré reste visible.
+    ['pc-corner--top', 'pc-corner--top-right', 'pc-corner--bottom', 'pc-corner--bottom-left'].forEach((positionClass) => {
       const corner = document.createElement('span');
       corner.className = `pc-corner ${positionClass}`;
       const cornerRank = document.createElement('span');
@@ -2535,7 +2538,8 @@
         const slot = CENTER_PILE_SLOTS[absIndex % CENTER_PILE_SLOTS.length];
         pileCard.style.transform =
           `translate(calc(-50% + ${slot.x}px), calc(-50% + ${slot.y}px)) rotate(${slot.rot}deg)`;
-        pileCard.style.zIndex = String(slot.z);
+        // z par ordre d'arrivée : la dernière carte posée est au-dessus.
+        pileCard.style.zIndex = String(10 + idx);
         if (isNewTopCard && idx === fanCards.length - 1 && !prefersReducedMotion()) {
           pileCard.classList.add('card-enter');
         }
