@@ -10,6 +10,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
 ENV DJANGO_SETTINGS_MODULE=project.settings
+
+ENV SECRET_KEY="dummy-key-for-build"
+ENV DEBUG="False"
+
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
