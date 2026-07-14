@@ -6,7 +6,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from .models import Room, GameState, Player
-from .engine import GameEngine, PENALTY_MODE_SUDDEN_DEATH, PENALTY_SUDDEN_DEATH_MAP
+from .games import get_engine_class, get_spec
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,6 @@ PENDING_FINAL_DISCONNECTS = {}
 FINAL_DISCONNECT_DELAY_SECONDS = 2
 # Delay in milliseconds to collect all slap candidates before resolving
 GRACE_MS = 1000
-SUDDEN_DEATH_KEYS = set(PENALTY_SUDDEN_DEATH_MAP.values())
 
 class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
@@ -64,12 +63,35 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             t = content.get("type")
             user_id = self.scope["user"].id
             engine = ENGINES.get(self.room_code)
+            spec = await self._resolve_spec()
 
-            if t in {"play", "slap"} and not await self._is_started():
+            if t in {"play", "slap", "action"} and not await self._is_started():
                 await self.send_json({"error": "game-not-started"})
                 return
 
-            if t == "play":
+            # Jeux tour par tour (ex. « Le 1% ») : les actions de jeu sont
+            # déléguées au moteur via ``handle_action``. La machinerie de tape
+            # temps réel ci-dessous ne concerne que les jeux qui la déclarent.
+            if not spec.realtime_slap and t in {"play", "slap", "action"}:
+                if engine is None:
+                    await self.send_json({"error": "game-not-started"})
+                    return
+                action = content.get("action") or t
+                res = engine.handle_action(user_id, content)
+                if isinstance(res, dict) and res.get("error"):
+                    await self.send_json({"error": res["error"]})
+                    return
+                await self._broadcast_state(extra={
+                    "lastAction": {
+                        "type": "game_action",
+                        "action": action,
+                        "userId": user_id,
+                        "res": res,
+                    }
+                })
+                return
+
+            if spec.realtime_slap and t == "play":
                 if engine is None:
                     await self.send_json({"error": "game-not-started"})
                     return
@@ -117,7 +139,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     await self._broadcast_state(extra=extra)
                     return  # Fast-exit
 
-            if t == "slap":
+            if spec.realtime_slap and t == "slap":
                 ts = time.time_ns()
                 ctx = await self._ensure_slap_ctx()
 
@@ -432,22 +454,33 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             ctx.setdefault("last_card_ns", None)
         return ctx
 
+    async def _resolve_spec(self):
+        """Spec du jeu de la salle (via le registre)."""
+        game_type = await self._get_game_type()
+        return get_spec(game_type)
+
+    async def _resolve_engine_class(self):
+        game_type = await self._get_game_type()
+        return get_engine_class(game_type)
+
     async def _get_options(self):
+        engine_class = await self._resolve_engine_class()
         cached = ROOM_OPTIONS.get(self.room_code)
-        if cached is not None and self._options_cache_current(cached):
+        if cached is not None and engine_class.options_cache_current(cached):
             return dict(cached)
         raw = await self._load_room_options()
-        normalized, legacy_converted = self._normalize_legacy_penalty_flags(raw)
-        sanitized = GameEngine.sanitize_options(base=normalized)
+        normalized, legacy_converted = engine_class.normalize_legacy_options(raw)
+        sanitized = engine_class.sanitize_options(base=normalized)
         ROOM_OPTIONS[self.room_code] = dict(sanitized)
         if self._should_persist_options(raw, sanitized, legacy_converted):
             await self._save_room_options(sanitized)
         return dict(sanitized)
 
     async def _update_room_rules(self, overrides):
+        engine_class = await self._resolve_engine_class()
         current = await self._get_options()
-        normalized_overrides, _ = self._normalize_legacy_penalty_flags(overrides)
-        sanitized = GameEngine.sanitize_options(overrides=normalized_overrides, base=current)
+        normalized_overrides, _ = engine_class.normalize_legacy_options(overrides)
+        sanitized = engine_class.sanitize_options(overrides=normalized_overrides, base=current)
         if sanitized != current:
             await self._save_room_options(sanitized)
             ROOM_OPTIONS[self.room_code] = dict(sanitized)
@@ -455,26 +488,6 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             if engine:
                 engine.set_options(sanitized)
         return sanitized
-
-    @staticmethod
-    def _options_cache_current(cached):
-        if not isinstance(cached, dict):
-            return False
-        if "penalty_mode" in cached:
-            return False
-        return SUDDEN_DEATH_KEYS.issubset(cached.keys())
-
-    def _normalize_legacy_penalty_flags(self, source):
-        if not isinstance(source, dict):
-            return source, False
-        updated = dict(source)
-        if "penalty_mode" not in updated:
-            return updated, False
-        legacy_mode = GameEngine._normalize_penalty_mode(updated.pop("penalty_mode"))
-        is_sudden_death = legacy_mode == PENALTY_MODE_SUDDEN_DEATH
-        for sudden_key in SUDDEN_DEATH_KEYS:
-            updated.setdefault(sudden_key, is_sudden_death)
-        return updated, True
 
     @staticmethod
     def _should_persist_options(raw, sanitized, legacy_converted):
@@ -559,13 +572,15 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             if not players:  # pas encore de joueurs -> ne pas créer le moteur
                 ENGINES[self.room_code] = None
                 return
-            ENGINES[self.room_code] = GameEngine(players, options=options)
+            engine_class = await self._resolve_engine_class()
+            ENGINES[self.room_code] = engine_class(players, options=options)
 
     async def _reset_engine(self, clear_ready=False):
         players = await self._players_order()
         options = await self._get_options()
         if players:
-            ENGINES[self.room_code] = GameEngine(players, options=options)
+            engine_class = await self._resolve_engine_class()
+            ENGINES[self.room_code] = engine_class(players, options=options)
         else:
             ENGINES[self.room_code] = None
         if clear_ready:

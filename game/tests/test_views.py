@@ -92,6 +92,7 @@ class RoomViewTests(TestCase):
         room = Room.objects.create(
             code="OPT001",
             host=self.host,
+            game_selected=True,
             rules_options={
                 "allow_sandwich": False,
                 "bad_slap_penalty": 5,
@@ -113,3 +114,34 @@ class RoomViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         expected_options = GameEngine.sanitize_options(base=room.rules_options)
         self.assertEqual(response.context["initial_options"], expected_options)
+
+    def test_bataille_corse_room_uses_default_template(self):
+        room = Room.objects.create(
+            code="BC0001",
+            host=self.host,
+            game_type="bataille_corse",
+            game_selected=True,
+        )
+        Player.objects.create(room=room, user=self.host, seat=0)
+
+        response = self.client.get(reverse("room", args=[room.code]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "game/room.html")
+        self.assertContains(response, 'id="penalty-pile"')
+
+    def test_one_percent_room_uses_its_own_template(self):
+        room = Room.objects.create(
+            code="ONE001",
+            host=self.host,
+            game_type="1_percent",
+            game_selected=True,
+        )
+        Player.objects.create(room=room, user=self.host, seat=0)
+
+        response = self.client.get(reverse("room", args=[room.code]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "game/room_un_pourcent.html")
+        self.assertContains(response, 'id="up-root"')
+        self.assertContains(response, "un_pourcent.css")

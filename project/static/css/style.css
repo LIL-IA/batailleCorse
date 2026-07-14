@@ -476,6 +476,13 @@ ul li a {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+.errorlist li {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+
 form {
   display: grid;
   gap: 1rem;

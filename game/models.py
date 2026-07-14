@@ -3,14 +3,15 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+from game.games import DEFAULT_GAME_TYPE, game_choices
+
 class Room(models.Model):
-    GAME_CHOICES = [
-        ('bataille_corse', 'Bataille Corse'),
-        ('1_percent', 'Le 1%'),
-    ]
+    # Source unique de vérité : le registre des jeux. Ajouter un jeu met à jour
+    # ces choix sans toucher au modèle.
+    GAME_CHOICES = game_choices()
     code = models.CharField(max_length=8, unique=True)
     host = models.ForeignKey(User, on_delete=models.CASCADE, related_name="hosted_rooms")
-    game_type = models.CharField(max_length=50, choices=GAME_CHOICES, default='bataille_corse')
+    game_type = models.CharField(max_length=50, choices=GAME_CHOICES, default=DEFAULT_GAME_TYPE)
     game_selected = models.BooleanField(default=False)
     is_started = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

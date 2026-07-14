@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Le 1%{% endblock %}
+{% block body_class %}game-room game-un-pourcent{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/un_pourcent.css' %}">
+{% endblock %}
+{% block content %}
+<h2 class="room-title">
+  Le 1%
+  <button
+    id="room-code-badge"
+    class="room-code-badge"
+    type="button"
+    title="Copier le code de la salle"
+    aria-label="Copier le code de la salle {{ room.code }}"
+  >
+    <span class="room-code-badge__code">{{ room.code }}</span>
+    <span class="room-code-badge__hint" aria-hidden="true">copier</span>
+  </button>
+</h2>
+
+{# Données lues par room_un_pourcent.js (interface propre au jeu « Le 1% »). #}
+<div
+  id="up-root"
+  data-room-code="{{ room.code|escape }}"
+  data-current-user-id="{{ request.user.id }}"
+  data-is-host="{{ is_host|yesno:'true,false' }}"
+  data-room-started="{{ room.is_started|yesno:'true,false' }}"
+></div>
+
+<div id="players-section">
+  <p>Joueurs :</p>
+  <ul id="up-players-list" class="up-players-list">
+    {% for p in players %}
+      <li class="player-row" data-user-id="{{ p.user.id }}">
+        <strong>{{ p.user.username }}</strong>
+        {% if p.user == room.host %}<span class="host-indicator" title="Hôte">👑</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="up-controls">
+  <button id="start-btn" class="action-btn" style="display:none" onclick="wsSend({type:'start'})">
+    Démarrer la partie
+  </button>
+  <button id="stop-btn" class="action-btn" style="display:none" onclick="wsSend({type:'stop'})">
+    Arrêter la partie
+  </button>
+  <button id="restart-btn" class="action-btn" style="display:none" onclick="wsSend({type:'restart'})">
+    Recommencer
+  </button>
+  <button
+    id="return-lobby-btn"
+    class="action-btn"
+    style="display:none; background-color:#64748b;"
+    onclick="wsSend({type:'return_to_lobby'})"
+  >
+    Retour au lobby
+  </button>
+</div>
+
+<div id="up-board" class="up-board" hidden>
+  <p class="up-skeleton-note">
+    🚧 Version squelette : distribution, cartes au centre, zone de récompenses et
+    lancer de dés sont jouables. Les phases d'enchère, de doute et de vote arrivent
+    dans une prochaine itération.
+  </p>
+
+  <div class="up-piles" aria-live="polite">
+    <div class="up-pile">
+      <span class="up-pile__count" id="up-draw-count">0</span>
+      <span class="up-pile__label">Pioche</span>
+    </div>
+    <div class="up-pile">
+      <span class="up-pile__count" id="up-discard-count">0</span>
+      <span class="up-pile__label">Défausse</span>
+    </div>
+  </div>
+
+  <section class="up-section">
+    <h3 class="up-section__title">Cartes au centre</h3>
+    <div id="up-center" class="up-center" aria-live="polite"></div>
+  </section>
+
+  <section class="up-section">
+    <h3 class="up-section__title">Tenter sa chance</h3>
+    <div class="up-dice-panel">
+      <div id="up-dice" class="up-dice" aria-live="polite">
+        <span class="up-die" data-die="0">–</span>
+        <span class="up-die" data-die="1">–</span>
+      </div>
+      <button id="up-roll-btn" class="action-btn" type="button">🎲 Lancer les dés</button>
+      <p id="up-roll-msg" class="up-roll-msg" role="status"></p>
+    </div>
+  </section>
+
+  <section class="up-section">
+    <h3 class="up-section__title">Joueurs &amp; zones de récompense</h3>
+    <div id="up-players" class="up-players"></div>
+  </section>
+</div>
+
+<div id="up-waiting" class="up-waiting">
+  <p>En attente du démarrage de la partie par l'hôte…</p>
+</div>
+
+<p><a href="/">Accueil</a></p>
+
+{{ initial_options|json_script:"initial-room-options" }}
+<script src="{% static 'js/room_un_pourcent.js' %}"></script>
+{% endblock %}

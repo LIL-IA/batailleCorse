@@ -12,7 +12,7 @@ from .models import UserProfile
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from .models import Room, Player, GameState
-from .engine import GameEngine
+from .games import get_spec
 
 def _gen_code(n=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=n))
@@ -114,13 +114,15 @@ def room(request, code):
     state_options = state_options if isinstance(state_options, dict) else None
     if not room.is_started:
         state_options = None
-    initial_options = GameEngine.sanitize_options(
+    spec = get_spec(room.game_type)
+    initial_options = spec.engine_class.sanitize_options(
         base=room_options,
         overrides=state_options,
     )
+    # Chaque jeu rend son propre template (interface spécifique).
     return render(
         request,
-        'game/room.html',
+        spec.room_template,
         {
             "room": room,
             "players": players,

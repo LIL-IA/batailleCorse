@@ -30,7 +30,7 @@ class GameEngineTests(SimpleTestCase):
         self.assertEqual(total_cards, 3 * 52)
 
     def test_initial_turn_idx_uses_random_selection(self):
-        with patch('game.engine.random.randrange', return_value=1):
+        with patch('game.games.bataille_corse.engine.random.randrange', return_value=1):
             engine = GameEngine([1, 2, 3])
 
         self.assertEqual(engine.turn_idx, 1)

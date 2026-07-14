@@ -73,6 +73,7 @@
                     <p>Sélectionnez un jeu pour voir ses règles :</p>
                     <ul class="game-rules-list" style="list-style: none; padding: 0;">
                         <li><button class="button game-rule-btn" data-target="rules-bataille-corse" style="width: 100%; margin-bottom: 0.5rem; justify-content: flex-start;">Bataille Corse</button></li>
+                        <li><button class="button game-rule-btn" data-target="rules-un-pourcent" style="width: 100%; margin-bottom: 0.5rem; justify-content: flex-start;">Le 1%</button></li>
                         <!-- D'autres jeux pourront être ajoutés ici -->
                     </ul>
                 </div>
@@ -116,6 +117,35 @@
                         <h4>Pénalités et fin de partie</h4>
                         <p>Une tape invalide ou une carte jouée hors tour peut retirer des cartes au joueur fautif. Ces cartes vont dans la pile de pénalité et seront gagnées avec le prochain tas.</p>
                         <p>Selon les options de la salle, une pénalité peut aussi être en mort subite : le joueur perd alors toutes ses cartes restantes. La partie se termine quand un seul joueur possède encore des cartes.</p>
+                    </section>
+                </div>
+
+                <div id="rules-un-pourcent" class="rules-view" style="display: none;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                        <button class="button back-to-rules-btn" style="padding: 0.4rem 1rem; font-size: 0.9rem;">← Retour</button>
+                        <h3 style="margin: 0;">Le 1%</h3>
+                    </div>
+                    <section class="how-to-play-section">
+                        <h4>Objectif</h4>
+                        <p>Rejoindre « le 1% » en obtenant une combinaison gagnante avec deux dés à 10 faces. Au départ, seul un double zéro (« 00 ») gagne, soit 1 % de chance. Tout l'enjeu est de survivre aux phases de bluff pour gagner des cartes Récompense numérotées qui débloquent de nouveaux numéros gagnants et augmentent vos vraies chances.</p>
+                    </section>
+                    <section class="how-to-play-section">
+                        <h4>Matériel</h4>
+                        <ul>
+                            <li><strong>Pioche :</strong> 5 catégories (Requin, Éclair, Trèfle, Étoile, Comète), chacune avec 2 exemplaires des valeurs 1 à 5.</li>
+                            <li><strong>Récompenses :</strong> 40 cartes numérotées 1 à 9.</li>
+                            <li><strong>Bonus :</strong> 21 cartes (relance d'un dé, pioche de 2 récompenses, vol d'une carte).</li>
+                            <li><strong>Dés :</strong> deux dés à 10 faces (0 à 9).</li>
+                        </ul>
+                    </section>
+                    <section class="how-to-play-section">
+                        <h4>Déroulement d'un tour</h4>
+                        <p>3 cartes Récompense/Bonus sont retournées au centre. Les joueurs reçoivent une main depuis la pioche, puis s'affrontent en enchères sur la somme d'une catégorie : surenchérir ou douter. Un doute déclenche un vote, puis la révélation. Les perdants sont éliminés du tour et leurs cartes vont à la défausse (on ne remélange pas : le comptage compte !).</p>
+                    </section>
+                    <section class="how-to-play-section">
+                        <h4>Récompense du survivant</h4>
+                        <p>Le dernier en lice dispose de 3 actions : prendre un Bonus, prendre une Récompense (qui débloque un numéro gagnant aux dés) ou tenter sa chance en lançant les dés. Exemple : avec la carte « 7 », les combinaisons 0-0, 0-7, 7-0 et 7-7 deviennent gagnantes (4 %).</p>
+                        <p class="how-to-play-note" style="opacity:0.8;font-style:italic;">🚧 Version en cours d'implémentation : le noyau (distribution, cartes au centre, récompenses, dés) est jouable ; les phases d'enchère et de vote arrivent bientôt.</p>
                     </section>
                 </div>
             </div>

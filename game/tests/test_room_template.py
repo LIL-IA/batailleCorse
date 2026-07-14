@@ -10,7 +10,7 @@ class RoomTemplateTests(TestCase):
     def setUp(self):
         self.host = User.objects.create_user("host", password="pass")
         self.other = User.objects.create_user("other", password="pass")
-        self.room = Room.objects.create(code="abcd", host=self.host)
+        self.room = Room.objects.create(code="abcd", host=self.host, game_selected=True)
         Player.objects.create(room=self.room, user=self.host, seat=0)
         Player.objects.create(room=self.room, user=self.other, seat=1)
 

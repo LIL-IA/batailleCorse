@@ -360,6 +360,59 @@ class RoomConsumerTests(TransactionTestCase):
 
         async_to_sync(inner)()
 
+    def test_one_percent_action_dispatches_to_engine(self):
+        # Le consommateur doit, pour un jeu tour par tour, créer le bon moteur
+        # (via le registre) et router les actions vers ``handle_action``.
+        self.room.game_type = "1_percent"
+        self.room.game_selected = True
+        self.room.save(update_fields=["game_type", "game_selected"])
+
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            await host.receive_json_from()
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+            await guest.receive_json_from()
+            await host.receive_json_from()
+
+            await host.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+            await guest.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await host.send_json_to({"type": "start"})
+            state_started = await host.receive_json_from()
+            await guest.receive_json_from()
+            assert state_started["started"] is True
+            # Le moteur 1% expose son état sérialisé propre.
+            assert state_started["state"]["game"] == "1_percent"
+            assert len(state_started["state"]["center"]) == 3
+
+            engine = ENGINES[self.room.code]
+            assert engine.__class__.__name__ == "UnPourCentEngine"
+
+            await host.send_json_to({"type": "action", "action": "roll"})
+            rolled = await host.receive_json_from()
+            await guest.receive_json_from()
+            assert rolled["type"] == "state"
+            assert rolled["lastAction"]["type"] == "game_action"
+            assert rolled["lastAction"]["action"] == "roll"
+            assert rolled["state"]["last_roll"]["player"] == self.user1.id
+            assert len(rolled["state"]["last_roll"]["dice"]) == 2
+
+            await guest.disconnect()
+            await host.disconnect()
+
+        async_to_sync(inner)()
+
     def test_host_can_stop_game(self):
         async def inner():
             host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
