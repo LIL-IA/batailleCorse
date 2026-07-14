@@ -1,9 +1,10 @@
 /*
- * Interface propre au jeu « Le 1% ».
+ * Interface propre au jeu « Le 1% » (bluff, enchères, dés).
  *
- * Volontairement indépendante de room.js (Bataille Corse) : chaque jeu possède
- * son interface. Version squelette — affiche l'état, permet de prendre une carte
- * au centre et de tenter sa chance aux dés. Les phases d'enchère/vote viendront.
+ * Indépendante de room.js (Bataille Corse) : chaque jeu possède son interface.
+ * Rend l'état reçu du serveur pour chaque phase : enchères, vote, révélation,
+ * récompense (dés + bonus). Les mains adverses restent cachées (l'état est
+ * masqué par joueur côté serveur).
  */
 (function () {
   'use strict';
@@ -14,58 +15,91 @@
   }
 
   const roomCode = root.dataset.roomCode;
-  const currentUserId = Number.parseInt(root.dataset.currentUserId, 10);
+  const meId = Number.parseInt(root.dataset.currentUserId, 10);
   const isHost = root.dataset.isHost === 'true';
 
   const CATEGORY_LABELS = {
-    shark: 'Requin',
-    lightning: 'Éclair',
-    clover: 'Trèfle',
-    star: 'Étoile',
-    comet: 'Comète',
+    shark: 'Requin', lightning: 'Éclair', clover: 'Trèfle', star: 'Étoile', comet: 'Comète',
   };
   const CATEGORY_ICONS = {
-    shark: '🦈',
-    lightning: '⚡',
-    clover: '🍀',
-    star: '⭐',
-    comet: '☄️',
+    shark: '🦈', lightning: '⚡', clover: '🍀', star: '⭐', comet: '☄️',
   };
   const BONUS_LABELS = {
-    reroll: "Relance d'un dé",
-    draw2: 'Pioche 2 récompenses',
-    steal: "Vol d'une carte",
+    reroll: "Relance d'un dé", draw2: 'Pioche 2 récompenses', steal: "Vol d'une carte",
   };
   const BONUS_ICONS = { reroll: '🎲', draw2: '🃏', steal: '🫳' };
 
   const ERROR_MESSAGES = {
     'not-ready': 'Tous les joueurs doivent être prêts.',
     'not-enough-players': 'Il faut au moins deux joueurs.',
-    'start-failed': 'Erreur lors du démarrage.',
     'game-not-started': "La partie n'a pas encore commencé.",
     'game-over': 'La partie est terminée.',
     'not-host': "Seul l'hôte peut faire cela.",
-    'phase-not-implemented': 'Cette phase du jeu arrive bientôt.',
-    'unknown-action': 'Action inconnue.',
+    'bad-phase': "Ce n'est pas le moment de faire cela.",
+    'not-your-turn': "Ce n'est pas votre tour.",
+    'invalid-category': 'Catégorie invalide.',
+    'bid-too-low': 'Votre enchère doit être plus haute.',
+    'nothing-to-doubt': 'Aucune enchère à contester.',
+    'not-a-voter': "Vous ne pouvez pas voter sur ce duel.",
+    'already-voted': 'Vous avez déjà voté.',
+    'invalid-vote': 'Vote invalide.',
+    'no-actions-left': "Plus d'action disponible.",
+    'cannot-reroll': 'Relance impossible maintenant.',
+    'no-such-bonus': "Vous ne possédez pas ce bonus.",
+    'nothing-to-steal': 'Rien à voler chez cette cible.',
+    'invalid-target': 'Cible invalide.',
     'invalid-index': 'Carte indisponible.',
+    'unknown-action': 'Action inconnue.',
   };
 
-  // --- éléments -----------------------------------------------------------
-  const playersSection = document.getElementById('players-section');
-  const playersList = document.getElementById('up-players-list');
-  const startBtn = document.getElementById('start-btn');
-  const stopBtn = document.getElementById('stop-btn');
-  const restartBtn = document.getElementById('restart-btn');
-  const returnLobbyBtn = document.getElementById('return-lobby-btn');
-  const board = document.getElementById('up-board');
-  const waiting = document.getElementById('up-waiting');
-  const centerEl = document.getElementById('up-center');
-  const playersZone = document.getElementById('up-players');
-  const drawCountEl = document.getElementById('up-draw-count');
-  const discardCountEl = document.getElementById('up-discard-count');
+  const $ = (id) => document.getElementById(id);
+  const playersSection = $('players-section');
+  const playersListEl = $('up-players-list');
+  const startBtn = $('start-btn');
+  const stopBtn = $('stop-btn');
+  const restartBtn = $('restart-btn');
+  const returnLobbyBtn = $('return-lobby-btn');
+  const board = $('up-board');
+  const waiting = $('up-waiting');
+  const statusEl = $('up-status');
+  const centerEl = $('up-center');
+  const handEl = $('up-hand');
+  const playersZone = $('up-players');
+  const drawCountEl = $('up-draw-count');
+  const discardCountEl = $('up-discard-count');
+  // bidding
+  const bidSection = $('up-bid-section');
+  const currentBidEl = $('up-current-bid');
+  const bidPanel = $('up-bid-panel');
+  const bidCategory = $('up-bid-category');
+  const bidValue = $('up-bid-value');
+  const bidBtn = $('up-bid-btn');
+  const doubtBtn = $('up-doubt-btn');
+  // voting
+  const voteSection = $('up-vote-section');
+  const voteQuestion = $('up-vote-question');
+  const votePanel = $('up-vote-panel');
+  const voteAccused = $('up-vote-accused');
+  const voteAccuser = $('up-vote-accuser');
+  const voteProgress = $('up-vote-progress');
+  // reveal
+  const revealSection = $('up-reveal-section');
+  const revealEl = $('up-reveal');
+  // reward
+  const rewardSection = $('up-reward-section');
+  const rewardInfo = $('up-reward-info');
+  const rewardPanel = $('up-reward-panel');
   const diceEls = Array.from(document.querySelectorAll('#up-dice .up-die'));
-  const rollBtn = document.getElementById('up-roll-btn');
-  const rollMsg = document.getElementById('up-roll-msg');
+  const rollBtn = $('up-roll-btn');
+  const bonusPanel = $('up-bonus-panel');
+  const endRewardBtn = $('up-end-reward-btn');
+  const rollMsg = $('up-roll-msg');
+
+  let nameById = new Map();
+  let categoriesInit = false;
+
+  const nameOf = (pid) => nameById.get(Number.parseInt(pid, 10)) || `Joueur ${pid}`;
+  const num = (v) => Number.parseInt(v, 10);
 
   // --- WebSocket ----------------------------------------------------------
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -76,72 +110,58 @@
       socket.send(JSON.stringify(obj));
     }
   };
+  const sendAction = (action, extra) =>
+    window.wsSend(Object.assign({ type: 'action', action }, extra || {}));
 
-  const sendAction = (action, extra) => {
-    window.wsSend(Object.assign({ type: 'action', action: action }, extra || {}));
-  };
+  socket.onopen = () => { if (startBtn && isHost) startBtn.disabled = false; };
+  socket.onclose = () => { if (rollMsg) rollMsg.textContent = 'Connexion perdue. Rechargez la page.'; };
 
-  socket.onopen = () => {
-    if (startBtn && isHost) {
-      startBtn.disabled = false;
-    }
-  };
-  socket.onclose = () => {
-    if (rollMsg) {
-      rollMsg.textContent = 'Connexion perdue. Rechargez la page.';
-    }
-  };
-
-  // --- rendu joueurs (salle d'attente) ------------------------------------
-  function renderPlayers(players, readyIds, started, hostId) {
-    if (!playersList) {
-      return;
-    }
-    playersList.innerHTML = '';
+  // --- waiting room -------------------------------------------------------
+  function renderPlayersList(players, readyIds, started, hostId) {
+    if (!playersListEl) return;
+    playersListEl.innerHTML = '';
     (players || []).forEach((p) => {
-      const uid = Number.parseInt(p.userId, 10);
+      const uid = num(p.userId);
       const li = document.createElement('li');
       li.className = 'player-row';
       li.dataset.userId = String(uid);
       const strong = document.createElement('strong');
       strong.textContent = p.username || `Joueur ${uid}`;
       li.appendChild(strong);
-
       if (hostId === uid) {
         const crown = document.createElement('span');
         crown.className = 'host-indicator';
-        crown.title = 'Hôte';
         crown.textContent = ' 👑';
         li.appendChild(crown);
       }
-
       if (!started) {
         const isReady = readyIds.has(uid);
         const status = document.createElement('span');
         status.className = `status ${isReady ? 'status-ready' : 'status-waiting'}`;
         status.textContent = isReady ? 'prêt' : 'en attente';
         li.appendChild(status);
-        if (uid === currentUserId) {
+        if (uid === meId) {
           const btn = document.createElement('button');
           btn.className = 'ready-btn';
           btn.type = 'button';
           btn.textContent = isReady ? "Annuler l'état prêt" : 'Se déclarer prêt';
-          btn.addEventListener('click', () =>
-            window.wsSend({ type: 'ready', value: !isReady })
-          );
+          btn.addEventListener('click', () => window.wsSend({ type: 'ready', value: !isReady }));
           li.appendChild(btn);
         }
       }
-      playersList.appendChild(li);
+      playersListEl.appendChild(li);
     });
   }
 
-  // --- rendu cartes -------------------------------------------------------
-  function buildCard(card, index, clickable) {
-    const el = document.createElement('button');
-    el.type = 'button';
+  // --- cartes -------------------------------------------------------------
+  function cardEl(card, opts) {
+    opts = opts || {};
+    const el = document.createElement(opts.clickable ? 'button' : 'div');
     el.className = 'up-card';
-    el.disabled = !clickable;
+    if (opts.clickable) {
+      el.type = 'button';
+      el.classList.add('up-card--clickable');
+    }
     if (!card || typeof card !== 'object') {
       el.classList.add('up-card--back');
       return el;
@@ -154,74 +174,251 @@
         `<span class="up-card__hint">débloque le ${card.value}</span>`;
     } else if (card.kind === 'bonus') {
       el.classList.add('up-card--bonus');
-      const icon = BONUS_ICONS[card.power] || '🎁';
-      const label = BONUS_LABELS[card.power] || card.power;
       el.innerHTML =
         `<span class="up-card__tag">Bonus</span>` +
-        `<span class="up-card__icon">${icon}</span>` +
-        `<span class="up-card__hint">${label}</span>`;
+        `<span class="up-card__icon">${BONUS_ICONS[card.power] || '🎁'}</span>` +
+        `<span class="up-card__hint">${BONUS_LABELS[card.power] || card.power}</span>`;
     } else if (card.kind === 'draw') {
       el.classList.add('up-card--draw');
-      const icon = CATEGORY_ICONS[card.category] || '🎴';
-      const label = CATEGORY_LABELS[card.category] || card.category;
       el.innerHTML =
-        `<span class="up-card__icon">${icon}</span>` +
+        `<span class="up-card__icon">${CATEGORY_ICONS[card.category] || '🎴'}</span>` +
         `<span class="up-card__value">${card.value}</span>` +
-        `<span class="up-card__hint">${label}</span>`;
+        `<span class="up-card__hint">${CATEGORY_LABELS[card.category] || card.category}</span>`;
     }
-    if (clickable && Number.isInteger(index)) {
-      el.addEventListener('click', () => sendAction('take_center', { index: index }));
+    if (opts.clickable && Number.isInteger(opts.index)) {
+      el.addEventListener('click', () => sendAction('take_center', { index: opts.index }));
       el.title = 'Prendre cette carte';
     }
     return el;
   }
 
-  function renderCenter(center, myTurn) {
-    if (!centerEl) {
+  function renderCenter(state) {
+    if (!centerEl) return;
+    const canTake =
+      state.phase === 'reward' && state.reward_player === meId && state.reward_actions_left > 0;
+    centerEl.innerHTML = '';
+    (state.center || []).forEach((card, idx) => {
+      centerEl.appendChild(cardEl(card, { clickable: canTake, index: idx }));
+    });
+    if (!state.center || !state.center.length) {
+      const p = document.createElement('p');
+      p.className = 'up-empty';
+      p.textContent = 'Centre vide.';
+      centerEl.appendChild(p);
+    }
+  }
+
+  function renderHand(state) {
+    if (!handEl) return;
+    handEl.innerHTML = '';
+    const hand = Array.isArray(state.hand) ? state.hand : [];
+    if (!hand.length) {
+      const p = document.createElement('p');
+      p.className = 'up-empty';
+      p.textContent =
+        state.in_round && state.in_round.includes(meId)
+          ? 'Aucune carte en main.'
+          : "Vous n'êtes pas dans la manche en cours.";
+      handEl.appendChild(p);
       return;
     }
-    centerEl.innerHTML = '';
-    (center || []).forEach((card, idx) => {
-      centerEl.appendChild(buildCard(card, idx, true));
+    const sorted = hand.slice().sort((a, b) =>
+      (a.category || '').localeCompare(b.category || '') || (a.value - b.value)
+    );
+    sorted.forEach((card) => handEl.appendChild(cardEl(card)));
+  }
+
+  // --- enchères -----------------------------------------------------------
+  function initCategories(categories) {
+    if (categoriesInit || !bidCategory) return;
+    (categories || []).forEach((cat) => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = `${CATEGORY_ICONS[cat] || ''} ${CATEGORY_LABELS[cat] || cat}`.trim();
+      bidCategory.appendChild(opt);
+    });
+    categoriesInit = true;
+  }
+
+  function renderBidding(state) {
+    const active = state.phase === 'bidding';
+    bidSection.hidden = !active;
+    if (!active) return;
+    initCategories(state.categories);
+
+    if (state.current_bid) {
+      const b = state.current_bid;
+      currentBidEl.innerHTML =
+        `Dernière enchère : <strong>${nameOf(b.player)}</strong> annonce ` +
+        `<strong>${b.value}</strong> en ${CATEGORY_ICONS[b.category] || ''} ` +
+        `${CATEGORY_LABELS[b.category] || b.category}.`;
+    } else {
+      currentBidEl.textContent = "Personne n'a encore enchéri dans ce duel.";
+    }
+
+    const myTurn = state.turn === meId && state.in_round.includes(meId);
+    bidPanel.hidden = !myTurn;
+    if (myTurn) {
+      const minVal = (state.current_bid ? state.current_bid.value : 0) + 1;
+      bidValue.min = String(minVal);
+      if (num(bidValue.value) < minVal) bidValue.value = String(minVal);
+      doubtBtn.disabled = !state.current_bid;
+      doubtBtn.title = state.current_bid ? '' : 'Rien à contester pour le moment';
+    }
+  }
+
+  // --- vote ---------------------------------------------------------------
+  function renderVoting(state) {
+    const active = state.phase === 'voting';
+    voteSection.hidden = !active;
+    if (!active) return;
+    const d = state.doubt || {};
+    const b = state.current_bid || {};
+    voteQuestion.innerHTML =
+      `<strong>${nameOf(d.accuser)}</strong> conteste <strong>${nameOf(d.accused)}</strong>. ` +
+      `La somme des ${CATEGORY_LABELS[b.category] || b.category} atteint-elle <strong>${b.value}</strong> ?`;
+    const isVoter = (state.voters || []).includes(meId);
+    const alreadyVoted = (state.voted || []).includes(meId);
+    votePanel.hidden = !(isVoter && !alreadyVoted);
+    const total = (state.voters || []).length + (state.voted || []).length;
+    // voters/voted sont disjoints côté serveur ? voters = non exclus ; voted = ceux ayant voté.
+    const remaining = (state.voters || []).filter((v) => !(state.voted || []).includes(v));
+    voteProgress.textContent = alreadyVoted
+      ? `Vote enregistré. En attente des autres… (${state.votes_count} vote(s))`
+      : isVoter
+        ? 'À vous de voter.'
+        : `En attente des votes… (${state.votes_count} enregistré(s))`;
+  }
+
+  // --- révélation ---------------------------------------------------------
+  function renderReveal(state) {
+    const r = state.last_reveal;
+    const show = r && state.phase !== 'voting';
+    revealSection.hidden = !show;
+    if (!show) return;
+    const catLabel = CATEGORY_LABELS[r.category] || r.category;
+    const verdict = r.accused_truthful
+      ? `L'annonce tenait : <strong>${nameOf(r.accused)}</strong> l'emporte.`
+      : `Bluff démasqué : <strong>${nameOf(r.accuser)}</strong> l'emporte.`;
+    const contrib = Object.entries(r.contributions || {})
+      .map(([pid, v]) => `${nameOf(pid)} : ${v}`)
+      .join(' · ');
+    const elim = (r.eliminated || []).map(nameOf).join(', ') || 'personne';
+    revealEl.innerHTML =
+      `<p>Catégorie <strong>${catLabel}</strong> — annoncé <strong>${r.bid}</strong>, ` +
+      `réel <strong>${r.actual}</strong>.</p>` +
+      `<p>${verdict}</p>` +
+      `<p class="up-reveal__detail">Détail : ${contrib}</p>` +
+      `<p class="up-reveal__detail">Éliminé(s) ce tour : ${elim}.</p>`;
+  }
+
+  // --- récompense ---------------------------------------------------------
+  function renderReward(state) {
+    const active = state.phase === 'reward';
+    rewardSection.hidden = !active;
+    if (!active) { return; }
+    const mine = state.reward_player === meId;
+    rewardInfo.innerHTML = mine
+      ? `Vous avez survécu ! Il vous reste <strong>${state.reward_actions_left}</strong> action(s) ` +
+        `(prendre une carte au centre ou lancer les dés).`
+      : `<strong>${nameOf(state.reward_player)}</strong> survit et joue sa phase de récompense.`;
+    rewardPanel.hidden = !mine;
+    if (!mine) return;
+
+    rollBtn.disabled = state.reward_actions_left <= 0;
+    renderBonusPanel(state);
+  }
+
+  function renderBonusPanel(state) {
+    bonusPanel.innerHTML = '';
+    const myBonuses = (state.bonuses && state.bonuses[String(meId)]) || [];
+    if (!myBonuses.length) return;
+    const roll = state.last_roll;
+    const counts = myBonuses.reduce((acc, p) => ((acc[p] = (acc[p] || 0) + 1), acc), {});
+    Object.keys(counts).forEach((power) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'up-bonus';
+      const label = document.createElement('span');
+      label.className = 'up-bonus__label';
+      label.textContent = `${BONUS_ICONS[power] || '🎁'} ${BONUS_LABELS[power] || power} ×${counts[power]}`;
+      wrap.appendChild(label);
+
+      if (power === 'reroll') {
+        const canReroll = roll && roll.player === meId && !roll.win && roll.can_reroll;
+        [0, 1].forEach((die) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'action-btn up-bonus__btn';
+          b.textContent = `Relancer dé ${die + 1}`;
+          b.disabled = !canReroll;
+          b.addEventListener('click', () => sendAction('use_bonus', { power: 'reroll', die }));
+          wrap.appendChild(b);
+        });
+      } else if (power === 'draw2') {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'action-btn up-bonus__btn';
+        b.textContent = 'Piocher 2';
+        b.addEventListener('click', () => sendAction('use_bonus', { power: 'draw2' }));
+        wrap.appendChild(b);
+      } else if (power === 'steal') {
+        (state.players || []).forEach((pid) => {
+          if (pid === meId) return;
+          const hasSomething =
+            ((state.reward_numbers && state.reward_numbers[String(pid)]) || []).length ||
+            ((state.bonuses && state.bonuses[String(pid)]) || []).length;
+          if (!hasSomething) return;
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'action-btn up-bonus__btn';
+          b.textContent = `Voler ${nameOf(pid)}`;
+          b.addEventListener('click', () => sendAction('use_bonus', { power: 'steal', target: pid }));
+          wrap.appendChild(b);
+        });
+      }
+      bonusPanel.appendChild(wrap);
     });
   }
 
-  function renderPlayersZone(state, players) {
-    if (!playersZone) {
-      return;
+  function renderDice(state) {
+    const roll = state.last_roll;
+    if (roll && Array.isArray(roll.dice)) {
+      diceEls[0].textContent = roll.dice[0];
+      diceEls[1].textContent = roll.dice[1];
+      diceEls.forEach((d) => d.classList.toggle('up-die--win', Boolean(roll.win)));
+    } else {
+      diceEls.forEach((d) => { d.textContent = '–'; d.classList.remove('up-die--win'); });
     }
-    const nameById = new Map(
-      (players || []).map((p) => [Number.parseInt(p.userId, 10), p.username])
-    );
+  }
+
+  // --- zones joueurs ------------------------------------------------------
+  function renderPlayersZone(state) {
+    if (!playersZone) return;
     playersZone.innerHTML = '';
     (state.players || []).forEach((pid) => {
       const key = String(pid);
       const card = document.createElement('div');
       card.className = 'up-player-zone';
-      if (pid === state.turn) {
-        card.classList.add('is-turn');
-      }
-      if (pid === currentUserId) {
-        card.classList.add('is-self');
-      }
+      const inRound = (state.in_round || []).includes(pid);
+      const isEliminated = (state.eliminated || []).includes(pid);
+      if (pid === state.turn) card.classList.add('is-turn');
+      if (pid === meId) card.classList.add('is-self');
+      if (isEliminated) card.classList.add('is-eliminated');
 
-      const name = nameById.get(pid) || `Joueur ${pid}`;
       const nums = (state.winning_numbers && state.winning_numbers[key]) || [0];
       const prob = (state.win_probability && state.win_probability[key]) || 0;
       const rewards = (state.reward_numbers && state.reward_numbers[key]) || [];
       const bonuses = (state.bonuses && state.bonuses[key]) || [];
       const hand = (state.counts && state.counts[key]) || 0;
-
-      const bonusText = bonuses.length
-        ? bonuses.map((b) => BONUS_ICONS[b] || '🎁').join(' ')
-        : '—';
+      const bonusText = bonuses.length ? bonuses.map((b) => BONUS_ICONS[b] || '🎁').join(' ') : '—';
+      let tag = '';
+      if (pid === state.reward_player) tag = '<span class="up-turn-badge">récompense</span>';
+      else if (pid === state.turn && state.phase === 'bidding') tag = '<span class="up-turn-badge">enchérit</span>';
+      else if (isEliminated) tag = '<span class="up-elim-badge">éliminé</span>';
 
       card.innerHTML =
-        `<div class="up-player-zone__head">` +
-        `<strong>${name}</strong>` +
-        (pid === state.turn ? `<span class="up-turn-badge">à jouer</span>` : '') +
-        `</div>` +
-        `<div class="up-player-zone__row">Main : <b>${hand}</b> carte${hand > 1 ? 's' : ''}</div>` +
+        `<div class="up-player-zone__head"><strong>${nameOf(pid)}</strong>${tag}</div>` +
+        `<div class="up-player-zone__row">Main : <b>${inRound ? hand : 0}</b> carte${hand > 1 ? 's' : ''}</div>` +
         `<div class="up-player-zone__row">Récompenses : <b>${rewards.length ? rewards.join(', ') : '—'}</b></div>` +
         `<div class="up-player-zone__row">Bonus : <b>${bonusText}</b></div>` +
         `<div class="up-player-zone__win">Numéros gagnants : <b>${nums.join(' · ')}</b>` +
@@ -230,26 +427,21 @@
     });
   }
 
-  function renderRoll(lastRoll, winnerId) {
-    if (!diceEls.length) {
+  function renderStatus(state, winnerId) {
+    if (!statusEl) return;
+    if (winnerId !== null) {
+      statusEl.innerHTML = `<span class="up-status__win">👑 ${nameOf(winnerId)} rejoint le 1% !</span>`;
       return;
     }
-    if (lastRoll && Array.isArray(lastRoll.dice)) {
-      diceEls[0].textContent = lastRoll.dice[0];
-      diceEls[1].textContent = lastRoll.dice[1];
-      diceEls.forEach((d) => d.classList.toggle('up-die--win', Boolean(lastRoll.win)));
-      if (rollMsg && winnerId === null) {
-        const mine = lastRoll.player === currentUserId ? 'Vous avez' : 'Ce joueur a';
-        rollMsg.textContent = lastRoll.win
-          ? `🎉 Combinaison gagnante !`
-          : `${mine} lancé ${lastRoll.dice[0]} et ${lastRoll.dice[1]} — raté.`;
-      }
-    } else {
-      diceEls.forEach((d) => {
-        d.textContent = '–';
-        d.classList.remove('up-die--win');
-      });
+    let txt = '';
+    if (state.phase === 'bidding') {
+      txt = state.turn === meId ? '🎯 À vous d\'enchérir ou de douter.' : `Enchères — au tour de ${nameOf(state.turn)}.`;
+    } else if (state.phase === 'voting') {
+      txt = '🗳️ Phase de vote sur le doute.';
+    } else if (state.phase === 'reward') {
+      txt = state.reward_player === meId ? '🏆 Votre phase de récompense.' : `Phase de récompense de ${nameOf(state.reward_player)}.`;
     }
+    statusEl.textContent = txt;
   }
 
   // --- boucle principale --------------------------------------------------
@@ -261,81 +453,77 @@
       return;
     }
     if (msg.error) {
-      if (rollMsg) {
-        rollMsg.textContent = ERROR_MESSAGES[msg.error] || msg.error;
-      }
+      if (rollMsg) rollMsg.textContent = ERROR_MESSAGES[msg.error] || msg.error;
       return;
     }
-    if (msg.type !== 'state' && msg.type !== 'player_joined') {
-      return;
-    }
+    if (msg.type !== 'state' && msg.type !== 'player_joined') return;
 
     const started = Boolean(msg.started);
-    const hostId = msg.hostId !== undefined ? Number.parseInt(msg.hostId, 10) : null;
+    const hostId = msg.hostId !== undefined ? num(msg.hostId) : null;
     const players = Array.isArray(msg.players) ? msg.players : [];
-    const readyIds = new Set(
-      (Array.isArray(msg.ready) ? msg.ready : []).map((r) => Number.parseInt(r, 10))
-    );
+    const readyIds = new Set((Array.isArray(msg.ready) ? msg.ready : []).map(num));
     const state = msg.state || null;
     const winnerId =
-      state && state.winner !== undefined && state.winner !== null
-        ? Number.parseInt(state.winner, 10)
-        : null;
+      state && state.winner !== undefined && state.winner !== null ? num(state.winner) : null;
 
-    // Boutons de contrôle (hôte).
-    if (startBtn) {
-      startBtn.style.display = isHost && !started ? '' : 'none';
-    }
-    if (stopBtn) {
-      stopBtn.style.display = isHost && started && winnerId === null ? '' : 'none';
-    }
-    if (restartBtn) {
-      restartBtn.style.display = isHost && winnerId !== null ? '' : 'none';
-    }
-    if (returnLobbyBtn) {
-      returnLobbyBtn.style.display = isHost ? '' : 'none';
-    }
+    nameById = new Map(players.map((p) => [num(p.userId), p.username]));
 
-    if (playersSection) {
-      playersSection.style.display = started ? 'none' : '';
-    }
-    if (board) {
-      board.hidden = !started;
-    }
-    if (waiting) {
-      waiting.hidden = started;
-    }
+    if (startBtn) startBtn.style.display = isHost && !started ? '' : 'none';
+    if (stopBtn) stopBtn.style.display = isHost && started && winnerId === null ? '' : 'none';
+    if (restartBtn) restartBtn.style.display = isHost && winnerId !== null ? '' : 'none';
+    if (returnLobbyBtn) returnLobbyBtn.style.display = isHost ? '' : 'none';
+    if (playersSection) playersSection.style.display = started ? 'none' : '';
+    if (board) board.hidden = !started;
+    if (waiting) waiting.hidden = started;
 
-    renderPlayers(players, readyIds, started, hostId);
+    renderPlayersList(players, readyIds, started, hostId);
 
     if (started && state) {
       if (drawCountEl) drawCountEl.textContent = state.draw_count ?? 0;
       if (discardCountEl) discardCountEl.textContent = state.discard_count ?? 0;
-      renderCenter(state.center, state.turn === currentUserId);
-      renderPlayersZone(state, players);
-      renderRoll(state.last_roll, winnerId);
+      renderStatus(state, winnerId);
+      renderCenter(state);
+      renderHand(state);
+      renderBidding(state);
+      renderVoting(state);
+      renderReveal(state);
+      renderReward(state);
+      renderDice(state);
+      renderPlayersZone(state);
 
-      if (rollBtn) {
-        rollBtn.disabled = winnerId !== null;
-      }
-      if (winnerId !== null && rollMsg) {
-        const winnerName =
-          (players.find((p) => Number.parseInt(p.userId, 10) === winnerId) || {}).username ||
-          `Joueur ${winnerId}`;
-        rollMsg.textContent =
-          winnerId === currentUserId
-            ? '👑 Vous rejoignez le 1% — victoire !'
-            : `👑 ${winnerName} rejoint le 1% et remporte la partie !`;
+      // Message contextuel sur le dernier lancer / la victoire.
+      if (rollMsg) {
+        if (winnerId !== null) {
+          rollMsg.textContent =
+            winnerId === meId ? '👑 Victoire ! Vous rejoignez le 1%.' : `👑 ${nameOf(winnerId)} remporte la partie !`;
+        } else if (state.last_roll && state.phase === 'reward') {
+          const who = state.last_roll.player === meId ? 'Vous avez' : `${nameOf(state.last_roll.player)} a`;
+          rollMsg.textContent = state.last_roll.win
+            ? '🎉 Combinaison gagnante !'
+            : `${who} obtenu ${state.last_roll.dice[0]} et ${state.last_roll.dice[1]} — raté.`;
+        } else {
+          rollMsg.textContent = '';
+        }
       }
     }
   };
 
-  if (rollBtn) {
-    rollBtn.addEventListener('click', () => sendAction('roll'));
-  }
+  // --- actions UI ---------------------------------------------------------
+  if (bidBtn) bidBtn.addEventListener('click', () => {
+    const category = bidCategory.value;
+    const value = num(bidValue.value);
+    if (category && Number.isFinite(value) && value > 0) {
+      sendAction('bid', { category, value });
+    }
+  });
+  if (doubtBtn) doubtBtn.addEventListener('click', () => sendAction('doubt'));
+  if (voteAccused) voteAccused.addEventListener('click', () => sendAction('vote', { choice: 'accused' }));
+  if (voteAccuser) voteAccuser.addEventListener('click', () => sendAction('vote', { choice: 'accuser' }));
+  if (rollBtn) rollBtn.addEventListener('click', () => sendAction('roll'));
+  if (endRewardBtn) endRewardBtn.addEventListener('click', () => sendAction('end_reward'));
 
   // Copie du code de la salle.
-  const badge = document.getElementById('room-code-badge');
+  const badge = $('room-code-badge');
   if (badge && navigator.clipboard) {
     badge.addEventListener('click', () => {
       navigator.clipboard.writeText(roomCode).then(() => {

@@ -360,6 +360,73 @@ class RoomConsumerTests(TransactionTestCase):
 
         async_to_sync(inner)()
 
+    def test_one_percent_full_bluff_flow(self):
+        # Flux complet : masquage des mains, enchère, doute, résolution directe
+        # (2 joueurs, pas de vote), puis phase récompense.
+        self.room.game_type = "1_percent"
+        self.room.game_selected = True
+        self.room.save(update_fields=["game_type", "game_selected"])
+
+        async def inner():
+            host = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            host.scope["user"] = self.user1
+            connected, _ = await host.connect()
+            assert connected
+            await host.receive_json_from()
+
+            guest = WebsocketCommunicator(application, f"/ws/room/{self.room.code}/")
+            guest.scope["user"] = self.user2
+            connected, _ = await guest.connect()
+            assert connected
+            await guest.receive_json_from()
+            await host.receive_json_from()
+
+            await host.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+            await guest.send_json_to({"type": "ready", "value": True})
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await host.send_json_to({"type": "start"})
+            host_started = await host.receive_json_from()
+            guest_started = await guest.receive_json_from()
+
+            # Masquage : chacun ne voit que sa propre main.
+            assert host_started["state"]["hand_owner"] == self.user1.id
+            assert isinstance(host_started["state"]["hand"], list)
+            assert guest_started["state"]["hand_owner"] == self.user2.id
+            assert str(self.user1.id) in guest_started["state"]["counts"]
+
+            # On force une situation déterministe (somme shark = 6 >= 4).
+            engine = ENGINES[self.room.code]
+            engine.in_round = [self.user1.id, self.user2.id]
+            engine.turn_idx = 0
+            engine.phase = "bidding"
+            engine.current_bid = None
+            engine.hands[self.user1.id] = [{"kind": "draw", "category": "shark", "value": 5}]
+            engine.hands[self.user2.id] = [{"kind": "draw", "category": "shark", "value": 1}]
+
+            await host.send_json_to(
+                {"type": "action", "action": "bid", "category": "shark", "value": 4}
+            )
+            await host.receive_json_from()
+            await guest.receive_json_from()
+
+            await guest.send_json_to({"type": "action", "action": "doubt"})
+            host_after = await host.receive_json_from()
+            await guest.receive_json_from()
+
+            st = host_after["state"]
+            assert st["phase"] == "reward"
+            assert st["reward_player"] == self.user1.id
+            assert host_after["lastAction"]["res"]["reveal"]["accused_truthful"] is True
+
+            await guest.disconnect()
+            await host.disconnect()
+
+        async_to_sync(inner)()
+
     def test_one_percent_action_dispatches_to_engine(self):
         # Le consommateur doit, pour un jeu tour par tour, créer le bon moteur
         # (via le registre) et router les actions vers ``handle_action``.
@@ -398,15 +465,20 @@ class RoomConsumerTests(TransactionTestCase):
 
             engine = ENGINES[self.room.code]
             assert engine.__class__.__name__ == "UnPourCentEngine"
+            assert state_started["state"]["phase"] == "bidding"
+            # Le premier à enchérir (tour du siège 0) est l'hôte.
+            assert state_started["state"]["turn"] == self.user1.id
 
-            await host.send_json_to({"type": "action", "action": "roll"})
-            rolled = await host.receive_json_from()
+            await host.send_json_to(
+                {"type": "action", "action": "bid", "category": "shark", "value": 3}
+            )
+            bidded = await host.receive_json_from()
             await guest.receive_json_from()
-            assert rolled["type"] == "state"
-            assert rolled["lastAction"]["type"] == "game_action"
-            assert rolled["lastAction"]["action"] == "roll"
-            assert rolled["state"]["last_roll"]["player"] == self.user1.id
-            assert len(rolled["state"]["last_roll"]["dice"]) == 2
+            assert bidded["type"] == "state"
+            assert bidded["lastAction"]["type"] == "game_action"
+            assert bidded["lastAction"]["action"] == "bid"
+            assert bidded["state"]["current_bid"]["player"] == self.user1.id
+            assert bidded["state"]["current_bid"]["value"] == 3
 
             await guest.disconnect()
             await host.disconnect()
