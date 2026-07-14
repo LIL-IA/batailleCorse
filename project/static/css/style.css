@@ -81,8 +81,8 @@ main {
 }
 
 .message-error {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.15);
+  color: #e2e8f0;
   box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.35);
 }
 
@@ -470,10 +470,10 @@ ul li a {
   margin: 1rem 0;
   padding: 1rem 1.25rem;
   border-radius: 12px;
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid rgba(220, 38, 38, 0.2);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: rgba(220, 38, 38, 0.15);
+  color: #e2e8f0;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 form {
