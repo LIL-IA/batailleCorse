@@ -236,6 +236,28 @@ class GameEngineTests(SimpleTestCase):
         self.assertIn('penalty_count', serialized)
         self.assertEqual(serialized['penalty_count'], 2)
 
+    def test_serialize_is_msgpack_safe(self):
+        # La couche channels (Redis) encode l'état en msgpack et le décode avec
+        # strict_map_key=True, qui rejette les clés entières. Les dicts indexés
+        # par user_id doivent donc utiliser des clés str. Régression : le
+        # broadcast plantait avec « int is not allowed for map key ».
+        import msgpack
+
+        engine = GameEngine([4, 5, 7])
+        engine.timeout_until[5] = -1
+        engine.eliminated_invalid_slaps[7] = 2
+
+        serialized = engine.serialize()
+        packed = msgpack.packb(serialized, use_bin_type=True)
+        restored = msgpack.unpackb(packed, raw=False, strict_map_key=True)
+
+        for field in ('counts', 'timeout_until', 'eliminated_invalid_slaps'):
+            self.assertTrue(
+                all(isinstance(k, str) for k in serialized[field]),
+                f"{field} doit avoir des clés str",
+            )
+            self.assertEqual(set(restored[field]), {'4', '5', '7'})
+
     def test_sanitize_options_clamps_negative_penalties(self):
         sanitized = GameEngine.sanitize_options({
             'bad_slap_penalty': -3,

@@ -279,8 +279,12 @@ class GameEngine(BaseGameEngine):
             "winner": self.winner,
             "active_players": active_players,
             "options": dict(self.options),
-            "timeout_until": self.timeout_until,
-            "eliminated_invalid_slaps": self.eliminated_invalid_slaps,
+            # Clés en str : msgpack (couche channels) refuse les clés entières
+            # au décodage (strict_map_key=True), ce qui plantait le broadcast.
+            "timeout_until": {str(pid): t for pid, t in self.timeout_until.items()},
+            "eliminated_invalid_slaps": {
+                str(pid): n for pid, n in self.eliminated_invalid_slaps.items()
+            },
         }
 
     def _resolve_deck_count(self):
