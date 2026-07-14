@@ -36,6 +36,7 @@ class GameEngine(BaseGameEngine):
         "deck_mode": "auto",
         "deck_count": 1,
         "eliminated_spam_timeout": 0,
+        "eliminated_spam_limit": 3,
     }
 
     @classmethod
@@ -73,6 +74,8 @@ class GameEngine(BaseGameEngine):
                 return cls._normalize_deck_count(numeric)
             if key == "eliminated_spam_timeout":
                 return numeric if numeric in (0, 10, 30, 60, -1) else default
+            if key == "eliminated_spam_limit":
+                return numeric if numeric in (1, 3, 5, 10) else default
             return numeric
         if isinstance(default, str):
             if value is None:
@@ -132,6 +135,9 @@ class GameEngine(BaseGameEngine):
         
         timeout_val = result.get("eliminated_spam_timeout")
         result["eliminated_spam_timeout"] = timeout_val if timeout_val in (0, 10, 30, 60, -1) else cls.DEFAULT_OPTIONS["eliminated_spam_timeout"]
+        
+        limit_val = result.get("eliminated_spam_limit")
+        result["eliminated_spam_limit"] = limit_val if limit_val in (1, 3, 5, 10) else cls.DEFAULT_OPTIONS["eliminated_spam_limit"]
         return result
 
     @classmethod
@@ -411,7 +417,8 @@ class GameEngine(BaseGameEngine):
             # Spam detection for eliminated players
             if not self.hands[player_id]:
                 self.eliminated_invalid_slaps[player_id] += 1
-                if self.eliminated_invalid_slaps[player_id] >= 3:
+                limit = self.options.get("eliminated_spam_limit", 3)
+                if self.eliminated_invalid_slaps[player_id] >= limit:
                     import time
                     timeout_opt = self.options.get("eliminated_spam_timeout", 0)
                     if timeout_opt > 0:

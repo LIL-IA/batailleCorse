@@ -371,11 +371,41 @@
           </div>
         </div>
 
-        <h4 id="spam-options-title" class="room-options-section__title" style="margin-top: 1.5rem;">Anti-Spam (Joueurs Éliminés)</h4>
+        <h4 id="spam-options-title" class="room-options-section__title" style="margin-top: 1.5rem;">Limite d'erreurs (Joueurs Éliminés)</h4>
         <p class="room-options-description" style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
-          Pénalise d'un timeout les joueurs sans cartes qui spamment le bouton "TAPER" (3 tapes invalides de suite).
+          Définit le nombre de tapes invalides consécutives autorisées avant l'application du timeout.
         </p>
-        <div class="room-options-choices" role="radiogroup" aria-labelledby="spam-options-title" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+        <div class="room-options-choices" role="radiogroup" aria-label="Nombre de tapes invalides menant à un timeout" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+          <label class="room-options-choice">
+            <input type="radio" name="eliminated_spam_limit" value="1" data-option-type="choice" data-option-key="eliminated_spam_limit" />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">1</span>
+            </span>
+          </label>
+          <label class="room-options-choice">
+            <input type="radio" name="eliminated_spam_limit" value="3" data-option-type="choice" data-option-key="eliminated_spam_limit" />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">3</span>
+            </span>
+          </label>
+          <label class="room-options-choice">
+            <input type="radio" name="eliminated_spam_limit" value="5" data-option-type="choice" data-option-key="eliminated_spam_limit" />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">5</span>
+            </span>
+          </label>
+          <label class="room-options-choice">
+            <input type="radio" name="eliminated_spam_limit" value="10" data-option-type="choice" data-option-key="eliminated_spam_limit" />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">10</span>
+            </span>
+          </label>
+        </div>
+
+        <p class="room-options-description" style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+          Pénalité de timeout appliquée si un joueur sans cartes atteint la limite ci-dessus.
+        </p>
+        <div class="room-options-choices" role="radiogroup" aria-label="Durée du timeout" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
           <label class="room-options-choice">
             <input type="radio" name="eliminated_spam_timeout" value="0" data-option-type="choice" data-option-key="eliminated_spam_timeout" />
             <span class="room-options-choice__texts">
