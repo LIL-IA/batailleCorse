@@ -513,6 +513,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         host_id = await self._get_host_id()
         sanitized_options = await self._get_options()
         game_type = await self._get_game_type()
+        spec = get_spec(game_type)
 
         payload = {
             "type": "state",
@@ -525,6 +526,14 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         payload["started"] = await self._is_started()
         if engine is None:
             payload["pending"] = "waiting_for_players"
+        elif spec.per_user_state:
+            # Jeu à information cachée (ex. « Le 1% ») : l'état est masqué par
+            # destinataire au moment de la livraison (voir ``deliver``). Le
+            # gagnant reste public pour piloter l'interface.
+            payload["mask_state"] = True
+            winner = getattr(engine, "winner", None)
+            if winner is not None:
+                payload.setdefault("winner", winner)
         else:
             state = engine.serialize()
             payload["state"] = state
@@ -536,7 +545,19 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_send(self.group, {"type": "deliver", "payload": payload})
 
     async def deliver(self, event):
-        await self.send_json(event["payload"])
+        payload = event["payload"]
+        # Masquage par joueur : chaque connexion reçoit une vue de l'état
+        # sérialisée pour son propre utilisateur (mains cachées des adversaires).
+        if payload.get("mask_state"):
+            payload = dict(payload)
+            payload.pop("mask_state", None)
+            engine = ENGINES.get(self.room_code)
+            if engine is not None:
+                payload["state"] = engine.serialize(mask_for=getattr(self, "user_id", None))
+                winner = payload["state"].get("winner")
+                if winner is not None:
+                    payload.setdefault("winner", winner)
+        await self.send_json(payload)
 
     async def state(self, event):
         await self.send_json(event)

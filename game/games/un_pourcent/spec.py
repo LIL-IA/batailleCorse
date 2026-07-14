@@ -7,6 +7,7 @@ SPEC = GameSpec(
     engine_class=UnPourCentEngine,
     room_template="game/room_un_pourcent.html",
     realtime_slap=False,
+    per_user_state=True,
     icon="💰",
     order=20,
 )
