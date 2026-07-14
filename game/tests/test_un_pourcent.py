@@ -165,17 +165,26 @@ class UnPourCentEngineTests(SimpleTestCase):
         self.assertEqual(engine.winner, 1)
         self.assertNotIn("reroll", engine.bonuses[1])
 
-    def test_reward_exhausted_starts_new_turn(self):
+    def test_reward_phase_waits_for_explicit_end(self):
         engine = UnPourCentEngine([1, 2])
         engine.phase = "reward"
         engine.reward_player = 1
         engine.reward_actions_left = 1
         engine.bonuses[1] = []
         engine.discard = [draw("shark", 3)]
-        # Losing roll (winning numbers {0}, dice 1,1) consumes the last action.
+        # La dernière action (un lancer perdant) ne termine PAS le tour tout
+        # seul : le joueur doit voir son résultat et clôturer lui-même.
         with patch("game.games.un_pourcent.engine.random.choice", side_effect=[1, 1]):
             engine.handle_action(1, {"action": "roll"})
         self.assertIsNone(engine.winner)
+        self.assertEqual(engine.phase, "reward")
+        self.assertEqual(engine.reward_actions_left, 0)
+        self.assertEqual(engine.reward_player, 1)
+        self.assertIsNotNone(engine.last_roll)
+
+        # Fin explicite -> nouveau tour global.
+        res = engine.handle_action(1, {"action": "end_reward"})
+        self.assertEqual(res["next"], "turn")
         self.assertEqual(engine.phase, "bidding")
         self.assertEqual(set(engine.in_round), {1, 2})
         self.assertIsNone(engine.reward_player)

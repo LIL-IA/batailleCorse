@@ -313,19 +313,37 @@
   }
 
   // --- récompense ---------------------------------------------------------
-  function renderReward(state) {
-    const active = state.phase === 'reward';
+  function renderReward(state, winnerId) {
+    const gameOver = state.phase === 'game_over';
+    // On garde la section visible à la victoire pour savourer les dés gagnants.
+    const active = state.phase === 'reward' || (gameOver && state.last_roll);
     rewardSection.hidden = !active;
-    if (!active) { return; }
+    if (!active) return;
+
+    if (gameOver) {
+      rewardInfo.innerHTML =
+        `👑 <strong>${nameOf(winnerId)}</strong> décroche la combinaison gagnante et rejoint le 1% !`;
+      rewardPanel.hidden = true;
+      return;
+    }
+
     const mine = state.reward_player === meId;
-    rewardInfo.innerHTML = mine
-      ? `Vous avez survécu ! Il vous reste <strong>${state.reward_actions_left}</strong> action(s) ` +
-        `(prendre une carte au centre ou lancer les dés).`
-      : `<strong>${nameOf(state.reward_player)}</strong> survit et joue sa phase de récompense.`;
+    const left = state.reward_actions_left;
+    if (mine) {
+      rewardInfo.innerHTML = left > 0
+        ? `Vous avez survécu ! Il vous reste <strong>${left}</strong> action(s) : ` +
+          `prendre une carte au centre ou lancer les dés.`
+        : `Actions terminées. Activez un bonus si vous le souhaitez, puis ` +
+          `<strong>terminez votre tour</strong> quand vous êtes prêt.`;
+    } else {
+      rewardInfo.innerHTML =
+        `<strong>${nameOf(state.reward_player)}</strong> survit et joue sa phase de récompense.`;
+    }
     rewardPanel.hidden = !mine;
     if (!mine) return;
 
-    rollBtn.disabled = state.reward_actions_left <= 0;
+    rollBtn.disabled = left <= 0;
+    endRewardBtn.classList.toggle('up-end--ready', left <= 0);
     renderBonusPanel(state);
   }
 
@@ -487,7 +505,7 @@
       renderBidding(state);
       renderVoting(state);
       renderReveal(state);
-      renderReward(state);
+      renderReward(state, winnerId);
       renderDice(state);
       renderPlayersZone(state);
 

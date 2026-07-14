@@ -392,7 +392,6 @@ class UnPourCentEngine(BaseGameEngine):
             self.bonuses.setdefault(user_id, []).append(card["power"])
         self.reward_actions_left -= 1
         self._refill_center()
-        self._maybe_end_reward()
         return {"ok": True, "card": card, "actions_left": self.reward_actions_left}
 
     def _roll(self, user_id):
@@ -416,7 +415,6 @@ class UnPourCentEngine(BaseGameEngine):
             self.winner = user_id
             self.phase = "game_over"
             return {"ok": True, "dice": dice, "win": True}
-        self._maybe_end_reward()
         return {"ok": True, "dice": dice, "win": False, "actions_left": self.reward_actions_left}
 
     def _use_bonus(self, user_id, content):
@@ -448,7 +446,6 @@ class UnPourCentEngine(BaseGameEngine):
                 self.winner = user_id
                 self.phase = "game_over"
                 return {"ok": True, "power": "reroll", "dice": list(roll["dice"]), "win": True}
-            self._maybe_end_reward()
             return {"ok": True, "power": "reroll", "dice": list(roll["dice"]), "win": False}
 
         if power == "draw2":
@@ -463,7 +460,6 @@ class UnPourCentEngine(BaseGameEngine):
                 else:
                     self.bonuses.setdefault(user_id, []).append(card["power"])
             held.remove("draw2")
-            self._maybe_end_reward()
             return {"ok": True, "power": "draw2", "drawn": drawn}
 
         if power == "steal":
@@ -496,24 +492,16 @@ class UnPourCentEngine(BaseGameEngine):
             else:
                 return {"error": "nothing-to-steal"}
             held.remove("steal")
-            self._maybe_end_reward()
             return {"ok": True, "power": "steal", "from": target, "stolen": stolen}
 
         return {"error": "unknown-bonus"}
 
     def _end_reward(self, user_id):
+        # La phase de récompense ne se termine JAMAIS automatiquement : le
+        # joueur clôt son tour explicitement. Il peut ainsi voir le résultat de
+        # sa dernière action (dé gagnant/perdant), activer un bonus (ex. relance
+        # après son dernier lancer) et savourer avant d'enchaîner le tour suivant.
         if self.phase != "reward" or user_id != self.reward_player:
             return {"error": "bad-phase"}
         self._end_turn()
         return {"ok": True, "next": "turn"}
-
-    def _maybe_end_reward(self):
-        """Fin auto de la phase récompense quand il ne reste rien à faire.
-
-        On n'enchaîne pas immédiatement si le joueur détient encore un bonus :
-        il peut vouloir l'activer (ex. relancer un dé après son dernier lancer).
-        """
-        if self.phase != "reward" or self.winner is not None:
-            return
-        if self.reward_actions_left <= 0 and not self.bonuses.get(self.reward_player):
-            self._end_turn()

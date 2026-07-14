@@ -415,6 +415,17 @@
   font-size: 0.85rem;
 }
 
+/* Bouton « Terminer mon tour » : discret tant qu'il reste des actions,
+   mis en avant une fois les actions épuisées. */
+.action-btn.up-end-reward {
+  background: #64748b;
+  align-self: flex-start;
+}
+.action-btn.up-end-reward.up-end--ready {
+  background: linear-gradient(135deg, #17805a, #0f5e40);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.45);
+}
+
 /* Joueur éliminé ce tour. */
 .up-player-zone.is-eliminated {
   opacity: 0.55;
