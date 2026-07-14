@@ -101,6 +101,9 @@ class GameSpec:
     #: True => interface temps réel « tape » gérée par le consommateur (Bataille
     #: Corse). False => actions tour par tour déléguées à ``engine.handle_action``.
     realtime_slap: bool = False
+    #: True => information cachée : l'état est sérialisé par destinataire
+    #: (``engine.serialize(mask_for=user_id)``) au lieu d'un état partagé unique.
+    per_user_state: bool = False
     icon: str = "🎮"
     #: Sert à ordonner les jeux dans les listes (lobby, choix du modèle).
     order: int = 100

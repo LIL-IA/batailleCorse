@@ -62,13 +62,9 @@
 </div>
 
 <div id="up-board" class="up-board" hidden>
-  <p class="up-skeleton-note">
-    🚧 Version squelette : distribution, cartes au centre, zone de récompenses et
-    lancer de dés sont jouables. Les phases d'enchère, de doute et de vote arrivent
-    dans une prochaine itération.
-  </p>
+  <div id="up-status" class="up-status" aria-live="polite"></div>
 
-  <div class="up-piles" aria-live="polite">
+  <div class="up-piles">
     <div class="up-pile">
       <span class="up-pile__count" id="up-draw-count">0</span>
       <span class="up-pile__label">Pioche</span>
@@ -84,16 +80,64 @@
     <div id="up-center" class="up-center" aria-live="polite"></div>
   </section>
 
-  <section class="up-section">
-    <h3 class="up-section__title">Tenter sa chance</h3>
-    <div class="up-dice-panel">
-      <div id="up-dice" class="up-dice" aria-live="polite">
-        <span class="up-die" data-die="0">–</span>
-        <span class="up-die" data-die="1">–</span>
-      </div>
-      <button id="up-roll-btn" class="action-btn" type="button">🎲 Lancer les dés</button>
-      <p id="up-roll-msg" class="up-roll-msg" role="status"></p>
+  {# Enchères #}
+  <section id="up-bid-section" class="up-section" hidden>
+    <h3 class="up-section__title">Enchères</h3>
+    <p id="up-current-bid" class="up-current-bid"></p>
+    <div id="up-bid-panel" class="up-bid-panel" hidden>
+      <label>
+        Catégorie
+        <select id="up-bid-category"></select>
+      </label>
+      <label>
+        Somme annoncée
+        <input id="up-bid-value" type="number" min="1" step="1" value="1" inputmode="numeric" />
+      </label>
+      <button id="up-bid-btn" class="action-btn" type="button">Enchérir</button>
+      <button id="up-doubt-btn" class="action-btn up-doubt" type="button">Douter</button>
     </div>
+  </section>
+
+  {# Vote #}
+  <section id="up-vote-section" class="up-section" hidden>
+    <h3 class="up-section__title">Vote</h3>
+    <p id="up-vote-question" class="up-vote-question"></p>
+    <div id="up-vote-panel" class="up-vote-panel" hidden>
+      <button id="up-vote-accused" class="action-btn" type="button">L'annonceur dit vrai</button>
+      <button id="up-vote-accuser" class="action-btn up-doubt" type="button">C'est un bluff</button>
+    </div>
+    <p id="up-vote-progress" class="up-vote-progress"></p>
+  </section>
+
+  {# Révélation #}
+  <section id="up-reveal-section" class="up-section" hidden>
+    <h3 class="up-section__title">Révélation</h3>
+    <div id="up-reveal" class="up-reveal"></div>
+  </section>
+
+  {# Récompense (survivant) #}
+  <section id="up-reward-section" class="up-section" hidden>
+    <h3 class="up-section__title">Phase de récompense</h3>
+    <p id="up-reward-info" class="up-reward-info"></p>
+    <div id="up-reward-panel" class="up-reward-panel" hidden>
+      <div class="up-dice-panel">
+        <div id="up-dice" class="up-dice">
+          <span class="up-die" data-die="0">–</span>
+          <span class="up-die" data-die="1">–</span>
+        </div>
+        <button id="up-roll-btn" class="action-btn" type="button">🎲 Lancer les dés</button>
+      </div>
+      <div id="up-bonus-panel" class="up-bonus-panel"></div>
+      <button id="up-end-reward-btn" class="action-btn up-end-reward" type="button">
+        Terminer mon tour
+      </button>
+    </div>
+    <p id="up-roll-msg" class="up-roll-msg" role="status"></p>
+  </section>
+
+  <section class="up-section">
+    <h3 class="up-section__title">Ma main</h3>
+    <div id="up-hand" class="up-hand" aria-live="polite"></div>
   </section>
 
   <section class="up-section">
