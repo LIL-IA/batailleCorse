@@ -44,7 +44,9 @@ def create_room(request):
                 request,
                 f"Vous hébergez déjà une salle active (code {existing_room.code}).",
             )
-            return redirect("room", code=existing_room.code)
+            if existing_room.game_selected:
+                return redirect("room", code=existing_room.code)
+            return redirect("lobby", code=existing_room.code)
         for _ in range(10):
             code = _gen_unique_code()
             room, created = Room.objects.get_or_create(
@@ -52,7 +54,7 @@ def create_room(request):
             )
             if created:
                 Player.objects.create(room=room, user=request.user, seat=0)
-                return redirect('room', code=code)
+                return redirect('lobby', code=code)
         return HttpResponseServerError("Unable to generate unique room code. Please try again.")
     return render(request, 'game/create_room.html')
 
@@ -74,12 +76,28 @@ def join_room(request):
                     f"room_{room.code}",
                     {"type": "player_joined", "user_id": request.user.id},
                 )
-        return redirect('room', code=code)
+        if room.game_selected:
+            return redirect('room', code=code)
+        return redirect('lobby', code=code)
     return render(request, 'game/join_room.html')
+
+@login_required
+def lobby(request, code):
+    room = get_object_or_404(Room, code=code)
+    if room.game_selected:
+        return redirect('room', code=code)
+    is_host = request.user == room.host
+    return render(request, 'game/lobby.html', {
+        'room': room,
+        'is_host': is_host,
+        'game_choices': Room.GAME_CHOICES,
+    })
 
 @login_required
 def room(request, code):
     room = get_object_or_404(Room, code=code)
+    if not room.game_selected:
+        return redirect('lobby', code=code)
     players = room.players.select_related("user").all()
     is_host = request.user == room.host
     try:

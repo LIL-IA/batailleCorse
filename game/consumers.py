@@ -224,10 +224,52 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     return
                 await self._update_room_rules(raw_options)
                 await self._broadcast_state()
+            elif t == "preview_game_type":
+                if not await self._is_host(user_id):
+                    await self.send_json({"error": "not-host"})
+                    return
+                if await self._is_started():
+                    await self.send_json({"error": "game-started"})
+                    return
+                game_type = content.get("game_type")
+                valid_types = [choice[0] for choice in Room.GAME_CHOICES]
+                if game_type not in valid_types:
+                    await self.send_json({"error": "invalid-game-type"})
+                    return
+                await self._update_room_game_type(game_type)
+                await self.channel_layer.group_send(
+                    self.group,
+                    {
+                        "type": "game_type_changed",
+                        "game_type": game_type,
+                    }
+                )
+            elif t == "validate_game":
+                if not await self._is_host(user_id):
+                    await self.send_json({"error": "not-host"})
+                    return
+                if await self._is_started():
+                    await self.send_json({"error": "game-started"})
+                    return
+                game_type = content.get("game_type")
+                valid_types = [choice[0] for choice in Room.GAME_CHOICES]
+                if game_type not in valid_types:
+                    await self.send_json({"error": "invalid-game-type"})
+                    return
+                await self._update_room_game_type(game_type)
+                await self._validate_room_game()
+                await self.channel_layer.group_send(
+                    self.group,
+                    {
+                        "type": "game_validated",
+                        "game_type": game_type,
+                    }
+                )
             else:
                 await self.send_json({"error": "unknown-event"})
-        except Exception:
+        except Exception as e:
             logger.exception("Error in receive_json")
+            await self.send_json({"error": "server-error", "details": str(e)})
 
     async def disconnect(self, code):
         try:
@@ -443,6 +485,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
         ]
         host_id = await self._get_host_id()
         sanitized_options = await self._get_options()
+        game_type = await self._get_game_type()
 
         payload = {
             "type": "state",
@@ -450,6 +493,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             "ready": list(READY.get(self.room_code, set())),
             "hostId": host_id,
             "options": sanitized_options,
+            "gameType": game_type,
         }
         payload["started"] = await self._is_started()
         if engine is None:
@@ -466,6 +510,21 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
 
     async def deliver(self, event):
         await self.send_json(event["payload"])
+
+    async def state(self, event):
+        await self.send_json(event)
+
+    async def game_type_changed(self, event):
+        await self.send_json({
+            "type": "game_type_changed",
+            "game_type": event["game_type"]
+        })
+
+    async def game_validated(self, event):
+        await self.send_json({
+            "type": "game_validated",
+            "game_type": event["game_type"]
+        })
 
     async def refresh_state(self, event):
         await self._reset_engine(clear_ready=False)
@@ -641,6 +700,26 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     def _is_started(self):
         r = Room.objects.get(code=self.room_code)
         return r.is_started
+
+    @database_sync_to_async
+    def _get_game_type(self):
+        try:
+            r = Room.objects.only("game_type").get(code=self.room_code)
+            return r.game_type
+        except Room.DoesNotExist:
+            return "bataille_corse"
+
+    @database_sync_to_async
+    def _update_room_game_type(self, game_type):
+        room = Room.objects.get(code=self.room_code)
+        room.game_type = game_type
+        room.save(update_fields=["game_type"])
+
+    @database_sync_to_async
+    def _validate_room_game(self):
+        room = Room.objects.get(code=self.room_code)
+        room.game_selected = True
+        room.save(update_fields=["game_selected"])
 
     @database_sync_to_async
     def _players_order(self):

@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Bataille Corse{% endblock %}</title>
+    <title>{% block title %}Sciel Game{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
 
     <header>
-        <h1><a href="/">Bataille Corse</a></h1>
+        <h1><a href="/">Sciel Game</a></h1>
         {% if user.is_authenticated %}
             <p>Bienvenue, {{ user.username }} ! | <a href="{% url 'logout' %}">Déconnexion</a></p>
         {% endif %}
@@ -33,7 +33,7 @@
     </main>
 
     <footer>
-        <p>&copy; 2026 - Bataille Corse</p>
+        <p>&copy; 2026 - Sciel Game</p>
     </footer>
 
     <button 
@@ -69,41 +69,55 @@
 
             <div id="info-rules" class="info-tab-content active">
                 <h2>Règles du jeu</h2>
-                <section class="how-to-play-section">
-                    <h3>Objectif</h3>
-                    <p>Le but est de remporter toutes les cartes. Les joueurs posent une carte chacun leur tour au centre de la table, sans choisir la carte jouée.</p>
-                    <p>Quand une combinaison valide apparaît, tout le monde peut taper sur le tas : le premier joueur validé récupère toutes les cartes du centre, ainsi que les éventuelles cartes de pénalité.</p>
-                </section>
-
-                <section class="how-to-play-section">
-                    <h3>Figures et défis</h3>
-                    <p>Lorsqu'une figure est posée, le joueur suivant doit tenter de répondre avec une autre figure dans un nombre limité de cartes.</p>
-                    <ul>
-                        <li><strong>Valet :</strong> 1 essai pour poser une figure.</li>
-                        <li><strong>Dame :</strong> 2 essais pour poser une figure.</li>
-                        <li><strong>Roi :</strong> 3 essais pour poser une figure.</li>
-                        <li><strong>As :</strong> 4 essais pour poser une figure.</li>
+                <div id="rules-selection" class="rules-view active">
+                    <p>Sélectionnez un jeu pour voir ses règles :</p>
+                    <ul class="game-rules-list" style="list-style: none; padding: 0;">
+                        <li><button class="button game-rule-btn" data-target="rules-bataille-corse" style="width: 100%; margin-bottom: 0.5rem; justify-content: flex-start;">Bataille Corse</button></li>
+                        <!-- D'autres jeux pourront être ajoutés ici -->
                     </ul>
-                    <p>Si le défi échoue, le joueur qui a posé la dernière figure récupère le tas. Si une nouvelle figure sort pendant le défi, elle relance un nouveau défi pour le joueur suivant.</p>
-                </section>
+                </div>
 
-                <section class="how-to-play-section">
-                    <h3>Combinaisons de tape</h3>
-                    <ul>
-                        <li><strong>Double :</strong> les deux dernières cartes ont la même valeur.</li>
-                        <li><strong>Sandwich :</strong> la dernière carte et celle placée deux cartes avant ont la même valeur.</li>
-                        <li><strong>Suite :</strong> les trois dernières cartes se suivent, en ordre croissant ou décroissant, si cette variante est activée.</li>
-                        <li><strong>Dix :</strong> un 10 vient d'être posé, si cette variante est activée.</li>
-                        <li><strong>Somme de 10 :</strong> les deux dernières cartes valent exactement 10 au total.</li>
-                        <li><strong>Sandwich de 10 :</strong> la dernière carte et celle placée deux cartes avant valent exactement 10 au total.</li>
-                    </ul>
-                </section>
+                <div id="rules-bataille-corse" class="rules-view" style="display: none;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                        <button class="button back-to-rules-btn" style="padding: 0.4rem 1rem; font-size: 0.9rem;">← Retour</button>
+                        <h3 style="margin: 0;">Bataille Corse</h3>
+                    </div>
+                    <section class="how-to-play-section">
+                        <h4>Objectif</h4>
+                        <p>Le but est de remporter toutes les cartes. Les joueurs posent une carte chacun leur tour au centre de la table, sans choisir la carte jouée.</p>
+                        <p>Quand une combinaison valide apparaît, tout le monde peut taper sur le tas : le premier joueur validé récupère toutes les cartes du centre, ainsi que les éventuelles cartes de pénalité.</p>
+                    </section>
 
-                <section class="how-to-play-section">
-                    <h3>Pénalités et fin de partie</h3>
-                    <p>Une tape invalide ou une carte jouée hors tour peut retirer des cartes au joueur fautif. Ces cartes vont dans la pile de pénalité et seront gagnées avec le prochain tas.</p>
-                    <p>Selon les options de la salle, une pénalité peut aussi être en mort subite : le joueur perd alors toutes ses cartes restantes. La partie se termine quand un seul joueur possède encore des cartes.</p>
-                </section>
+                    <section class="how-to-play-section">
+                        <h4>Figures et défis</h4>
+                        <p>Lorsqu'une figure est posée, le joueur suivant doit tenter de répondre avec une autre figure dans un nombre limité de cartes.</p>
+                        <ul>
+                            <li><strong>Valet :</strong> 1 essai pour poser une figure.</li>
+                            <li><strong>Dame :</strong> 2 essais pour poser une figure.</li>
+                            <li><strong>Roi :</strong> 3 essais pour poser une figure.</li>
+                            <li><strong>As :</strong> 4 essais pour poser une figure.</li>
+                        </ul>
+                        <p>Si le défi échoue, le joueur qui a posé la dernière figure récupère le tas. Si une nouvelle figure sort pendant le défi, elle relance un nouveau défi pour le joueur suivant.</p>
+                    </section>
+
+                    <section class="how-to-play-section">
+                        <h4>Combinaisons de tape</h4>
+                        <ul>
+                            <li><strong>Double :</strong> les deux dernières cartes ont la même valeur.</li>
+                            <li><strong>Sandwich :</strong> la dernière carte et celle placée deux cartes avant ont la même valeur.</li>
+                            <li><strong>Suite :</strong> les trois dernières cartes se suivent, en ordre croissant ou décroissant, si cette variante est activée.</li>
+                            <li><strong>Dix :</strong> un 10 vient d'être posé, si cette variante est activée.</li>
+                            <li><strong>Somme de 10 :</strong> les deux dernières cartes valent exactement 10 au total.</li>
+                            <li><strong>Sandwich de 10 :</strong> la dernière carte et celle placée deux cartes avant valent exactement 10 au total.</li>
+                        </ul>
+                    </section>
+
+                    <section class="how-to-play-section">
+                        <h4>Pénalités et fin de partie</h4>
+                        <p>Une tape invalide ou une carte jouée hors tour peut retirer des cartes au joueur fautif. Ces cartes vont dans la pile de pénalité et seront gagnées avec le prochain tas.</p>
+                        <p>Selon les options de la salle, une pénalité peut aussi être en mort subite : le joueur perd alors toutes ses cartes restantes. La partie se termine quand un seul joueur possède encore des cartes.</p>
+                    </section>
+                </div>
             </div>
 
             <div id="info-credits" class="info-tab-content" style="display: none; text-align: center; padding: 1.5rem 0;">
@@ -154,6 +168,34 @@
                 tabContents.forEach(c => c.style.display = 'none');
                 btn.classList.add('active');
                 document.getElementById(btn.dataset.target).style.display = 'block';
+                
+                if (btn.dataset.target === 'info-rules') {
+                    document.querySelectorAll('.rules-view').forEach(v => v.style.display = 'none');
+                    const rulesSelection = document.getElementById('rules-selection');
+                    if (rulesSelection) rulesSelection.style.display = 'block';
+                }
+            });
+        });
+
+        // Navigation dans les règles
+        const gameRuleBtns = document.querySelectorAll('.game-rule-btn');
+        const backToRulesBtns = document.querySelectorAll('.back-to-rules-btn');
+
+        gameRuleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.rules-view').forEach(v => v.style.display = 'none');
+                const targetId = btn.dataset.target;
+                if (targetId && document.getElementById(targetId)) {
+                    document.getElementById(targetId).style.display = 'block';
+                }
+            });
+        });
+
+        backToRulesBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.rules-view').forEach(v => v.style.display = 'none');
+                const rulesSelection = document.getElementById('rules-selection');
+                if (rulesSelection) rulesSelection.style.display = 'block';
             });
         });
 

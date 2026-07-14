@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load static %}
+{% block body_class %}game-lobby{% endblock %}
+{% block content %}
+<h2 class="room-title">
+  Salon d'attente
+  <button
+    id="room-code-badge"
+    class="room-code-badge"
+    type="button"
+    title="Copier le code de la salle"
+    aria-label="Copier le code de la salle {{ room.code }}"
+  >
+    <span class="room-code-badge__code">{{ room.code }}</span>
+    <span class="room-code-badge__hint" aria-hidden="true">copier</span>
+  </button>
+</h2>
+
+<div class="lobby-container" style="text-align: center; margin-top: 2rem;">
+  <h3>Sélectionnez un jeu</h3>
+  
+  <div class="games-list" style="display: flex; gap: 1rem; justify-content: center; margin: 2rem 0;">
+    {% for choice_value, choice_label in game_choices %}
+    <div 
+      class="game-card {% if room.game_type == choice_value %}selected{% endif %}" 
+      data-game-type="{{ choice_value }}"
+      style="border: 2px solid {% if room.game_type == choice_value %}#4caf50{% else %}#ccc{% endif %}; padding: 2rem; border-radius: 8px; cursor: {% if is_host %}pointer{% else %}default{% endif %}; transition: all 0.3s ease; opacity: {% if not is_host and room.game_type != choice_value %}0.5{% else %}1{% endif %};"
+    >
+      <div style="font-size: 3rem; margin-bottom: 1rem;">🃏</div>
+      <h4>{{ choice_label }}</h4>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if is_host %}
+  <button id="validate-game-btn" class="action-btn" style="padding: 1rem 2rem; font-size: 1.2rem; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+    Valider le choix
+  </button>
+  {% else %}
+  <p style="color: #666; font-style: italic;">En attente que l'hôte choisisse le jeu...</p>
+  {% endif %}
+</div>
+
+<p><a href="{% url 'home' %}">Accueil</a></p>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const isHost = {{ is_host|yesno:"true,false" }};
+  const roomCode = "{{ room.code }}";
+  let selectedGame = "{{ room.game_type }}";
+
+  // Configuration WebSocket
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const socket = new WebSocket(protocol + '//' + window.location.host + '/ws/room/' + roomCode + '/');
+
+  socket.onmessage = function(e) {
+    const msg = JSON.parse(e.data);
+    if (msg.error) {
+      console.error("Erreur du serveur :", msg.error);
+      alert("Erreur: " + msg.error);
+      return;
+    }
+    if (msg.type === "game_validated") {
+      window.location.href = "{% url 'room' room.code %}";
+    } else if (msg.type === "game_type_changed") {
+      selectedGame = msg.game_type;
+      updateGameCardsUI();
+    }
+  };
+
+  function updateGameCardsUI() {
+    document.querySelectorAll('.game-card').forEach(card => {
+      if (card.dataset.gameType === selectedGame) {
+        card.style.borderColor = '#4caf50';
+        card.classList.add('selected');
+        if (!isHost) card.style.opacity = '1';
+      } else {
+        card.style.borderColor = '#ccc';
+        card.classList.remove('selected');
+        if (!isHost) card.style.opacity = '0.5';
+      }
+    });
+  }
+
+  if (isHost) {
+    const validateBtn = document.getElementById('validate-game-btn');
+    if (validateBtn) validateBtn.disabled = true;
+
+    socket.addEventListener('open', function() {
+      if (validateBtn) validateBtn.disabled = false;
+    });
+
+    document.querySelectorAll('.game-card').forEach(card => {
+      card.addEventListener('click', function() {
+        selectedGame = this.dataset.gameType;
+        updateGameCardsUI();
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'preview_game_type',
+            game_type: selectedGame
+          }));
+        }
+      });
+    });
+
+    if (validateBtn) {
+      validateBtn.addEventListener('click', function() {
+        console.log('Button clicked! Socket state:', socket.readyState);
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'validate_game',
+            game_type: selectedGame
+          }));
+        } else {
+          alert("La connexion au serveur n'est pas encore établie. Veuillez patienter un instant ou recharger la page.");
+        }
+      });
+    }
+  }
+
+  // Copier le code de la salle
+  const roomCodeBadge = document.getElementById('room-code-badge');
+  if (roomCodeBadge) {
+    roomCodeBadge.addEventListener('click', () => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(roomCode).then(() => {
+          roomCodeBadge.classList.add('copied');
+          const hint = roomCodeBadge.querySelector('.room-code-badge__hint');
+          if (hint) hint.textContent = 'copié !';
+          window.setTimeout(() => {
+            roomCodeBadge.classList.remove('copied');
+            if (hint) hint.textContent = 'copier';
+          }, 1600);
+        });
+      }
+    });
+  }
+});
+</script>
+{% endblock %}
