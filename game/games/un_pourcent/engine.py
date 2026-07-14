@@ -341,7 +341,9 @@ class UnPourCentEngine(BaseGameEngine):
             "duel_winner": duel_winner,
             "duel_loser": duel_loser,
             "wrong_voters": list(wrong_voters),
-            "votes": dict(self.votes),
+            # Clés en chaînes : le channel layer (msgpack) refuse les clés
+            # entières dans les dictionnaires diffusés.
+            "votes": {str(voter): choice for voter, choice in self.votes.items()},
             "contributions": contributions,
             "eliminated": sorted(eliminated_now),
         }

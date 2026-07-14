@@ -189,6 +189,37 @@ class UnPourCentEngineTests(SimpleTestCase):
         self.assertEqual(set(engine.in_round), {1, 2})
         self.assertIsNone(engine.reward_player)
 
+    def _assert_string_keys(self, obj, path="root"):
+        # Le channel layer de prod (msgpack, strict_map_key) refuse les clés
+        # entières. On garantit que tout objet diffusé n'a que des clés chaînes.
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                self.assertIsInstance(key, str, f"clé non-str en {path}: {key!r}")
+                self._assert_string_keys(value, f"{path}.{key}")
+        elif isinstance(obj, (list, tuple)):
+            for i, item in enumerate(obj):
+                self._assert_string_keys(item, f"{path}[{i}]")
+
+    def test_broadcast_payloads_use_string_keys(self):
+        engine = UnPourCentEngine([1, 2, 3])
+        engine.in_round = [1, 2, 3]
+        engine.turn_idx = 0
+        engine.phase = "bidding"
+        engine.current_bid = None
+        engine.hands[1] = [draw("shark", 1)]
+        engine.hands[2] = [draw("shark", 1)]
+        engine.hands[3] = [draw("shark", 1)]  # total = 3
+
+        engine.handle_action(1, {"action": "bid", "category": "shark", "value": 9})  # lie
+        engine.handle_action(2, {"action": "doubt"})  # voters = [3]
+        res = engine.handle_action(3, {"action": "vote", "choice": "accused"})
+
+        # L'état masqué ET le résultat de l'action (révélation avec votes) doivent
+        # être entièrement indexés par des chaînes.
+        self._assert_string_keys(engine.serialize(mask_for=1))
+        self._assert_string_keys(res)
+        self.assertIn("votes", res["reveal"])
+
     def test_category_sum_only_counts_in_round(self):
         engine = UnPourCentEngine([1, 2, 3])
         engine.in_round = [1, 2]
