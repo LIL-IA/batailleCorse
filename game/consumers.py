@@ -95,6 +95,9 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                 if engine is None:
                     await self.send_json({"error": "game-not-started"})
                     return
+                if engine.is_timed_out(user_id):
+                    await self.send_json({"error": "timeout", "message": "Vous êtes pénalisé pour spam !"})
+                    return
 
                 pending_collect_for_user = engine.pending_collect and engine.collect_winner == user_id
                 
@@ -140,6 +143,13 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                     return  # Fast-exit
 
             if spec.realtime_slap and t == "slap":
+                if engine is None:
+                    await self.send_json({"error": "game-not-started"})
+                    return
+                if engine.is_timed_out(user_id):
+                    await self.send_json({"error": "timeout", "message": "Vous êtes pénalisé pour spam !"})
+                    return
+
                 ts = time.time_ns()
                 ctx = await self._ensure_slap_ctx()
 

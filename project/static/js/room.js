@@ -69,7 +69,8 @@
     bad_slap_sudden_death: false,
     bad_play_sudden_death: false,
     deck_mode: DECK_MODE_AUTO,
-    deck_count: 1
+    deck_count: 1,
+    eliminated_spam_timeout: 0
   });
 
   const TEN_OPTION_KEYS = Object.freeze([
@@ -240,6 +241,9 @@
       const sanitized = Math.max(0, Math.trunc(numeric));
       if (key === 'deck_count') {
         return normalizeDeckCount(sanitized, defaultValue);
+      }
+      if (key === 'eliminated_spam_timeout') {
+        return numeric; // Allow negative values like -1
       }
       if (PENALTY_KEYS.has(key)) {
         return normalizePenaltyCount(sanitized, defaultValue);

@@ -35,6 +35,7 @@ class GameEngine(BaseGameEngine):
         "bad_play_sudden_death": False,
         "deck_mode": "auto",
         "deck_count": 1,
+        "eliminated_spam_timeout": 0,
     }
 
     @classmethod
@@ -70,6 +71,8 @@ class GameEngine(BaseGameEngine):
             numeric = max(0, numeric)
             if key == "deck_count":
                 return cls._normalize_deck_count(numeric)
+            if key == "eliminated_spam_timeout":
+                return numeric if numeric in (0, 10, 30, 60, -1) else default
             return numeric
         if isinstance(default, str):
             if value is None:
@@ -126,6 +129,9 @@ class GameEngine(BaseGameEngine):
         )
         result["deck_mode"] = cls._normalize_deck_mode(result.get("deck_mode"))
         result["deck_count"] = cls._normalize_deck_count(result.get("deck_count"))
+        
+        timeout_val = result.get("eliminated_spam_timeout")
+        result["eliminated_spam_timeout"] = timeout_val if timeout_val in (0, 10, 30, 60, -1) else cls.DEFAULT_OPTIONS["eliminated_spam_timeout"]
         return result
 
     @classmethod
@@ -234,6 +240,8 @@ class GameEngine(BaseGameEngine):
         self.winner = None
         self.last_face_player = None
         self.options = self.sanitize_options(base=options)
+        self.eliminated_invalid_slaps = {pid: 0 for pid in players}
+        self.timeout_until = {pid: 0 for pid in players}
         self._deal()
 
     def set_options(self, options):
@@ -265,6 +273,8 @@ class GameEngine(BaseGameEngine):
             "winner": self.winner,
             "active_players": active_players,
             "options": dict(self.options),
+            "timeout_until": self.timeout_until,
+            "eliminated_invalid_slaps": self.eliminated_invalid_slaps,
         }
 
     def _resolve_deck_count(self):
@@ -326,7 +336,17 @@ class GameEngine(BaseGameEngine):
                 return True
         return False
 
+    def is_timed_out(self, player_id):
+        import time
+        t = self.timeout_until.get(player_id, 0)
+        if t == -1:
+            return True
+        return t > time.time()
+
     def play_card(self, player_id):
+        if self.is_timed_out(player_id):
+            return {"error": "timeout"}
+
         if self.pending_collect and player_id == self.collect_winner:
             self.turn_idx = self.players.index(player_id)
             self._collect_center(player_id)
@@ -375,14 +395,31 @@ class GameEngine(BaseGameEngine):
         return {"ok": True, "card": card}
 
     def slap(self, player_id):
+        if self.is_timed_out(player_id):
+            return {"ok": False, "error": "timeout", "valid": False}
+
         if self._slap_valid():
             self.face_chances = 0
             self.waiting_for_face_from = None
             self.turn_idx = self.players.index(player_id)
             self._collect_center(player_id)
+            self.eliminated_invalid_slaps[player_id] = 0
             return {"ok": True, "valid": True}
         else:
             taken = self._apply_penalty(player_id, "bad_slap_penalty")
+            
+            # Spam detection for eliminated players
+            if not self.hands[player_id]:
+                self.eliminated_invalid_slaps[player_id] += 1
+                if self.eliminated_invalid_slaps[player_id] >= 3:
+                    import time
+                    timeout_opt = self.options.get("eliminated_spam_timeout", 0)
+                    if timeout_opt > 0:
+                        self.timeout_until[player_id] = time.time() + timeout_opt
+                    elif timeout_opt == -1:
+                        self.timeout_until[player_id] = -1
+                    self.eliminated_invalid_slaps[player_id] = 0
+
             return {"ok": True, "valid": False, "penalized": len(taken)}
 
     def _apply_penalty(self, player_id, key):

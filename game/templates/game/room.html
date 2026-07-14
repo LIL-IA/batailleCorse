@@ -370,6 +370,43 @@
             </div>
           </div>
         </div>
+
+        <h4 id="spam-options-title" class="room-options-section__title" style="margin-top: 1.5rem;">Anti-Spam (Joueurs Éliminés)</h4>
+        <p class="room-options-description" style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+          Pénalise d'un timeout les joueurs sans cartes qui spamment le bouton "TAPER" (3 tapes invalides de suite).
+        </p>
+        <div class="room-options-choices" role="radiogroup" aria-labelledby="spam-options-title" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+          <label class="room-options-choice">
+            <input type="radio" name="eliminated_spam_timeout" value="0" data-option-type="choice" data-option-key="eliminated_spam_timeout" />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">Désactivé</span>
+            </span>
+          </label>
+          <label class="room-options-choice">
+            <input type="radio" name="eliminated_spam_timeout" value="10" data-option-type="choice" data-option-key="eliminated_spam_timeout" />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">10s</span>
+            </span>
+          </label>
+          <label class="room-options-choice">
+            <input type="radio" name="eliminated_spam_timeout" value="30" data-option-type="choice" data-option-key="eliminated_spam_timeout" />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">30s</span>
+            </span>
+          </label>
+          <label class="room-options-choice">
+            <input type="radio" name="eliminated_spam_timeout" value="60" data-option-type="choice" data-option-key="eliminated_spam_timeout" />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">1 min</span>
+            </span>
+          </label>
+          <label class="room-options-choice">
+            <input type="radio" name="eliminated_spam_timeout" value="-1" data-option-type="choice" data-option-key="eliminated_spam_timeout" />
+            <span class="room-options-choice__texts">
+              <span class="room-options-choice__label">Définitif</span>
+            </span>
+          </label>
+        </div>
       </section>
     </form>
   </div>
