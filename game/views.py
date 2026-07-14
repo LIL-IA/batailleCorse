@@ -62,7 +62,11 @@ def create_room(request):
 def join_room(request):
     if request.method == "POST":
         code = request.POST.get("code", "").upper().strip()
-        room = get_object_or_404(Room, code=code)
+        try:
+            room = Room.objects.get(code=code)
+        except Room.DoesNotExist:
+            messages.error(request, "Le code de salle est incorrect.")
+            return redirect("join_room")
         player_count = room.players.count()
         if player_count >= 12:
             messages.error(request, "Cette salle est pleine.")

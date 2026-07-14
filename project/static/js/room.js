@@ -1643,7 +1643,7 @@
 
   socket.onopen = () => console.log('WS ouvert');
 
-  function renderPlayersList(players, readyIds, started, currentTurnId) {
+  function renderPlayersList(players, readyIds, started, currentTurnId, hostId) {
     if (!playersList) {
       return;
     }
@@ -1734,6 +1734,11 @@
         : 'Un joueur a quitté la partie.';
       showTemporaryErrorMessage(leaveMessage);
     }
+    if (msg.type === "game_unvalidated") {
+      window.location.href = '/game/lobby/' + roomCode + '/';
+      return;
+    }
+
     if (msg.error) {
       // Ignore concurrency block silently (just drops the input)
       if (msg.error === 'slap-in-progress') return; 
@@ -1781,6 +1786,11 @@
         const showRestart =
           currentUserId !== null && msg.hostId === currentUserId && hasWinner;
         restartBtn.style.display = showRestart ? '' : 'none';
+      }
+      const returnLobbyBtn = document.getElementById('return-lobby-btn');
+      if (returnLobbyBtn) {
+        const showReturn = currentUserId !== null && msg.hostId === currentUserId;
+        returnLobbyBtn.style.display = showReturn ? '' : 'none';
       }
       if (playersSection) {
         playersSection.style.display = started ? 'none' : '';
@@ -2075,6 +2085,25 @@
     if (!card || card.length < 2) {
       return el;
     }
+    
+    // Check for 1% custom cards
+    let img = '';
+    if (card === '1P') img = 'card_1_percent.png';
+    else if (card === 'TE') img = 'card_tax_evasion.png';
+    else if (card === 'MC') img = 'card_market_crash.png';
+    else if (card === 'ST') img = 'card_strike.png';
+    else if (card.startsWith('W')) img = 'card_wealth.png';
+    
+    if (img) {
+      el.style.border = 'none';
+      el.style.backgroundColor = 'transparent';
+      el.innerHTML = `<img src="/static/images/cards_1_percent/${img}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">`;
+      if (card.startsWith('W')) {
+         el.innerHTML += `<div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-weight:bold; color:black; font-size:2rem; background:rgba(255,255,255,0.7); padding:4px 8px; border-radius:4px;">${card.substring(1)}</div>`;
+      }
+      return el;
+    }
+
     const rank = card[0];
     const suit = card[1];
     const suitSymbol = SUIT_SYMBOLS[suit] || '';
@@ -2632,3 +2661,20 @@
     });
   }
 })();
+
+// 1% Specific Functions (Global)
+window.submitBid = function() {
+  const valInput = document.getElementById('op-bid-value');
+  const famSelect = document.getElementById('op-bid-family');
+  if (valInput && famSelect) {
+    const val = parseInt(valInput.value, 10);
+    const fam = famSelect.value;
+    if (val > 0) {
+      window.wsSend({type: 'play', action: 'bid', value: val, family: fam});
+    }
+  }
+};
+
+window.submitChallenge = function() {
+  window.wsSend({type: 'play', action: 'challenge'});
+};

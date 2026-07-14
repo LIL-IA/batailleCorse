@@ -16,6 +16,20 @@
   </button>
 </h2>
 
+<div id="players-section" style="text-align: center; margin-top: 1rem;">
+  <p style="color: #cbd5e1; margin-bottom: 0.5rem;">Joueurs présents :</p>
+  <ul id="players-list" style="list-style: none; padding: 0; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+    {% for p in players %}
+      <li class="player-item" data-user-id="{{ p.user.id }}" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 0.4rem 1rem; border-radius: 6px;">
+        <strong>{{ p.user.username }}</strong>
+        {% if p.user == room.host %}
+          <span class="host-indicator" style="margin-left: 0.5rem;" title="Hôte de la partie">👑</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+
 <div class="lobby-container" style="text-align: center; margin-top: 2rem;">
   <h3>Sélectionnez un jeu</h3>
   
@@ -26,7 +40,13 @@
       data-game-type="{{ choice_value }}"
       style="border: 2px solid {% if room.game_type == choice_value %}#4caf50{% else %}#ccc{% endif %}; padding: 2rem; border-radius: 8px; cursor: {% if is_host %}pointer{% else %}default{% endif %}; transition: all 0.3s ease; opacity: {% if not is_host and room.game_type != choice_value %}0.5{% else %}1{% endif %};"
     >
-      <div style="font-size: 3rem; margin-bottom: 1rem;">🃏</div>
+      {% if choice_value == 'bataille_corse' %}
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🃏</div>
+      {% elif choice_value == '1_percent' %}
+        <div style="font-size: 3rem; margin-bottom: 1rem;">💰</div>
+      {% else %}
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🎮</div>
+      {% endif %}
       <h4>{{ choice_label }}</h4>
     </div>
     {% endfor %}
@@ -65,8 +85,42 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (msg.type === "game_type_changed") {
       selectedGame = msg.game_type;
       updateGameCardsUI();
+    } else if (msg.type === "state") {
+      if (msg.players) {
+        updatePlayersList(msg.players, msg.hostId);
+      }
     }
   };
+
+  function updatePlayersList(players, hostId) {
+    const playersList = document.getElementById('players-list');
+    if (!playersList) return;
+    playersList.innerHTML = '';
+    players.forEach(p => {
+      const li = document.createElement('li');
+      li.className = 'player-item';
+      li.dataset.userId = p.userId;
+      li.style.background = 'rgba(255, 255, 255, 0.05)';
+      li.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+      li.style.padding = '0.4rem 1rem';
+      li.style.borderRadius = '6px';
+      
+      const strong = document.createElement('strong');
+      strong.textContent = p.username;
+      li.appendChild(strong);
+      
+      if (hostId !== undefined && hostId !== null && p.userId === hostId) {
+        const span = document.createElement('span');
+        span.className = 'host-indicator';
+        span.style.marginLeft = '0.5rem';
+        span.title = 'Hôte de la partie';
+        span.textContent = '👑';
+        li.appendChild(span);
+      }
+      
+      playersList.appendChild(li);
+    });
+  }
 
   function updateGameCardsUI() {
     document.querySelectorAll('.game-card').forEach(card => {

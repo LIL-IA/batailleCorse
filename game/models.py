@@ -6,6 +6,7 @@ from django.dispatch import receiver
 class Room(models.Model):
     GAME_CHOICES = [
         ('bataille_corse', 'Bataille Corse'),
+        ('1_percent', 'Le 1%'),
     ]
     code = models.CharField(max_length=8, unique=True)
     host = models.ForeignKey(User, on_delete=models.CASCADE, related_name="hosted_rooms")

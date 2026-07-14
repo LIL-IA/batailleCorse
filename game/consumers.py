@@ -265,6 +265,20 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
                         "game_type": game_type,
                     }
                 )
+            elif t == "return_to_lobby":
+                if not await self._is_host(user_id):
+                    await self.send_json({"error": "not-host"})
+                    return
+                await self._set_room_stopped()
+                await self._reset_engine(clear_ready=True)
+                await self._reset_ready_flags()
+                await self._unvalidate_room_game()
+                await self.channel_layer.group_send(
+                    self.group,
+                    {
+                        "type": "game_unvalidated",
+                    }
+                )
             else:
                 await self.send_json({"error": "unknown-event"})
         except Exception as e:
@@ -526,6 +540,11 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             "game_type": event["game_type"]
         })
 
+    async def game_unvalidated(self, event):
+        await self.send_json({
+            "type": "game_unvalidated"
+        })
+
     async def refresh_state(self, event):
         await self._reset_engine(clear_ready=False)
         await self._broadcast_state()
@@ -719,6 +738,12 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
     def _validate_room_game(self):
         room = Room.objects.get(code=self.room_code)
         room.game_selected = True
+        room.save(update_fields=["game_selected"])
+
+    @database_sync_to_async
+    def _unvalidate_room_game(self):
+        room = Room.objects.get(code=self.room_code)
+        room.game_selected = False
         room.save(update_fields=["game_selected"])
 
     @database_sync_to_async
